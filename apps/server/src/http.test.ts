@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { SkillPackage, SkillVersion, Workspace } from "@skill-library/domain";
 import { createRegistryStore, type SqlRegistryStore } from "@skill-library/storage";
 import { createHttpApp } from "./http.js";
+import { defaultRegistryBrandingConfig } from "./registry-config.js";
 
 const tmpDirs: string[] = [];
 const execFileAsync = promisify(execFile);
@@ -17,6 +18,26 @@ afterEach(async () => {
 });
 
 describe("HTTP registry API", () => {
+  it("serves public branding config", async () => {
+    const { app, store } = await createSeededApp({
+      registryTagline: "Rebtech skill registry",
+      companyName: "Rebtech"
+    });
+
+    try {
+      const response = await app.request("/api/config");
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({
+        branding: expect.objectContaining({
+          registryTagline: "Rebtech skill registry",
+          companyName: "Rebtech"
+        })
+      });
+    } finally {
+      await store.close();
+    }
+  });
+
   it("serves health and catalog search", async () => {
     const { app, store } = await createSeededApp();
 
@@ -226,7 +247,7 @@ describe("HTTP registry API", () => {
   it("creates a default workspace when publishing into a fresh registry", async () => {
     const store = await createRegistryStore({ dataDir: await makeTmpDir() });
     await store.migrate();
-    const app = createHttpApp(store);
+    const app = createHttpApp(store, defaultRegistryBrandingConfig());
 
     try {
       const created = await app.request("/api/workspaces/acme/packages/upload", {
@@ -578,7 +599,7 @@ describe("HTTP registry API", () => {
     const store = await createRegistryStore({ dataDir: await makeTmpDir() });
     await store.migrate();
     await seedPrivateStore(store as SqlRegistryStore);
-    const app = createHttpApp(store);
+    const app = createHttpApp(store, defaultRegistryBrandingConfig());
 
     try {
       const deniedCatalog = await app.request("/api/workspaces/private-workspace/packages");
@@ -673,13 +694,13 @@ describe("HTTP registry API", () => {
   });
 });
 
-async function createSeededApp() {
+async function createSeededApp(brandingOverrides: Partial<ReturnType<typeof defaultRegistryBrandingConfig>> = {}) {
   const store = await createRegistryStore({ dataDir: await makeTmpDir() });
   await store.migrate();
   await seedStore(store as SqlRegistryStore);
 
   return {
-    app: createHttpApp(store),
+    app: createHttpApp(store, { ...defaultRegistryBrandingConfig(), ...brandingOverrides }),
     store
   };
 }

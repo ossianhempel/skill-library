@@ -33,6 +33,7 @@ COPY --from=build /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/apps/web/dist ./apps/web/dist
 COPY --from=build /app/packages ./packages
+COPY --from=build /app/registry.config.json ./registry.config.json
 VOLUME ["/data"]
 EXPOSE 3000
 CMD ["node", "apps/server/dist/serve.js"]

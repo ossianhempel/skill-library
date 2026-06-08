@@ -135,3 +135,39 @@ export interface UsageEvent {
   packageId?: SkillPackageId;
   versionId?: SkillVersionId;
 }
+
+export interface RegistryBrandingConfig {
+  appName: string;
+  appShortName: string;
+  registryTagline: string;
+  companyName: string;
+  defaultWorkspaceId: string;
+  registryPublicUrl: string;
+  documentTitle: string;
+  loginSubtitle: string;
+  overviewHeading: string;
+  overviewDescription: string;
+  searchPlaceholder: string;
+  emptyCatalogTitle: string;
+  emptyCatalogDescription: string;
+  emptyCatalogListMessage: string;
+  uploadDescription: string;
+}
+
+export const DEFAULT_REGISTRY_BRANDING: RegistryBrandingConfig = {
+  appName: "Skill Library",
+  appShortName: "SL",
+  registryTagline: "Internal skill registry",
+  companyName: "Your company",
+  defaultWorkspaceId: "workspace-1",
+  registryPublicUrl: "http://localhost:3000",
+  documentTitle: "Skill Library",
+  loginSubtitle: "Sign in with your company account to browse, publish, and manage skills.",
+  overviewHeading: "Find an approved skill or publish a new draft.",
+  overviewDescription: "Most teams only need these two paths: browse what is ready to install, or send a new skill through validation and approval.",
+  searchPlaceholder: "Search approved skills",
+  emptyCatalogTitle: "Your registry is empty.",
+  emptyCatalogDescription: "Upload a skill package or import one from Git to populate the catalog.",
+  emptyCatalogListMessage: "No approved skills yet. Publish a draft and approve it to list it here.",
+  uploadDescription: "Upload a skill package folder from your machine. The folder must contain a SKILL.md file at its root."
+};

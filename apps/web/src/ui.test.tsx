@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PackageReport, SkillPackage, SkillVersion } from "@skill-library/domain";
+import { DEFAULT_REGISTRY_BRANDING, type PackageReport, type SkillPackage, type SkillVersion } from "@skill-library/domain";
 import {
   buildInstallPrompt,
   buildUploadRequest,
@@ -18,10 +18,10 @@ afterEach(() => cleanup());
 
 describe("SkillLibraryApp", () => {
   it("renders a focused overview and opens the main sections through navigation", () => {
-    render(<SkillLibraryApp skills={[skill]} />);
+    render(<SkillLibraryApp skills={[skill]} branding={testBranding} />);
 
     expect(screen.getByRole("main")).toBeTruthy();
-    expect(screen.getByText("Acme internal registry")).toBeTruthy();
+    expect(screen.getByText("Rebtech skill registry")).toBeTruthy();
     expect(screen.getByText("Start here")).toBeTruthy();
     expect(screen.getByText("Find an approved skill or publish a new draft.")).toBeTruthy();
     
@@ -50,7 +50,7 @@ describe("SkillLibraryApp", () => {
   it("keeps existing formatter helpers", () => {
     expect(renderCatalogTitle([skill.pkg])).toBe("Skill Library (1)");
     expect(renderLifecycleBadge(skill.latestApproved!)).toBe("APPROVED");
-    expect(buildInstallPrompt("review-helper", "project")).toContain("--target project");
+    expect(buildInstallPrompt("review-helper", "workspace-1", "https://skills.example.com", "project")).toContain("--target project");
     expect(buildUploadRequest("review-helper", "1.2.0")).toEqual(expect.objectContaining({ packageName: "Review Helper", version: "1.2.0" }));
     expect(summarizeReports([report])).toEqual({ packages: 1, installs: 4, currentInstalls: 3, staleInstalls: 1 });
   });
@@ -151,6 +151,13 @@ const report: PackageReport = {
       "modified-local-content": 0
     }
   }
+};
+
+const testBranding = {
+  ...DEFAULT_REGISTRY_BRANDING,
+  registryTagline: "Rebtech skill registry",
+  companyName: "Rebtech",
+  registryPublicUrl: "https://skills.rebtech.se"
 };
 
 const skill = {

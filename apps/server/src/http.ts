@@ -2,11 +2,11 @@ import { Hono } from "hono";
 import { createRegistryApi, type RegistryApi } from "./index.js";
 import type { RegistryStore } from "@skill-library/storage";
 import type { PackageTreeEntry } from "@skill-library/validation";
-import type { LifecycleState, Workspace } from "@skill-library/domain";
+import type { LifecycleState, RegistryBrandingConfig, Workspace } from "@skill-library/domain";
 import { actorFromHeaders, hasRole } from "./auth.js";
 import { getBetterAuthInstance, type BetterAuthInstance } from "./better-auth.js";
 
-export function createHttpApp(store: RegistryStore) {
+export function createHttpApp(store: RegistryStore, branding: RegistryBrandingConfig) {
   const api = createRegistryApi(store);
   const auth = getBetterAuthInstance(store);
   const app = new Hono();
@@ -14,6 +14,8 @@ export function createHttpApp(store: RegistryStore) {
   app.on(["POST", "GET"], "/api/auth/*", (context) => auth.handler(context.req.raw));
 
   app.get("/health", (context) => context.json({ ok: true, mode: store.mode }));
+
+  app.get("/api/config", (context) => context.json({ branding }));
 
   app.get("/api/workspaces/:workspaceId", async (context) => {
     const workspace = await api.workspaceDetail(context.req.param("workspaceId"));

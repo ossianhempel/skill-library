@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
 import { createRegistryStore } from "@skill-library/storage";
 import { createHttpApp } from "./http.js";
+import { loadRegistryBrandingConfig } from "./registry-config.js";
 import { createRegistryApi } from "./index.js";
 import { nodeResponseHeaders } from "./node-response-headers.js";
 import { resolveStaticAssetPath } from "./static-asset-path.js";
@@ -68,7 +69,8 @@ for (const skill of devSkills) {
 }
 }
 
-const app = createHttpApp(store);
+const branding = await loadRegistryBrandingConfig();
+const app = createHttpApp(store, branding);
 
 async function getFilesRecursively(dir: string, baseDir: string = dir): Promise<{ path: string; content: string }[]> {
   const entries = await readdir(dir, { withFileTypes: true });

@@ -1,0 +1,14 @@
+# Copy to fork-sync.conf at the repo root and customize for your fork.
+# fork-sync.conf is fork-specific; do not commit it to the upstream OSS repo.
+
+UPSTREAM_URL="https://github.com/ossianhempel/skill-library.git"
+UPSTREAM_BRANCH="main"
+UPSTREAM_REMOTE="upstream"
+
+# Files that exist only in your fork (or fork overrides). They are backed up
+# before merging upstream and restored afterward so deploy/CI config survives.
+FORK_LOCAL_PATHS=(
+  "azure-pipelines.yml"
+  "AGENTS.md"
+  "registry.config.json"
+)

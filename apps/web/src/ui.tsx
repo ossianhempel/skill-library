@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import { Archive, BarChart3, CheckCircle2, ChevronDown, Download, FileCode2, GitBranch, Loader2, LogOut, RefreshCw, Search, Shield, ShieldCheck, TerminalSquare, UploadCloud, User, Users } from "lucide-react";
-import type { LifecycleState, PackageReport, SkillPackage, SkillVersion, ValidationResult } from "@skill-library/domain";
+import { DEFAULT_REGISTRY_BRANDING, type LifecycleState, type PackageReport, type RegistryBrandingConfig, type SkillPackage, type SkillVersion, type ValidationResult } from "@skill-library/domain";
 
 export interface SessionUser {
   id: string;
@@ -67,6 +67,7 @@ export interface SkillLibraryAppProps {
   registryUrl?: string;
   authToken?: string;
   api?: WebApiClient;
+  branding?: RegistryBrandingConfig;
 }
 
 type AppTab = "overview" | "catalog" | "publish" | "reports" | "admin";
@@ -109,7 +110,16 @@ const devSampleSkills: CatalogSkill[] = [
   }
 ];
 
-export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryUrl = "", authToken = browserToken(), api }: SkillLibraryAppProps) {
+export function SkillLibraryApp({
+  skills,
+  workspaceId: workspaceIdProp,
+  registryUrl = "",
+  authToken = browserToken(),
+  api,
+  branding: brandingProp
+}: SkillLibraryAppProps) {
+  const [branding, setBranding] = useState<RegistryBrandingConfig>(brandingProp ?? DEFAULT_REGISTRY_BRANDING);
+  const workspaceId = workspaceIdProp ?? branding.defaultWorkspaceId;
   const [catalog, setCatalog] = useState<CatalogSkill[]>(skills ?? []);
   const [selectedId, setSelectedId] = useState<string | undefined>(catalog[0]?.pkg.id);
   const [query, setQuery] = useState("");
@@ -137,6 +147,34 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
   useEffect(() => {
     void fetchSession();
   }, [registryUrl]);
+
+  useEffect(() => {
+    if (brandingProp) {
+      return;
+    }
+
+    void fetchBranding();
+  }, [brandingProp, registryUrl]);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.title = branding.documentTitle;
+    }
+  }, [branding.documentTitle]);
+
+  async function fetchBranding() {
+    try {
+      const baseUrl = registryUrl.replace(/\/$/, "");
+      const response = await fetch(`${baseUrl}/api/config`);
+
+      if (response.ok) {
+        const data = (await response.json()) as { branding: RegistryBrandingConfig };
+        setBranding(data.branding);
+      }
+    } catch {
+      // Keep defaults when config is unavailable.
+    }
+  }
 
   async function fetchSession() {
     setSessionLoading(true);
@@ -502,7 +540,7 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
       return;
     }
 
-    await navigator.clipboard?.writeText(buildInstallPrompt(selected.pkg.slug)).catch(() => undefined);
+    await navigator.clipboard?.writeText(buildInstallPrompt(selected.pkg.slug, workspaceId, resolvedRegistryUrl)).catch(() => undefined);
     setNotice("Install prompt copied");
   }
 
@@ -524,13 +562,15 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
   // Show login screen when not authenticated (no SSO session and no API token)
   // In dev mode (localhost), always allow access via token fallback
   if (!hasSession && !useTokenAuth && !isLocalDev()) {
-    return <LoginScreen onSignIn={handleSignIn} signingIn={signingIn} checkingSession={sessionLoading} />;
+    return <LoginScreen branding={branding} onSignIn={handleSignIn} signingIn={signingIn} checkingSession={sessionLoading} />;
   }
+
+  const resolvedRegistryUrl = registryUrl || branding.registryPublicUrl || (typeof window !== "undefined" ? window.location.origin : "");
 
   return (
     <main className={`shell ${activeTab === "catalog" ? "layout-catalog" : "layout-single"}`}>
       <aside className="rail" aria-label="Workspace">
-        <div className="mark">SL</div>
+        <div className="mark">{branding.appShortName}</div>
         <NavButton icon={<Archive size={19} />} label="Overview" active={activeTab === "overview"} onClick={() => setActiveTab("overview")} />
         <NavButton icon={<Search size={19} />} label="Catalog" active={activeTab === "catalog"} onClick={() => setActiveTab("catalog")} />
         <NavButton icon={<UploadCloud size={19} />} label="Publish" active={activeTab === "publish"} onClick={() => setActiveTab("publish")} />
@@ -569,18 +609,18 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
       <section className="catalog-pane" aria-label="Workspace overview">
         <header className="topbar">
           <div>
-            <p className="kicker">Acme internal registry</p>
-            <h1>Skill Library</h1>
+            <p className="kicker">{branding.registryTagline}</p>
+            <h1>{branding.appName}</h1>
           </div>
-          {(activeTab === "catalog" || activeTab === "overview") && <label className="searchbox"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search approved skills" /></label>}
+          {(activeTab === "catalog" || activeTab === "overview") && <label className="searchbox"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={branding.searchPlaceholder} /></label>}
         </header>
 
         {activeTab === "overview" && (
           <section className="overview-stack" aria-label="Start here">
             <div className="decision-panel">
               <p className="kicker">Start here</p>
-              <h2>Find an approved skill or publish a new draft.</h2>
-              <p>Most teams only need these two paths: browse what is ready to install, or send a new skill through validation and approval.</p>
+              <h2>{branding.overviewHeading}</h2>
+              <p>{branding.overviewDescription}</p>
               <div className="actions">
                 <button onClick={() => setActiveTab("catalog")}><Search size={17} />Browse catalog</button>
                 <button className="secondary" onClick={() => setActiveTab("publish")}><UploadCloud size={17} />Publish draft</button>
@@ -597,8 +637,8 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
               <article className="featured-skill empty-catalog">
                 <div>
                   <p className="kicker">No skills yet</p>
-                  <h2>Your registry is empty.</h2>
-                  <p>Upload a skill package or import one from Git to populate the catalog.</p>
+                  <h2>{branding.emptyCatalogTitle}</h2>
+                  <p>{branding.emptyCatalogDescription}</p>
                 </div>
                 <button onClick={() => setActiveTab("publish")}>Publish first skill</button>
               </article>
@@ -611,7 +651,7 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
             catalog={catalog}
             selectedId={selected?.pkg.id}
             onSelect={setSelectedId}
-            emptyMessage={catalog.length === 0 ? "No approved skills yet. Publish a draft and approve it to list it here." : undefined}
+            emptyMessage={catalog.length === 0 ? branding.emptyCatalogListMessage : undefined}
           />
         )}
 
@@ -620,7 +660,7 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
             <section className="publish-console" aria-label="Publish local draft">
               <div className="panel-title"><UploadCloud size={17} />Publish local folder</div>
               <p style={{ margin: "-8px 0 16px", color: "var(--muted)", fontSize: "0.92rem" }}>
-                Upload a skill package folder from your machine. The folder must contain a SKILL.md file at its root.
+                {branding.uploadDescription}
               </p>
               <div className="form-grid">
                 <label>Workspace<input value={workspaceId} readOnly /></label>
@@ -679,7 +719,7 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
               </div>
               <div className="git-import" style={{ marginTop: "16px" }}>
                 <GitBranch size={18} />
-                <code>{buildGitImportCurl(publishForm.packageSlug)}</code>
+                <code>{buildGitImportCurl(workspaceId, publishForm.packageSlug)}</code>
                 <button onClick={handleGitImport} disabled={loading}>Import</button>
               </div>
             </section>
@@ -718,7 +758,7 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
             <div className="panel-title"><TerminalSquare size={17} />How to use</div>
             {selected.latestApproved ? (
               <div className="install-actions-stack">
-                <code>{buildInstallPrompt(selected.pkg.slug)}</code>
+                <code>{buildInstallPrompt(selected.pkg.slug, workspaceId, resolvedRegistryUrl)}</code>
                 <div className="actions">
                   <button onClick={() => void copyInstallPrompt()}><TerminalSquare size={17} />Copy command</button>
                   <a className="button secondary" href={artifactDownloadUrl(registryUrl, selected)}>
@@ -765,16 +805,21 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
   );
 }
 
-export function renderCatalogTitle(packages: SkillPackage[]) {
-  return `Skill Library (${packages.length})`;
+export function renderCatalogTitle(packages: SkillPackage[], appName = DEFAULT_REGISTRY_BRANDING.appName) {
+  return `${appName} (${packages.length})`;
 }
 
 export function renderLifecycleBadge(version: SkillVersion) {
   return version.lifecycleState.toUpperCase();
 }
 
-export function buildInstallPrompt(packageSlug: string, target: "codex-global" | "project" = "codex-global") {
-  return `skill-library install ${packageSlug} --workspace workspace-1 --target ${target} --registry https://skills.internal`;
+export function buildInstallPrompt(
+  packageSlug: string,
+  workspaceId: string,
+  registryUrl: string,
+  target: "codex-global" | "project" = "codex-global"
+) {
+  return `skill-library install ${packageSlug} --workspace ${workspaceId} --target ${target} --registry ${registryUrl}`;
 }
 
 export function buildUploadRequest(packageSlug: string, version: string) {
@@ -909,8 +954,8 @@ function artifactDownloadUrl(registryUrl: string, skill: CatalogSkill) {
   return url.toString();
 }
 
-function buildGitImportCurl(packageSlug: string) {
-  return `POST /api/workspaces/workspace-1/packages/import-git  ${packageSlug}@main`;
+function buildGitImportCurl(workspaceId: string, packageSlug: string) {
+  return `POST /api/workspaces/${workspaceId}/packages/import-git  ${packageSlug}@main`;
 }
 
 function NavButton({ icon, label, active, onClick }: { icon: ReactNode; label: string; active: boolean; onClick: () => void }) {
@@ -975,10 +1020,12 @@ function ReportPanel({ catalog, summary }: { catalog: CatalogSkill[]; summary: R
 }
 
 function LoginScreen({
+  branding,
   onSignIn,
   signingIn = false,
   checkingSession = false
 }: {
+  branding: RegistryBrandingConfig;
   onSignIn: () => void;
   signingIn?: boolean;
   checkingSession?: boolean;
@@ -991,10 +1038,13 @@ function LoginScreen({
   return (
     <main className="login-shell">
       <div className="login-card">
-        <div className="mark" style={{ margin: "0 auto 20px" }}>SL</div>
-        <h1 style={{ fontSize: "2.2rem", textAlign: "center", marginBottom: "8px" }}>Skill Library</h1>
+        <div className="mark" style={{ margin: "0 auto 20px" }}>{branding.appShortName}</div>
+        <h1 style={{ fontSize: "2.2rem", textAlign: "center", marginBottom: "8px" }}>{branding.appName}</h1>
+        <p style={{ textAlign: "center", maxWidth: "360px", margin: "0 auto 8px", color: "var(--muted)", fontSize: "0.92rem" }}>
+          {branding.registryTagline}
+        </p>
         <p style={{ textAlign: "center", maxWidth: "360px", margin: "0 auto 32px" }}>
-          Sign in with your company account to browse, publish, and manage skills.
+          {branding.loginSubtitle}
         </p>
         {busy ? (
           <div className="login-loading" role="status" aria-live="polite">
