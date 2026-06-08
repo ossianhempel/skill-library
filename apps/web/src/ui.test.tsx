@@ -96,7 +96,9 @@ describe("SkillLibraryApp", () => {
     await waitFor(() => expect(api.search).toHaveBeenCalled());
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));
 
-    fireEvent.change(screen.getAllByPlaceholderText("my-skill")[0], { target: { value: "review-helper" } });
+    const slugInputs = screen.getAllByPlaceholderText("my-skill");
+    const refInputs = screen.getAllByPlaceholderText("main");
+    fireEvent.change(slugInputs[0]!, { target: { value: "review-helper" } });
     fireEvent.change(screen.getByPlaceholderText("1.0.0"), { target: { value: "1.0.0" } });
 
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
