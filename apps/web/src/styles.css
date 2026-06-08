@@ -940,6 +940,31 @@ p { color: var(--muted); line-height: 1.45; }
   color: var(--muted);
 }
 
+.admin-role-legend {
+  display: grid;
+  gap: var(--space-10);
+  border: 1px solid var(--line);
+  background: rgba(251, 250, 244, 0.9);
+  padding: var(--space-14) var(--space-16);
+}
+
+.admin-role-legend-item {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.admin-role-legend-item p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+}
+
+.lifecycle-copy {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+}
+
 .admin-table {
   border: 1px solid var(--line);
   background: rgba(251, 250, 244, 0.9);

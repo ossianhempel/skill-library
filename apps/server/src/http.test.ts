@@ -482,13 +482,13 @@ describe("HTTP registry API", () => {
     }
   });
 
-  it("denies maintainer routes without sufficient role", async () => {
+  it("lets signed-in viewers publish drafts but blocks maintainer-only routes", async () => {
     const { app, store } = await createSeededApp();
 
     try {
       const upload = await app.request("/api/workspaces/workspace-1/packages/upload", {
         method: "POST",
-        headers: userHeaders(),
+        headers: { ...userHeaders(), "content-type": "application/json" },
         body: JSON.stringify({
           packageSlug: "release-notes",
           packageName: "Release Notes",
@@ -497,12 +497,18 @@ describe("HTTP registry API", () => {
           entries: [{ path: "release-notes/SKILL.md", content: "# Release notes\n" }]
         })
       });
+      const approve = await app.request(`/api/versions/version-1/lifecycle`, {
+        method: "POST",
+        headers: { ...userHeaders(), "content-type": "application/json" },
+        body: JSON.stringify({ toState: "approved" })
+      });
       const report = await app.request("/api/install-reports", {
         method: "POST",
         body: JSON.stringify({})
       });
 
-      expect(upload.status).toBe(403);
+      expect(upload.status).toBe(201);
+      expect(approve.status).toBe(403);
       expect(report.status).toBe(403);
     } finally {
       await store.close();

@@ -191,8 +191,8 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   app.post("/api/workspaces/:workspaceId/packages/upload", async (context) => {
     const actor = await actorFromHeaders(context.req.raw.headers, auth);
 
-    if (!hasRole(actor, "maintainer")) {
-      return context.json({ error: "Maintainer role required" }, 403);
+    if (!hasRole(actor, "user")) {
+      return context.json({ error: "Sign-in required" }, 403);
     }
 
     const body = (await context.req.json()) as {
@@ -230,8 +230,8 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   app.post("/api/workspaces/:workspaceId/packages/import-git", async (context) => {
     const actor = await actorFromHeaders(context.req.raw.headers, auth);
 
-    if (!hasRole(actor, "maintainer")) {
-      return context.json({ error: "Maintainer role required" }, 403);
+    if (!hasRole(actor, "user")) {
+      return context.json({ error: "Sign-in required" }, 403);
     }
 
     const body = (await context.req.json()) as {

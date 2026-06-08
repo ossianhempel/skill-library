@@ -122,6 +122,18 @@ export interface PackageReport {
 export type UsageEventType = "view" | "download";
 export type WorkspaceRole = "user" | "maintainer" | "admin";
 
+export const WORKSPACE_ROLE_LABELS: Record<WorkspaceRole, string> = {
+  user: "Viewer",
+  maintainer: "Editor",
+  admin: "Admin"
+};
+
+export const WORKSPACE_ROLE_DESCRIPTIONS: Record<WorkspaceRole, string> = {
+  user: "Browse and install approved skills.",
+  maintainer: "Publish drafts and approve skills for the catalog.",
+  admin: "Manage teammates plus all editor actions."
+};
+
 export interface Actor {
   id: string;
   role: WorkspaceRole;

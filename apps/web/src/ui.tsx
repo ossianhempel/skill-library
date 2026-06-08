@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import { Archive, BarChart3, CheckCircle2, ChevronDown, Download, FileCode2, GitBranch, Loader2, LogOut, RefreshCw, Search, Shield, ShieldCheck, TerminalSquare, UploadCloud, User, Users } from "lucide-react";
-import { DEFAULT_REGISTRY_BRANDING, type LifecycleState, type PackageReport, type RegistryBrandingConfig, type SkillPackage, type SkillVersion, type ValidationResult } from "@skill-library/domain";
+import {
+  DEFAULT_REGISTRY_BRANDING,
+  WORKSPACE_ROLE_DESCRIPTIONS,
+  WORKSPACE_ROLE_LABELS,
+  type LifecycleState,
+  type PackageReport,
+  type RegistryBrandingConfig,
+  type SkillPackage,
+  type SkillVersion,
+  type ValidationResult,
+  type WorkspaceRole
+} from "@skill-library/domain";
 
 export interface SessionUser {
   id: string;
@@ -261,7 +272,7 @@ export function SkillLibraryApp({
         body: JSON.stringify({ role: newRole })
       });
       if (response.ok) {
-        setNotice(`User role updated to ${newRole}`);
+        setNotice(`Role updated to ${formatRoleLabel(newRole)}`);
         await loadAdminUsers();
       } else {
         setNotice("Failed to update user role");
@@ -586,7 +597,7 @@ export function SkillLibraryApp({
             </div>
             <div className="session-info">
               <span className="session-name">{session.name}</span>
-              <span className={`session-role role-${session.role}`}>{session.role}</span>
+              <span className={`session-role role-${session.role}`}>{formatRoleLabel(session.role)}</span>
             </div>
             <button className="session-logout" onClick={() => void handleLogout()} aria-label="Sign out" title="Sign out">
               <LogOut size={14} />
@@ -790,6 +801,7 @@ export function SkillLibraryApp({
           {canManageLifecycle && (
             <div className="lifecycle-panel">
               <div className="panel-title"><RefreshCw size={17} />Lifecycle controls</div>
+              <p className="lifecycle-copy">Editors and Admins review drafts here. Approval makes a skill installable from the catalog.</p>
               <div className="actions">
                 <button onClick={() => void handleLifecycle("approved")} disabled={loading}><CheckCircle2 size={17} />Approve</button>
                 <button className="secondary" onClick={() => void handleLifecycle("hidden")} disabled={loading}><ShieldCheck size={17} />Hide</button>
@@ -1112,7 +1124,7 @@ function AdminPanel({
             </div>
           </div>
           <div className="admin-self-meta">
-            <span className={`session-role role-${currentUser.role}`}>{currentUser.role}</span>
+            <span className={`session-role role-${currentUser.role}`}>{formatRoleLabel(currentUser.role)}</span>
             {selfRecord ? (
               <span className="admin-self-joined">
                 Joined {new Date(selfRecord.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -1120,6 +1132,18 @@ function AdminPanel({
             ) : null}
           </div>
         </article>
+      </section>
+
+      <section className="admin-section" aria-label="Roles">
+        <h3 className="admin-section-title">Roles</h3>
+        <div className="admin-role-legend">
+          {(Object.keys(WORKSPACE_ROLE_LABELS) as WorkspaceRole[]).map((role) => (
+            <div className="admin-role-legend-item" key={role}>
+              <span className={`session-role role-${role}`}>{WORKSPACE_ROLE_LABELS[role]}</span>
+              <p>{WORKSPACE_ROLE_DESCRIPTIONS[role]}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="admin-section" aria-label="Team members">
@@ -1188,9 +1212,9 @@ function AdminUserRow({
             disabled={disableRoleChange}
             className={`role-select role-${user.role}`}
           >
-            <option value="user">user</option>
-            <option value="maintainer">maintainer</option>
-            <option value="admin">admin</option>
+            <option value="user">{WORKSPACE_ROLE_LABELS.user}</option>
+            <option value="maintainer">{WORKSPACE_ROLE_LABELS.maintainer}</option>
+            <option value="admin">{WORKSPACE_ROLE_LABELS.admin}</option>
           </select>
           <ChevronDown size={12} className="role-select-chevron" />
         </div>
@@ -1267,6 +1291,14 @@ function jsonInit(body: unknown, token: string | undefined): RequestInit {
     },
     body: JSON.stringify(body)
   };
+}
+
+export function formatRoleLabel(role: string): string {
+  if (role === "user" || role === "maintainer" || role === "admin") {
+    return WORKSPACE_ROLE_LABELS[role];
+  }
+
+  return role;
 }
 
 function browserToken(): string | undefined {
