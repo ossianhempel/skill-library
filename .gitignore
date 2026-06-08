@@ -8,3 +8,4 @@ vite.config.d.ts.map
 .env.*
 !.env.example
 apps/server/data/
+.antigravitycli/

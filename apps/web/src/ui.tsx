@@ -161,7 +161,33 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
 
   async function handleSignIn() {
     const baseUrl = registryUrl.replace(/\/$/, "");
-    window.location.href = `${baseUrl}/api/auth/sign-in/social?provider=microsoft&callbackURL=${encodeURIComponent(window.location.href)}`;
+
+    try {
+      const response = await fetch(`${baseUrl}/api/auth/sign-in/social`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          provider: "microsoft",
+          callbackURL: window.location.href,
+          disableRedirect: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Sign-in failed (${response.status})`);
+      }
+
+      const data = (await response.json()) as { url?: string };
+
+      if (!data.url) {
+        throw new Error("Sign-in response did not include a redirect URL.");
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      console.error("Microsoft sign-in failed:", error);
+    }
   }
 
   async function loadAdminUsers() {

@@ -2,6 +2,8 @@
 
 Skill Library is designed to run as one app container with one persistent data volume by default.
 
+First-time deploy: use [deploy-agent-prompt.md](./deploy-agent-prompt.md) (copy-paste prompt for an agent) or [deployment.md](./deployment.md).
+
 ## Health
 
 Use:

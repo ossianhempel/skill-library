@@ -18,8 +18,30 @@ export function resolveBetterAuthSecret(): string {
   return developmentAuthSecret;
 }
 
+function resolveTrustedOrigins(): string[] {
+  const origins = new Set<string>();
+
+  if (process.env.BETTER_AUTH_URL?.trim()) {
+    origins.add(process.env.BETTER_AUTH_URL.trim());
+  }
+
+  for (const entry of process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? []) {
+    const trimmed = entry.trim();
+
+    if (trimmed) {
+      origins.add(trimmed);
+    }
+  }
+
+  return [...origins];
+}
+
 export function getBetterAuthInstance(store: RegistryStore) {
+  const trustedOrigins = resolveTrustedOrigins();
+
   return betterAuth({
+    baseURL: process.env.BETTER_AUTH_URL,
+    trustedOrigins: trustedOrigins.length > 0 ? trustedOrigins : undefined,
     database: createBetterAuthAdapter(store) as any,
     user: {
       additionalFields: {

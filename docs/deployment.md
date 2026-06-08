@@ -1,81 +1,82 @@
 # Deployment
 
-Skill Library's reference deployment is one application container with one persistent data volume. That default topology must stay usable for local and small-team hosting.
+Skill Library runs as **one container** with **one persistent volume** at `/data`.
 
-## Default PGlite Mode
+| Path | Contents |
+|------|----------|
+| `/data/db` | PGlite database (default) |
+| `/data/artifacts` | Immutable package files |
 
-Default runtime layout:
+No separate database container is required for the default setup.
 
-- App container serves the web UI, registry API, upload/download routes, and health checks.
-- `/data/db` stores the PGlite database.
-- `/data/artifacts` stores immutable package artifacts.
-- `SKILL_LIBRARY_DATA_DIR` can override `/data`.
+## Quick start (agent or human)
 
-Minimal compose shape:
+**Fastest path:** copy the prompt from [deploy-agent-prompt.md](./deploy-agent-prompt.md) to an agent with shell access on the target host. Fill in `PUBLIC_URL` and Microsoft Entra credentials before sending.
 
-```yaml
-services:
-  skill-library:
-    image: skill-library
-    ports:
-      - "3000:3000"
-    volumes:
-      - skill-library-data:/data
+**Azure (Rebtech):** live deployment notes in [deploy-azure.md](./deploy-azure.md).
 
-volumes:
-  skill-library-data:
-```
-
-No separate database service is required for the default path.
-
-Run the reference local deployment with:
+**Local smoke test:**
 
 ```sh
+cp .env.example .env
+# Set BETTER_AUTH_SECRET to a random string (openssl rand -hex 32)
 docker compose up --build
+curl http://localhost:3000/health
 ```
 
-Then open:
+## Required environment variables
+
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `BETTER_AUTH_SECRET` | Yes | Session signing secret. Generate: `openssl rand -hex 32` |
+| `BETTER_AUTH_URL` | Yes | Public URL of the registry, no trailing slash. Must match browser URL for SSO. |
+| `MICROSOFT_CLIENT_ID` | For SSO | Azure App Registration |
+| `MICROSOFT_CLIENT_SECRET` | For SSO | Azure client secret |
+| `MICROSOFT_TENANT_ID` | For SSO | Org tenant ID (or `common`) |
+| `SKILL_LIBRARY_API_KEYS` | Recommended | CLI/MCP bearer tokens. Format: `token:role:actor-id,...` |
+| `PORT` | No | Host port. Default `3000`. |
+| `DATABASE_URL` | No | External Postgres. Omit to use bundled PGlite. |
+
+Azure redirect URI:
 
 ```text
-http://localhost:3000
+${BETTER_AUTH_URL}/api/auth/callback/microsoft
 ```
 
-Health check:
+First user to sign in via Microsoft SSO receives the `admin` role automatically.
 
-```text
-http://localhost:3000/health
-```
-
-## External Postgres Mode
-
-Set `DATABASE_URL` to switch relational storage to external Postgres while keeping the same app container and base URL:
+## Docker Compose (default)
 
 ```sh
-DATABASE_URL=postgres://user:password@postgres.example.com:5432/skill_library
+docker compose up --build -d
 ```
 
-With Compose, use the override file:
+With external Postgres:
 
 ```sh
-DATABASE_URL=postgres://user:password@postgres.example.com:5432/skill_library docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build -d
 ```
-
-Artifact storage still defaults to `/data/artifacts` unless a future artifact-store adapter is configured.
-
-## Configuration
-
-- `SKILL_LIBRARY_DATA_DIR`: root directory for local runtime state. Defaults to `/data`.
-- `DATABASE_URL`: optional external Postgres connection string. If omitted, PGlite is used.
-- `PORT`: host port exposed by `docker-compose.yml`. Defaults to `3000`.
-- `SKILL_LIBRARY_WEB_DIST`: optional path to built web assets for custom runtime layouts.
-- `SKILL_LIBRARY_API_KEYS`: comma-separated `token:role:actor-id` entries for protected API access.
 
 ## Runtime
 
-The production entrypoint is `node apps/server/dist/serve.js`. It serves:
+Entrypoint: `node apps/server/dist/serve.js`
 
-- static web assets from `apps/web/dist`
-- API routes under `/api`
-- health checks at `/health`
+Serves:
+- Web UI (static assets + SPA)
+- API under `/api`
+- Better Auth under `/api/auth/*`
+- Health at `/health`
 
-Backups in PGlite mode must include the mounted data volume. Backups in external Postgres mode must include both the Postgres database and artifact directory.
+## Post-deploy checks
+
+```sh
+curl https://your-registry.example.com/health
+```
+
+See [operations.md](./operations.md) for backups, upgrades, and API key rotation.
+
+## Backups
+
+**PGlite (default):** back up the entire `/data` volume.
+
+**External Postgres:** back up Postgres and `/data/artifacts`.
