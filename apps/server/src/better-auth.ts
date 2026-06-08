@@ -43,6 +43,14 @@ export function getBetterAuthInstance(store: RegistryStore) {
     baseURL: process.env.BETTER_AUTH_URL,
     trustedOrigins: trustedOrigins.length > 0 ? trustedOrigins : undefined,
     database: createBetterAuthAdapter(store) as any,
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ["microsoft"],
+        // Entra ID verifies email; allow linking after a partial failed signup left user rows behind.
+        requireLocalEmailVerified: false,
+      },
+    },
     user: {
       additionalFields: {
         role: {

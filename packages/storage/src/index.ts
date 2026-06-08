@@ -718,11 +718,22 @@ const migrations = [
     "accessToken" text,
     "refreshToken" text,
     "idToken" text,
-    "expiresAt" timestamptz,
+    "accessTokenExpiresAt" timestamptz,
+    "refreshTokenExpiresAt" timestamptz,
+    "scope" text,
     password text,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
   )`,
+  `alter table "account" add column if not exists "accessTokenExpiresAt" timestamptz`,
+  `alter table "account" add column if not exists "refreshTokenExpiresAt" timestamptz`,
+  `alter table "account" add column if not exists "scope" text`,
+  `delete from "session" where "userId" in (
+    select u.id from "user" u
+    left join "account" a on a."userId" = u.id
+    where a.id is null
+  )`,
+  `delete from "user" where id not in (select "userId" from "account")`,
   `create table if not exists "verification" (
     id text primary key,
     identifier text not null,
