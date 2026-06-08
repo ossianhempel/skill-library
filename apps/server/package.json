@@ -1,0 +1,25 @@
+{
+  "name": "@skill-library/server",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/serve.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@skill-library/domain": "workspace:*",
+    "@skill-library/storage": "workspace:*",
+    "@skill-library/validation": "workspace:*",
+    "better-auth": "^1.6.14",
+    "hono": "^4.12.23",
+    "tar": "^7.5.16"
+  },
+  "devDependencies": {
+    "@types/tar": "^7.0.87"
+  }
+}

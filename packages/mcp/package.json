@@ -1,0 +1,22 @@
+{
+  "name": "@skill-library/mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "bin": {
+    "skill-library-mcp": "./dist/stdio.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/stdio.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@skill-library/cli": "workspace:*",
+    "@skill-library/domain": "workspace:*",
+    "@skill-library/validation": "workspace:*"
+  }
+}

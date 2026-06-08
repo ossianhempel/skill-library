@@ -1,0 +1,20 @@
+{
+  "name": "@skill-library/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "skill-library": "./dist/index.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@skill-library/domain": "workspace:*",
+    "@skill-library/validation": "workspace:*"
+  }
+}
