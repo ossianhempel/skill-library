@@ -109,8 +109,8 @@ describe("SkillLibraryApp", () => {
     await waitFor(() => expect(api.uploadVersion).toHaveBeenCalledWith("workspace-1", expect.objectContaining({ entries: [{ path: "SKILL.md", content: "# Review\n" }] })));
 
     fireEvent.change(screen.getByPlaceholderText("https://github.com/org/skills.git"), { target: { value: "/path/to/skills.git" } });
-    fireEvent.change(screen.getAllByPlaceholderText("main")[0], { target: { value: "main" } });
-    fireEvent.change(screen.getAllByPlaceholderText("my-skill")[1], { target: { value: "review-helper" } });
+    fireEvent.change(refInputs[0]!, { target: { value: "main" } });
+    fireEvent.change(slugInputs[1]!, { target: { value: "review-helper" } });
     fireEvent.click(screen.getByText("Import"));
     await waitFor(() => expect(api.importGitVersion).toHaveBeenCalled());
 

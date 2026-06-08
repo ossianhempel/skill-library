@@ -17,6 +17,8 @@ RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY . .
+# Instance config is gitignored; bake the example when no local file exists (OSS builds).
+RUN if [ ! -f registry.config.json ]; then cp registry.config.example.json registry.config.json; fi
 RUN pnpm build
 
 FROM node:22-bookworm-slim AS runner
@@ -33,6 +35,7 @@ COPY --from=build /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/apps/web/dist ./apps/web/dist
 COPY --from=build /app/packages ./packages
+COPY --from=build /app/registry.config.example.json ./registry.config.example.json
 COPY --from=build /app/registry.config.json ./registry.config.json
 VOLUME ["/data"]
 EXPOSE 3000

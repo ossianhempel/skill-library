@@ -10,5 +10,7 @@ UPSTREAM_REMOTE="upstream"
 FORK_LOCAL_PATHS=(
   "azure-pipelines.yml"
   "AGENTS.md"
-  "registry.config.json"
 )
+
+# Drift detection (optional): schedule ./scripts/check-upstream-drift.sh in CI
+# weekly; see docs/forking.md "Staying up to date".

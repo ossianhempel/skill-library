@@ -15,6 +15,10 @@ export async function loadRegistryBrandingConfig(configPath = resolveConfigPath(
     return mergeRegistryBranding(parsed);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      console.warn(
+        "registry.config.json not found; using built-in defaults. " +
+          "Copy registry.config.example.json to registry.config.json (or run ./scripts/setup-instance-config.sh) to customize branding."
+      );
       return defaultRegistryBrandingConfig();
     }
 

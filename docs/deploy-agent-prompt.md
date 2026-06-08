@@ -32,7 +32,7 @@ DATABASE_URL:
 PLATFORM: docker-compose
 
 # Azure-only (when PLATFORM=azure-container-apps)
-AZURE_RESOURCE_GROUP: rg-ossian-dev
+AZURE_RESOURCE_GROUP:
 AZURE_LOCATION: swedencentral
 
 ## Goal
@@ -131,8 +131,6 @@ Persistent data must survive container restarts (database + artifacts under /dat
    - Deploy and wait for healthy status.
 
    ### PLATFORM = azure-container-apps
-   See [deploy-azure.md](./deploy-azure.md) for the live Rebtech reference deployment.
-
    Summary for a new Azure deploy:
    1. `az group create` (or use existing `AZURE_RESOURCE_GROUP`)
    2. Create ACR, storage account + file share, Log Analytics, Container Apps environment

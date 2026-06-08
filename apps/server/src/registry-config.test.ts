@@ -21,6 +21,13 @@ describe("registry-config", () => {
     });
   });
 
+  it("falls back to defaults when the config file is missing", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "skill-library-branding-missing-"));
+    const configPath = join(dir, "missing-registry.config.json");
+
+    await expect(loadRegistryBrandingConfig(configPath)).resolves.toEqual(DEFAULT_REGISTRY_BRANDING);
+  });
+
   it("loads branding from a JSON file", async () => {
     const dir = await mkdtemp(join(tmpdir(), "skill-library-branding-"));
     const configPath = join(dir, "registry.config.json");

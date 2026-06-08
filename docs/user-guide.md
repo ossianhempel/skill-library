@@ -85,4 +85,4 @@ A workspace is the catalog namespace inside one registry deployment. Most compan
 
 ## Branding
 
-Company forks customize UI copy in `registry.config.json` (tagline, app name, public URL, default workspace, and related strings). See [forking.md](forking.md).
+Company deployments customize UI copy in gitignored `registry.config.json` (from `registry.config.example.json`). See [forking.md](forking.md).

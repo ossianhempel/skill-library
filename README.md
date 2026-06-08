@@ -40,7 +40,9 @@ CLI and MCP continue to use bearer API keys (`SKILL_LIBRARY_API_KEYS`). See [doc
 
 ## Company deployments
 
-Forks customize copy and defaults in `registry.config.json` (tagline, app name, public URL, workspace id). Add that file to `fork-sync.conf` so upstream merges do not overwrite company settings. See [docs/forking.md](docs/forking.md).
+Forks customize copy and defaults in **gitignored** `registry.config.json` (copy from `registry.config.example.json` via `./scripts/setup-instance-config.sh`). Upstream merges never overwrite instance config.
+
+**Staying current with OSS:** run `./scripts/check-upstream-drift.sh` locally or on a weekly CI schedule; merge with `./scripts/sync-from-upstream.sh --verify --push`. Full workflow: [docs/forking.md](docs/forking.md).
 
 ## License
 

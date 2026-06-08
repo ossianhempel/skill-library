@@ -9,20 +9,23 @@ Skill Library runs as **one container** with **one persistent volume** at `/data
 
 No separate database container is required for the default setup.
 
+Company or private deployments should fork the repo and deploy from the fork. See [forking.md](./forking.md) for syncing upstream with `./scripts/sync-from-upstream.sh` and scheduled drift checks with `./scripts/check-upstream-drift.sh`.
+
 ## Quick start (agent or human)
 
 **Fastest path:** copy the prompt from [deploy-agent-prompt.md](./deploy-agent-prompt.md) to an agent with shell access on the target host. Fill in `PUBLIC_URL` and Microsoft Entra credentials before sending.
-
-**Azure (Rebtech):** live deployment notes in [deploy-azure.md](./deploy-azure.md).
 
 **Local smoke test:**
 
 ```sh
 cp .env.example .env
+./scripts/setup-instance-config.sh   # optional: customize registry.config.json
 # Set BETTER_AUTH_SECRET to a random string (openssl rand -hex 32)
 docker compose up --build
 curl http://localhost:3000/health
 ```
+
+`registry.config.json` is gitignored (like `.env`). The Docker build copies `registry.config.example.json` when no local file exists.
 
 ## Required environment variables
 
