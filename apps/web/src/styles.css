@@ -325,6 +325,11 @@ p { color: var(--muted); line-height: 1.45; }
   min-width: 0;
 }
 
+.form-grid input::placeholder {
+  color: color-mix(in srgb, var(--muted) 72%, transparent);
+  opacity: 1;
+}
+
 .publish-console {
   display: flex;
   flex-direction: column;

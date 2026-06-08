@@ -134,12 +134,8 @@ export function SkillLibraryApp({
   const [catalog, setCatalog] = useState<CatalogSkill[]>(skills ?? []);
   const [selectedId, setSelectedId] = useState<string | undefined>(catalog[0]?.pkg.id);
   const [query, setQuery] = useState("");
-  const [publishForm, setPublishForm] = useState(() => buildUploadRequest(catalog[0]?.pkg.slug ?? "review-helper", "1.0.0"));
-  const [gitFields, setGitFields] = useState({
-    repositoryPath: "/path/to/skills.git",
-    ref: "main",
-    subdirectory: catalog[0]?.pkg.slug ?? "review-helper"
-  });
+  const [publishForm, setPublishForm] = useState(emptyPublishForm);
+  const [gitFields, setGitFields] = useState(emptyGitFields);
   const [uploadEntries, setUploadEntries] = useState<UploadVersionInput["entries"]>([]);
   const [notice, setNotice] = useState("Ready");
   const [loading, setLoading] = useState(false);
@@ -362,7 +358,8 @@ export function SkillLibraryApp({
     setLoading(true);
 
     try {
-      const version = await apiClient.uploadVersion(workspaceId, { ...publishForm, entries: uploadEntries });
+      const resolved = resolvePublishInput(publishForm);
+      const version = await apiClient.uploadVersion(workspaceId, { ...resolved, entries: uploadEntries });
       setNotice(`Uploaded as draft: version ${version.version}. Maintainers must Approve it from the Catalog page to make it available for download/install.`);
       await loadCatalog();
     } catch (error) {
@@ -376,14 +373,28 @@ export function SkillLibraryApp({
     setLoading(true);
 
     try {
+      const resolved = resolvePublishInput(publishForm);
+      const repositoryPath = gitFields.repositoryPath.trim();
+      const ref = gitFields.ref.trim();
+      const subdirectory = gitFields.subdirectory.trim();
+
+      if (!repositoryPath) {
+        throw new Error("Repository path is required.");
+      }
+
+      if (!ref) {
+        throw new Error("Git ref is required.");
+      }
+
+      if (!subdirectory) {
+        throw new Error("Git subdirectory is required.");
+      }
+
       const version = await apiClient.importGitVersion(workspaceId, {
-        packageSlug: publishForm.packageSlug,
-        packageName: publishForm.packageName,
-        description: publishForm.description,
-        version: publishForm.version,
-        repositoryPath: gitFields.repositoryPath,
-        ref: gitFields.ref,
-        subdirectory: gitFields.subdirectory
+        ...resolved,
+        repositoryPath,
+        ref,
+        subdirectory
       });
       setNotice(`Git import created: ${version.version}`);
       await loadCatalog();
@@ -446,17 +457,20 @@ export function SkillLibraryApp({
       }
     }
 
+    applyDetectedSkillSlug(slug);
+    setNotice(`${entries.length} files staged for upload from skill folder "${slug}". Ready to publish.`);
+  }
+
+  function applyDetectedSkillSlug(slug: string) {
     setPublishForm((prev) => ({
       ...prev,
-      packageSlug: slug,
-      packageName: titleize(slug)
+      packageSlug: prev.packageSlug.trim() ? prev.packageSlug : slug,
+      packageName: prev.packageName.trim() ? prev.packageName : titleize(slug)
     }));
     setGitFields((prev) => ({
       ...prev,
-      subdirectory: slug
+      subdirectory: prev.subdirectory.trim() ? prev.subdirectory : slug
     }));
-
-    setNotice(`${entries.length} files staged for upload from skill folder "${slug}". Ready to publish.`);
   }
 
   function handleDragOver(event: React.DragEvent) {
@@ -533,17 +547,8 @@ export function SkillLibraryApp({
       }
     }
 
-    setPublishForm((prev) => ({
-      ...prev,
-      packageSlug: slug,
-      packageName: titleize(slug)
-    }));
-    setGitFields((prev) => ({
-      ...prev,
-      subdirectory: slug
-    }));
-
-    setNotice(`${entries.length} files staged for upload from skill folder "${slug}". Ready to publish.`);
+    applyDetectedSkillSlug(slug);
+    setNotice(`${entries.length} files staged for upload from dropped folder "${slug}". Ready to publish.`);
   }
 
   async function copyInstallPrompt() {
@@ -675,8 +680,8 @@ export function SkillLibraryApp({
               </p>
               <div className="form-grid">
                 <label>Workspace<input value={workspaceId} readOnly /></label>
-                <label>Slug<input value={publishForm.packageSlug} onChange={(event) => setPublishForm({ ...publishForm, packageSlug: event.target.value })} /></label>
-                <label>Version<input value={publishForm.version} onChange={(event) => setPublishForm({ ...publishForm, version: event.target.value })} /></label>
+                <label>Slug<input value={publishForm.packageSlug} placeholder={PUBLISH_FIELD_PLACEHOLDERS.packageSlug} onChange={(event) => setPublishForm({ ...publishForm, packageSlug: event.target.value })} /></label>
+                <label>Version<input value={publishForm.version} placeholder={PUBLISH_FIELD_PLACEHOLDERS.version} onChange={(event) => setPublishForm({ ...publishForm, version: event.target.value })} /></label>
               </div>
               <label 
                 className={`drop-target ${dragOver ? "drag-over" : ""} ${uploadEntries.length > 0 ? "has-files" : "empty"}`}
@@ -690,7 +695,7 @@ export function SkillLibraryApp({
                     <CheckCircle2 size={24} style={{ color: "var(--accent)" }} />
                     <div style={{ margin: "4px 0" }}>
                       <strong>{uploadEntries.length} files staged</strong>
-                      <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "var(--muted)" }}>Folder: <code>{publishForm.packageSlug}</code></p>
+                      <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "var(--muted)" }}>Folder: <code>{publishForm.packageSlug || PUBLISH_FIELD_PLACEHOLDERS.packageSlug}</code></p>
                     </div>
                     <span className="button secondary choose-btn" style={{ pointerEvents: "none", height: "34px" }}>Choose different folder</span>
                   </>
@@ -724,13 +729,13 @@ export function SkillLibraryApp({
                 Import a skill package version directly from a remote Git repository.
               </p>
               <div className="form-grid git-fields">
-                <label>Repository<input value={gitFields.repositoryPath} onChange={(event) => setGitFields({ ...gitFields, repositoryPath: event.target.value })} /></label>
-                <label>Ref<input value={gitFields.ref} onChange={(event) => setGitFields({ ...gitFields, ref: event.target.value })} /></label>
-                <label>Subdir<input value={gitFields.subdirectory} onChange={(event) => setGitFields({ ...gitFields, subdirectory: event.target.value })} /></label>
+                <label>Repository<input value={gitFields.repositoryPath} placeholder={PUBLISH_FIELD_PLACEHOLDERS.repositoryPath} onChange={(event) => setGitFields({ ...gitFields, repositoryPath: event.target.value })} /></label>
+                <label>Ref<input value={gitFields.ref} placeholder={PUBLISH_FIELD_PLACEHOLDERS.ref} onChange={(event) => setGitFields({ ...gitFields, ref: event.target.value })} /></label>
+                <label>Subdir<input value={gitFields.subdirectory} placeholder={PUBLISH_FIELD_PLACEHOLDERS.subdirectory} onChange={(event) => setGitFields({ ...gitFields, subdirectory: event.target.value })} /></label>
               </div>
               <div className="git-import" style={{ marginTop: "16px" }}>
                 <GitBranch size={18} />
-                <code>{buildGitImportCurl(workspaceId, publishForm.packageSlug)}</code>
+                <code>{buildGitImportCurl(workspaceId, publishForm.packageSlug || PUBLISH_FIELD_PLACEHOLDERS.packageSlug)}</code>
                 <button onClick={handleGitImport} disabled={loading}>Import</button>
               </div>
             </section>
@@ -834,12 +839,60 @@ export function buildInstallPrompt(
   return `skill-library install ${packageSlug} --workspace ${workspaceId} --target ${target} --registry ${registryUrl}`;
 }
 
+export const PUBLISH_FIELD_PLACEHOLDERS = {
+  packageSlug: "my-skill",
+  version: "1.0.0",
+  repositoryPath: "https://github.com/org/skills.git",
+  ref: "main",
+  subdirectory: "my-skill"
+} as const;
+
+export function emptyPublishForm(): UploadVersionInput {
+  return {
+    packageSlug: "",
+    packageName: "",
+    description: "",
+    version: "",
+    entries: []
+  };
+}
+
+export function emptyGitFields() {
+  return {
+    repositoryPath: "",
+    ref: "",
+    subdirectory: ""
+  };
+}
+
+export function resolvePublishInput(form: Pick<UploadVersionInput, "packageSlug" | "packageName" | "description" | "version">) {
+  const packageSlug = form.packageSlug.trim();
+
+  if (!packageSlug) {
+    throw new Error("Skill slug is required.");
+  }
+
+  const version = form.version.trim();
+
+  if (!version) {
+    throw new Error("Version is required.");
+  }
+
+  return {
+    packageSlug,
+    packageName: form.packageName.trim() || titleize(packageSlug),
+    description: form.description.trim() || `Internal ${packageSlug} skill package.`,
+    version
+  };
+}
+
 export function buildUploadRequest(packageSlug: string, version: string) {
   return {
     packageSlug,
     packageName: titleize(packageSlug),
     description: `Internal ${packageSlug} skill package.`,
-    version
+    version,
+    entries: [] as UploadVersionInput["entries"]
   };
 }
 

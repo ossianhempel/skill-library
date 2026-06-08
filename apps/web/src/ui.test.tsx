@@ -4,6 +4,7 @@ import { DEFAULT_REGISTRY_BRANDING, type PackageReport, type SkillPackage, type 
 import {
   buildInstallPrompt,
   buildUploadRequest,
+  resolvePublishInput,
   filesToPackageEntries,
   loadCatalogSkills,
   pickActiveVersion,
@@ -52,6 +53,13 @@ describe("SkillLibraryApp", () => {
     expect(renderLifecycleBadge(skill.latestApproved!)).toBe("APPROVED");
     expect(buildInstallPrompt("review-helper", "workspace-1", "https://skills.example.com", "project")).toContain("--target project");
     expect(buildUploadRequest("review-helper", "1.2.0")).toEqual(expect.objectContaining({ packageName: "Review Helper", version: "1.2.0" }));
+    expect(resolvePublishInput({ packageSlug: "review-helper", packageName: "", description: "", version: "1.2.0" })).toEqual({
+      packageSlug: "review-helper",
+      packageName: "Review Helper",
+      description: "Internal review-helper skill package.",
+      version: "1.2.0"
+    });
+    expect(() => resolvePublishInput({ packageSlug: "", packageName: "", description: "", version: "" })).toThrow("Skill slug is required.");
     expect(summarizeReports([report])).toEqual({ packages: 1, installs: 4, currentInstalls: 3, staleInstalls: 1 });
   });
 
@@ -83,10 +91,13 @@ describe("SkillLibraryApp", () => {
 
   it("runs upload, Git import, and lifecycle actions through the API client", async () => {
     const api = fakeApi();
-    const { container } = render(<SkillLibraryApp api={api} authToken="test-token" />);
+    const { container } = render(<SkillLibraryApp api={api} authToken="test-token" workspaceId="workspace-1" />);
 
     await waitFor(() => expect(api.search).toHaveBeenCalled());
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));
+
+    fireEvent.change(screen.getAllByPlaceholderText("my-skill")[0], { target: { value: "review-helper" } });
+    fireEvent.change(screen.getByPlaceholderText("1.0.0"), { target: { value: "1.0.0" } });
 
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(fileInput, { target: { files: [new File(["# Review\n"], "SKILL.md", { type: "text/markdown" })] } });
@@ -95,6 +106,9 @@ describe("SkillLibraryApp", () => {
     fireEvent.click(screen.getByRole("button", { name: /Upload skill/ }));
     await waitFor(() => expect(api.uploadVersion).toHaveBeenCalledWith("workspace-1", expect.objectContaining({ entries: [{ path: "SKILL.md", content: "# Review\n" }] })));
 
+    fireEvent.change(screen.getByPlaceholderText("https://github.com/org/skills.git"), { target: { value: "/path/to/skills.git" } });
+    fireEvent.change(screen.getAllByPlaceholderText("main")[0], { target: { value: "main" } });
+    fireEvent.change(screen.getAllByPlaceholderText("my-skill")[1], { target: { value: "review-helper" } });
     fireEvent.click(screen.getByText("Import"));
     await waitFor(() => expect(api.importGitVersion).toHaveBeenCalled());
 

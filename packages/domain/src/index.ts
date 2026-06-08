@@ -171,7 +171,7 @@ export const DEFAULT_REGISTRY_BRANDING: RegistryBrandingConfig = {
   appShortName: "SL",
   registryTagline: "Internal skill registry",
   companyName: "Your company",
-  defaultWorkspaceId: "workspace-1",
+  defaultWorkspaceId: "main",
   registryPublicUrl: "http://localhost:3000",
   documentTitle: "Skill Library",
   loginSubtitle: "Sign in with your company account to browse, publish, and manage skills.",

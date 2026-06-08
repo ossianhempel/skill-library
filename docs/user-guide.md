@@ -79,6 +79,10 @@ On localhost only, if the API is unavailable, the catalog falls back to demo dat
 
 The web UI includes an adoption report panel with package totals, current installs, stale or locally modified installs, and per-package rows. Editor and admin report data comes from `/api/workspaces/:workspaceId/reports`.
 
+## Workspaces
+
+A workspace is the catalog namespace inside one registry deployment. Most company installs use a single workspace. The default id is `main`, configured through `defaultWorkspaceId` in `registry.config.json`. Skills, publish forms, and CLI install commands all scope to that workspace id.
+
 ## Branding
 
-Company forks customize UI copy in `registry.config.json` (tagline, app name, public URL, and related strings). See [forking.md](forking.md).
+Company forks customize UI copy in `registry.config.json` (tagline, app name, public URL, default workspace, and related strings). See [forking.md](forking.md).

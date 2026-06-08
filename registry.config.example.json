@@ -3,7 +3,7 @@
   "appShortName": "SL",
   "registryTagline": "Your company skill registry",
   "companyName": "Your company",
-  "defaultWorkspaceId": "workspace-1",
+  "defaultWorkspaceId": "main",
   "registryPublicUrl": "https://skills.example.com",
   "documentTitle": "Skill Library",
   "loginSubtitle": "Sign in with your company account to browse, publish, and manage skills.",

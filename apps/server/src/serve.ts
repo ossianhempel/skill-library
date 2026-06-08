@@ -26,16 +26,17 @@ if (process.env.NODE_ENV !== "production" && process.env.SKILL_LIBRARY_DISABLE_D
 // Dev seeding logic when running locally
 const api = createRegistryApi(store);
 try {
-  console.log("Seeding check: calling api.search for workspace-1...");
-  const packages = await api.search("workspace-1");
-  console.log(`Seeding check: found ${packages.length} packages in workspace-1`);
+  const devWorkspaceId = "main";
+  console.log(`Seeding check: calling api.search for ${devWorkspaceId}...`);
+  const packages = await api.search(devWorkspaceId);
+  console.log(`Seeding check: found ${packages.length} packages in ${devWorkspaceId}`);
 const devSkills = [
   { slug: "review-helper", name: "Review Helper", desc: "Turns repository diffs into a focused code-review checklist for internal agents.", version: "1.0.0", dir: "review-helper-v1" },
   { slug: "release-notes", name: "Release Notes Generator", desc: "Builds release notes from merged commits, issue links, and deployment metadata.", version: "1.0.0", dir: "review-helper-v2" }
 ];
 
 for (const skill of devSkills) {
-  const packageId = `workspace-1-${skill.slug}`;
+  const packageId = `${devWorkspaceId}-${skill.slug}`;
   const existingPkg = await api.packageDetail(packageId);
   if (!existingPkg) {
     console.log(`Seeding check: ${skill.slug} not found, seeding...`);
@@ -45,7 +46,7 @@ for (const skill of devSkills) {
     console.log(`Seeding check: read ${entries.length} files for ${skill.slug}`);
     if (entries.length > 0) {
       const ver = await api.createUploadedVersion({
-        workspaceId: "workspace-1",
+        workspaceId: devWorkspaceId,
         packageSlug: skill.slug,
         packageName: skill.name,
         description: skill.desc,
