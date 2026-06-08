@@ -71,7 +71,12 @@ export interface SkillLibraryAppProps {
 
 type AppTab = "overview" | "catalog" | "publish" | "reports" | "admin";
 
-const sampleSkills: CatalogSkill[] = [
+function isLocalDev(): boolean {
+  return typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+}
+
+// Local-dev demo catalog only. Production must never show placeholder skills.
+const devSampleSkills: CatalogSkill[] = [
   {
     pkg: packageData("workspace-1-review-helper", "review-helper", "Review Helper", "Turns repository diffs into a focused code-review checklist for internal agents.", ["review", "quality"]),
     latestApproved: version("version-review-2", "workspace-1-review-helper", "1.2.0", "approved"),
@@ -105,7 +110,7 @@ const sampleSkills: CatalogSkill[] = [
 ];
 
 export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryUrl = "", authToken = browserToken(), api }: SkillLibraryAppProps) {
-  const [catalog, setCatalog] = useState<CatalogSkill[]>(skills ?? sampleSkills);
+  const [catalog, setCatalog] = useState<CatalogSkill[]>(skills ?? []);
   const [selectedId, setSelectedId] = useState<string | undefined>(catalog[0]?.pkg.id);
   const [query, setQuery] = useState("");
   const [publishForm, setPublishForm] = useState(() => buildUploadRequest(catalog[0]?.pkg.slug ?? "review-helper", "1.0.0"));
@@ -262,7 +267,7 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
     void loadCatalog();
   }, [skills, workspaceId, query, apiClient]);
 
-  const selected = catalog.find((skill) => skill.pkg.id === selectedId) ?? catalog[0];
+  const selected = catalog.find((skill) => skill.pkg.id === selectedId);
   const totals = catalog.reduce(
     (acc, skill) => ({ installs: acc.installs + skill.installs, downloads: acc.downloads + skill.downloads, stale: acc.stale + skill.staleInstalls }),
     { installs: 0, downloads: 0, stale: 0 }
@@ -274,13 +279,22 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
 
     try {
       const next = await loadCatalogSkills(apiClient, workspaceId, query);
-      setCatalog(next.length > 0 ? next : sampleSkills);
+      setCatalog(next);
       setSelectedId((current) => current && next.some((skill) => skill.pkg.id === current) ? current : next[0]?.pkg.id);
-      setNotice(next.length > 0 ? "Catalog synced" : "Catalog is empty; showing sample data");
+      setNotice(next.length > 0 ? "Catalog synced" : "Catalog is empty. Publish a skill to get started.");
     } catch (error) {
-      setCatalog(sampleSkills);
-      setSelectedId(sampleSkills[0]?.pkg.id);
-      setNotice(error instanceof Error ? `API unavailable: ${error.message}` : "API unavailable");
+      const fallback = isLocalDev() ? devSampleSkills : [];
+      setCatalog(fallback);
+      setSelectedId(fallback[0]?.pkg.id);
+      setNotice(
+        error instanceof Error
+          ? isLocalDev()
+            ? `API unavailable: ${error.message}; showing local demo data`
+            : `API unavailable: ${error.message}`
+          : isLocalDev()
+            ? "API unavailable; showing local demo data"
+            : "API unavailable"
+      );
     } finally {
       setLoading(false);
     }
@@ -505,13 +519,8 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
 
   // Show login screen when not authenticated (no SSO session and no API token)
   // In dev mode (localhost), always allow access via token fallback
-  const isDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-  if (!sessionLoading && !hasSession && !useTokenAuth && !isDev) {
+  if (!sessionLoading && !hasSession && !useTokenAuth && !isLocalDev()) {
     return <LoginScreen onSignIn={handleSignIn} />;
-  }
-
-  if (!selected) {
-    return <main className="empty-shell">No skills available.</main>;
   }
 
   return (
@@ -578,11 +587,29 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
               <Metric label="Installs" value={totals.installs} />
               <Metric label="Need update" value={totals.stale} tone="warn" />
             </div>
-            <FeaturedSkill skill={selected} onOpen={() => setActiveTab("catalog")} />
+            {selected ? (
+              <FeaturedSkill skill={selected} onOpen={() => setActiveTab("catalog")} />
+            ) : (
+              <article className="featured-skill empty-catalog">
+                <div>
+                  <p className="kicker">No skills yet</p>
+                  <h2>Your registry is empty.</h2>
+                  <p>Upload a skill package or import one from Git to populate the catalog.</p>
+                </div>
+                <button onClick={() => setActiveTab("publish")}>Publish first skill</button>
+              </article>
+            )}
           </section>
         )}
 
-        {activeTab === "catalog" && <SkillList catalog={catalog} selectedId={selected.pkg.id} onSelect={setSelectedId} />}
+        {activeTab === "catalog" && (
+          <SkillList
+            catalog={catalog}
+            selectedId={selected?.pkg.id}
+            onSelect={setSelectedId}
+            emptyMessage={catalog.length === 0 ? "No approved skills yet. Publish a draft and approve it to list it here." : undefined}
+          />
+        )}
 
         {activeTab === "publish" && (
           <div className="publish-console-container" style={{ display: "flex", flexDirection: "column", gap: "24px", width: "100%", maxWidth: "800px" }}>
@@ -672,7 +699,7 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
         )}
       </section>
 
-      {activeTab === "catalog" && (
+      {activeTab === "catalog" && selected && (
         <section className="detail-pane" aria-label="Skill detail">
           <div className="detail-head">
             <div>
@@ -899,7 +926,21 @@ function FeaturedSkill({ skill, onOpen }: { skill: CatalogSkill; onOpen: () => v
   );
 }
 
-function SkillList({ catalog, selectedId, onSelect }: { catalog: CatalogSkill[]; selectedId: string; onSelect: (id: string) => void }) {
+function SkillList({
+  catalog,
+  selectedId,
+  onSelect,
+  emptyMessage
+}: {
+  catalog: CatalogSkill[];
+  selectedId?: string;
+  onSelect: (id: string) => void;
+  emptyMessage?: string;
+}) {
+  if (catalog.length === 0) {
+    return <p className="empty-catalog-copy">{emptyMessage ?? "No skills in the catalog yet."}</p>;
+  }
+
   return (
     <div className="list">
       {catalog.map((skill) => <SkillRow key={skill.pkg.id} skill={skill} active={skill.pkg.id === selectedId} onSelect={() => onSelect(skill.pkg.id)} />)}

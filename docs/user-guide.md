@@ -42,7 +42,7 @@ Maintainer controls in the web UI call the publishing APIs:
 - Git import controls for `/api/workspaces/:workspaceId/packages/import-git`
 - lifecycle actions for approve, hide, and deprecate through `/api/versions/:versionId/lifecycle`
 
-If the API is unavailable in local development, the catalog falls back to sample data and shows a status notice.
+On localhost only, if the API is unavailable, the catalog falls back to demo data and shows a status notice. Production shows an empty catalog instead of placeholder skills.
 
 ## Report
 
