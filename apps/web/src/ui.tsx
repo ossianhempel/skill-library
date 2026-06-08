@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
-import { Archive, BarChart3, CheckCircle2, ChevronDown, Download, FileCode2, GitBranch, LogOut, RefreshCw, Search, Shield, ShieldCheck, TerminalSquare, UploadCloud, User, Users } from "lucide-react";
+import { Archive, BarChart3, CheckCircle2, ChevronDown, Download, FileCode2, GitBranch, Loader2, LogOut, RefreshCw, Search, Shield, ShieldCheck, TerminalSquare, UploadCloud, User, Users } from "lucide-react";
 import type { LifecycleState, PackageReport, SkillPackage, SkillVersion, ValidationResult } from "@skill-library/domain";
 
 export interface SessionUser {
@@ -130,6 +130,7 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
   // Session state for Better Auth SSO
   const [session, setSession] = useState<SessionUser | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
 
@@ -167,6 +168,8 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
   async function handleSignIn() {
     const baseUrl = registryUrl.replace(/\/$/, "");
 
+    setSigningIn(true);
+
     try {
       const response = await fetch(`${baseUrl}/api/auth/sign-in/social`, {
         method: "POST",
@@ -191,6 +194,7 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
 
       window.location.href = data.url;
     } catch (error) {
+      setSigningIn(false);
       console.error("Microsoft sign-in failed:", error);
     }
   }
@@ -250,12 +254,12 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
     }
   }
 
-  // Load admin users when switching to admin tab
+  // Load admin users when the admin tab opens or the signed-in admin changes.
   useEffect(() => {
     if (activeTab === "admin" && session?.role === "admin") {
       void loadAdminUsers();
     }
-  }, [activeTab]);
+  }, [activeTab, session?.id, session?.role]);
 
   useEffect(() => {
     if (skills) {
@@ -519,8 +523,8 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
 
   // Show login screen when not authenticated (no SSO session and no API token)
   // In dev mode (localhost), always allow access via token fallback
-  if (!sessionLoading && !hasSession && !useTokenAuth && !isLocalDev()) {
-    return <LoginScreen onSignIn={handleSignIn} />;
+  if (!hasSession && !useTokenAuth && !isLocalDev()) {
+    return <LoginScreen onSignIn={handleSignIn} signingIn={signingIn} checkingSession={sessionLoading} />;
   }
 
   return (
@@ -686,11 +690,11 @@ export function SkillLibraryApp({ skills, workspaceId = "workspace-1", registryU
 
         {activeTab === "reports" && <ReportPanel catalog={catalog} summary={reportSummary} />}
 
-        {activeTab === "admin" && isAdmin && (
+        {activeTab === "admin" && isAdmin && session && (
           <AdminPanel
             users={adminUsers}
             loading={adminLoading}
-            currentUserId={session.id}
+            currentUser={session}
             onRoleChange={handleRoleChange}
             onDeleteUser={handleDeleteUser}
             onRefresh={loadAdminUsers}
@@ -970,7 +974,20 @@ function ReportPanel({ catalog, summary }: { catalog: CatalogSkill[]; summary: R
   );
 }
 
-function LoginScreen({ onSignIn }: { onSignIn: () => void }) {
+function LoginScreen({
+  onSignIn,
+  signingIn = false,
+  checkingSession = false
+}: {
+  onSignIn: () => void;
+  signingIn?: boolean;
+  checkingSession?: boolean;
+}) {
+  const busy = signingIn || checkingSession;
+  const statusCopy = checkingSession
+    ? "Checking your sign-in…"
+    : "Redirecting to Microsoft…";
+
   return (
     <main className="login-shell">
       <div className="login-card">
@@ -979,10 +996,17 @@ function LoginScreen({ onSignIn }: { onSignIn: () => void }) {
         <p style={{ textAlign: "center", maxWidth: "360px", margin: "0 auto 32px" }}>
           Sign in with your company account to browse, publish, and manage skills.
         </p>
-        <button className="login-btn" onClick={onSignIn}>
-          <Shield size={18} />
-          Sign in with Microsoft
-        </button>
+        {busy ? (
+          <div className="login-loading" role="status" aria-live="polite">
+            <Loader2 size={28} className="login-spinner" aria-hidden="true" />
+            <p>{statusCopy}</p>
+          </div>
+        ) : (
+          <button className="login-btn" onClick={onSignIn}>
+            <Shield size={18} />
+            Sign in with Microsoft
+          </button>
+        )}
       </div>
     </main>
   );
@@ -991,7 +1015,7 @@ function LoginScreen({ onSignIn }: { onSignIn: () => void }) {
 function AdminPanel({
   users,
   loading,
-  currentUserId,
+  currentUser,
   onRoleChange,
   onDeleteUser,
   onRefresh,
@@ -999,19 +1023,24 @@ function AdminPanel({
 }: {
   users: AdminUser[];
   loading: boolean;
-  currentUserId: string;
+  currentUser: SessionUser;
   onRoleChange: (userId: string, role: string) => void;
   onDeleteUser: (userId: string, name: string) => void;
   onRefresh: () => void;
   notice: string;
 }) {
+  const selfRecord = users.find((user) => user.id === currentUser.id);
+  const teammates = users.filter((user) => user.id !== currentUser.id);
+
   return (
     <section className="admin-panel" aria-label="User administration">
       <div className="admin-header">
         <div>
           <div className="panel-title"><Users size={17} />User Administration</div>
           <p style={{ margin: "0", color: "var(--muted)", fontSize: "0.88rem" }}>
-            {users.length} registered {users.length === 1 ? "user" : "users"}
+            {teammates.length === 0
+              ? "Only you have signed in so far"
+              : `You and ${teammates.length} other ${teammates.length === 1 ? "teammate have" : "teammates have"} signed in`}
           </p>
         </div>
         <button onClick={onRefresh} disabled={loading} className="secondary">
@@ -1020,65 +1049,117 @@ function AdminPanel({
         </button>
       </div>
 
-      {loading && users.length === 0 ? (
-        <div className="admin-empty">Loading users…</div>
-      ) : users.length === 0 ? (
-        <div className="admin-empty">No users have signed in yet.</div>
-      ) : (
-        <div className="admin-table" role="table" aria-label="Users">
-          <div className="admin-table-head" role="row">
-            <span>User</span>
-            <span>Role</span>
-            <span>Joined</span>
-            <span></span>
-          </div>
-          {users.map((user) => (
-            <div className="admin-table-row" role="row" key={user.id}>
-              <div className="admin-user-cell">
-                <div className="admin-user-avatar">
-                  {user.image ? <img src={user.image} alt="" /> : <User size={14} />}
-                </div>
-                <div>
-                  <strong>{user.name}</strong>
-                  <span className="admin-user-email">{user.email}</span>
-                </div>
-              </div>
-              <div className="admin-role-cell">
-                <div className="role-select-wrapper">
-                  <select
-                    value={user.role}
-                    onChange={(e) => void onRoleChange(user.id, e.target.value)}
-                    disabled={user.id === currentUserId}
-                    className={`role-select role-${user.role}`}
-                  >
-                    <option value="user">user</option>
-                    <option value="maintainer">maintainer</option>
-                    <option value="admin">admin</option>
-                  </select>
-                  <ChevronDown size={12} className="role-select-chevron" />
-                </div>
-              </div>
-              <span className="admin-date-cell">
-                {new Date(user.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-              </span>
-              <div className="admin-actions-cell">
-                {user.id !== currentUserId && (
-                  <button
-                    className="admin-delete-btn"
-                    onClick={() => void onDeleteUser(user.id, user.name)}
-                    title={`Remove ${user.name}`}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
+      <section className="admin-section" aria-label="Your account">
+        <h3 className="admin-section-title">Your account</h3>
+        <article className="admin-self-card">
+          <div className="admin-user-cell">
+            <div className="admin-user-avatar">
+              {currentUser.image ? <img src={currentUser.image} alt="" /> : <User size={16} />}
             </div>
-          ))}
-        </div>
-      )}
+            <div>
+              <strong>{currentUser.name}</strong>
+              <span className="admin-user-email">{currentUser.email}</span>
+            </div>
+          </div>
+          <div className="admin-self-meta">
+            <span className={`session-role role-${currentUser.role}`}>{currentUser.role}</span>
+            {selfRecord ? (
+              <span className="admin-self-joined">
+                Joined {new Date(selfRecord.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </span>
+            ) : null}
+          </div>
+        </article>
+      </section>
+
+      <section className="admin-section" aria-label="Team members">
+        <h3 className="admin-section-title">Team members</h3>
+
+        {loading && teammates.length === 0 ? (
+          <div className="admin-empty">
+            <Loader2 size={20} className="spin" aria-hidden="true" />
+            <span>Loading teammates…</span>
+          </div>
+        ) : teammates.length === 0 ? (
+          <div className="admin-empty">No other teammates have signed in yet.</div>
+        ) : (
+          <div className="admin-table" role="table" aria-label="Team members">
+            <div className="admin-table-head" role="row">
+              <span>User</span>
+              <span>Role</span>
+              <span>Joined</span>
+              <span></span>
+            </div>
+            {teammates.map((user) => (
+              <AdminUserRow
+                key={user.id}
+                user={user}
+                disableRoleChange={false}
+                onRoleChange={onRoleChange}
+                onDeleteUser={onDeleteUser}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
       {notice && <p className="notice" role="status" style={{ margin: "16px 0 0" }}>{notice}</p>}
     </section>
+  );
+}
+
+function AdminUserRow({
+  user,
+  disableRoleChange,
+  onRoleChange,
+  onDeleteUser
+}: {
+  user: AdminUser;
+  disableRoleChange: boolean;
+  onRoleChange: (userId: string, role: string) => void;
+  onDeleteUser: (userId: string, name: string) => void;
+}) {
+  return (
+    <div className="admin-table-row" role="row">
+      <div className="admin-user-cell">
+        <div className="admin-user-avatar">
+          {user.image ? <img src={user.image} alt="" /> : <User size={14} />}
+        </div>
+        <div>
+          <strong>{user.name}</strong>
+          <span className="admin-user-email">{user.email}</span>
+        </div>
+      </div>
+      <div className="admin-role-cell">
+        <div className="role-select-wrapper">
+          <select
+            value={user.role}
+            onChange={(event) => void onRoleChange(user.id, event.target.value)}
+            disabled={disableRoleChange}
+            className={`role-select role-${user.role}`}
+          >
+            <option value="user">user</option>
+            <option value="maintainer">maintainer</option>
+            <option value="admin">admin</option>
+          </select>
+          <ChevronDown size={12} className="role-select-chevron" />
+        </div>
+      </div>
+      <span className="admin-date-cell">
+        {new Date(user.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+      </span>
+      <div className="admin-actions-cell">
+        {!disableRoleChange ? (
+          <button
+            className="admin-delete-btn"
+            onClick={() => void onDeleteUser(user.id, user.name)}
+            title={`Remove ${user.name}`}
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
