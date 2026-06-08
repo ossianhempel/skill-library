@@ -1,10 +1,40 @@
 # Security
 
-The current server has a minimal role enforcement layer for company-internal deployments. It is intentionally small so the identity source can be replaced later without changing route-level permission decisions.
+Skill Library supports two identity paths for protected routes:
 
-## Current Identity Contract
+1. **Browser SSO** — Microsoft Entra ID through Better Auth (sessions/cookies)
+2. **Bearer API keys** — for CLI, MCP, and scripted access
 
-Production-style protected requests should use bearer API keys configured through `SKILL_LIBRARY_API_KEYS`:
+Route-level permission checks use the same role model for both.
+
+## Roles
+
+| UI label | Role value | Rank |
+|----------|------------|------|
+| Viewer | `user` | 1 |
+| Editor | `maintainer` | 2 |
+| Admin | `admin` | 3 |
+
+Higher ranks inherit lower-rank permissions.
+
+### Bootstrap admin
+
+On the first SSO sign-in, if the `user` table is empty, Better Auth assigns `admin` to that account. Subsequent sign-ins default to `user` (Viewer) until an admin promotes them through `PATCH /api/admin/users/:userId`.
+
+## Microsoft Entra SSO
+
+Configure in the server environment:
+
+- `BETTER_AUTH_URL` — public registry URL
+- `BETTER_AUTH_SECRET` — session secret
+- `BETTER_AUTH_TRUSTED_ORIGINS` — comma-separated allowed origins
+- `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`
+
+The web UI uses cookie-based sessions. Admin user management routes require an authenticated admin session.
+
+## Bearer API keys
+
+Production-style scripted access uses `SKILL_LIBRARY_API_KEYS`:
 
 ```sh
 SKILL_LIBRARY_API_KEYS=maintainer-secret:maintainer:maintainer-1,user-secret:user:user-1
@@ -22,29 +52,41 @@ Requests use:
 Authorization: Bearer maintainer-secret
 ```
 
-The supported roles are `user`, `maintainer`, and `admin`.
+## Development header fallback
 
-## Development Header Fallback
-
-Requests may include:
+When `NODE_ENV` is not `production`, requests may include:
 
 - `x-skill-library-role`: `user`, `maintainer`, or `admin`
-- `x-skill-library-actor`: actor ID recorded in provenance/lifecycle operations when available
+- `x-skill-library-actor`: actor ID for provenance/lifecycle operations
 
-This remains available for local tests and development when `NODE_ENV` is not `production`. Bearer API keys take precedence when both are present.
+Bearer API keys take precedence when both are present. Dev headers are rejected in production.
 
-## Current Permissions
+## Current permissions
 
-- Public workspace browse routes: catalog search, package detail, version detail, latest approved lookup.
-- Private workspace browse routes: require at least `user`.
-- Validation route: public/internal utility route.
-- User role: install report submission.
-- Maintainer role: artifact ingestion, upload publishing, Git import publishing, lifecycle transitions, usage counters.
-- Admin role: inherits maintainer permissions and may update workspace reporting policy and visibility.
+### Public / browse
 
-## Pending Hardening
+- Public workspace catalog search, package detail, latest approved lookup: open when workspace visibility is public.
+- Private workspace browse routes: require at least Viewer (`user`).
 
-- Replace static API keys with OIDC/SSO or another external identity provider if company SSO is required.
-- Persist workspace memberships and roles beyond static environment configuration.
-- Add CSRF/session strategy if cookie-based auth is selected.
+### Authenticated viewers (`user` and above)
+
+- Install report submission
+- Upload publishing (`POST /api/workspaces/:workspaceId/packages/upload`)
+- Git import publishing (`POST /api/workspaces/:workspaceId/packages/import-git`)
+
+### Editors (`maintainer` and above)
+
+- Lifecycle transitions (approve, hide, deprecate, publish)
+- Usage counters and adoption reports
+- Non-approved version visibility for review
+
+### Admins
+
+- All editor permissions
+- Workspace reporting policy and visibility updates
+- List, update roles, and delete users (`/api/admin/users`)
+
+## Pending hardening
+
 - Audit local path exposure in reports before enabling required reporting.
+- Optional interactive CLI OAuth (CLI continues to use API tokens today).

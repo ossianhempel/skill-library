@@ -63,6 +63,10 @@ Add `registry.config.json` to `FORK_LOCAL_PATHS` in `fork-sync.conf` so upstream
 
 Override the file path in containers with `SKILL_LIBRARY_CONFIG_PATH` if needed.
 
+## Roles and admin bootstrap
+
+The first Microsoft SSO sign-in becomes **Admin** automatically. Later sign-ins start as **Viewer** until promoted in the Admin tab. Role names in the UI map to internal values as Viewer (`user`), Editor (`maintainer`), and Admin (`admin`). See [user-guide.md](user-guide.md) and [security.md](security.md).
+
 ## Deploy from the fork
 
 After syncing, push to your fork's default branch. Your CI/CD pipeline should build and deploy from that remote (for example Azure DevOps `Assets/skill-library`), not from the public GitHub repo.

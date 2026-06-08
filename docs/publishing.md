@@ -2,6 +2,15 @@
 
 Publishing starts with an uploaded package tree or a Git import. Both paths use the same validation, artifact packing, and immutable storage behavior.
 
+## Who can publish and approve
+
+| Action | Minimum role |
+|--------|----------------|
+| Upload draft / Git import | Viewer (`user`) — any signed-in teammate |
+| Approve, hide, deprecate | Editor (`maintainer`) or Admin |
+
+Drafts are visible to editors and admins for review. Only **approved** versions become install candidates in the public catalog.
+
 ## Upload Flow
 
 1. Client posts package metadata and normalized package entries to `POST /api/workspaces/:workspaceId/packages/upload`.
@@ -34,7 +43,7 @@ Use `POST /api/versions/:versionId/lifecycle` with a `toState` value:
 - `deprecated`
 - `draft`
 
-Approved versions receive `approvedAt`. Versions with validation errors cannot be approved. Every transition records a lifecycle event in storage. Permission checks require maintainer role or above.
+Approved versions receive `approvedAt`. Versions with validation errors cannot be approved. Every transition records a lifecycle event in storage. Permission checks require editor (`maintainer`) role or above.
 
 ## Immutability
 
