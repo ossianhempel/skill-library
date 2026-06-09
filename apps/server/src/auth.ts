@@ -15,7 +15,7 @@ export async function actorFromHeaders(headers: Headers, auth?: BetterAuthInstan
         const user = session.user as typeof session.user & { role?: string };
         const role = parseRole(user.role ?? null);
         return {
-          id: session.user.email,
+          id: session.user.id,
           role: role ?? "user"
         };
       }

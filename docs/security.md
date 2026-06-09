@@ -21,6 +21,8 @@ Higher ranks inherit lower-rank permissions.
 
 On the first SSO sign-in, if the `user` table is empty, Better Auth assigns `admin` to that account. Subsequent sign-ins default to `user` (Viewer) until an admin promotes them through `PATCH /api/admin/users/:userId`.
 
+Any signed-in user can list teammates (with skills submitted counts) via `GET /api/team/members`. Role changes and user deletion remain admin-only.
+
 ## Microsoft Entra SSO
 
 Configure in the server environment:
@@ -84,7 +86,8 @@ Bearer API keys take precedence when both are present. Dev headers are rejected 
 
 - All editor permissions
 - Workspace reporting policy and visibility updates
-- List, update roles, and delete users (`/api/admin/users`)
+- List teammates with submission counts (`GET /api/team/members`) — any signed-in user
+- Update roles and delete users (`PATCH` / `DELETE /api/admin/users/:userId`) — admin only
 
 ## Pending hardening
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
-import { Archive, BarChart3, CheckCircle2, ChevronDown, Download, FileCode2, GitBranch, Loader2, LogOut, RefreshCw, Search, Shield, ShieldCheck, TerminalSquare, UploadCloud, User, Users } from "lucide-react";
+import { Archive, BarChart3, CheckCircle2, ChevronDown, ClipboardCheck, Copy, Download, FileCode2, GitBranch, Loader2, LogOut, RefreshCw, Search, Shield, ShieldCheck, TerminalSquare, UploadCloud, User, Users } from "lucide-react";
+import { buildMcpSetupContext, buildMcpSetupPrompt, MCP_SETUP_TARGETS, type McpSetupTarget } from "./mcp-setup-prompts.js";
 import {
   DEFAULT_REGISTRY_BRANDING,
   WORKSPACE_ROLE_DESCRIPTIONS,
@@ -28,6 +29,7 @@ export interface AdminUser {
   role: string;
   created_at: string;
   image: string | null;
+  skillsSubmitted: number;
 }
 
 export interface CatalogSkill {
@@ -81,7 +83,7 @@ export interface SkillLibraryAppProps {
   branding?: RegistryBrandingConfig;
 }
 
-type AppTab = "overview" | "catalog" | "publish" | "reports" | "admin";
+type AppTab = "overview" | "catalog" | "publish" | "reports" | "team";
 
 function isLocalDev(): boolean {
   return typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
@@ -138,6 +140,7 @@ export function SkillLibraryApp({
   const [gitFields, setGitFields] = useState(emptyGitFields);
   const [uploadEntries, setUploadEntries] = useState<UploadVersionInput["entries"]>([]);
   const [notice, setNotice] = useState("Ready");
+  const [copiedMcpTarget, setCopiedMcpTarget] = useState<McpSetupTarget | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("overview");
   const [activeToken, setActiveToken] = useState(() => authToken);
@@ -148,8 +151,8 @@ export function SkillLibraryApp({
   const [session, setSession] = useState<SessionUser | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-  const [adminLoading, setAdminLoading] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<AdminUser[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
 
   useEffect(() => {
     void fetchSession();
@@ -244,17 +247,17 @@ export function SkillLibraryApp({
     }
   }
 
-  async function loadAdminUsers() {
-    setAdminLoading(true);
+  async function loadTeamMembers() {
+    setTeamLoading(true);
     try {
       const baseUrl = registryUrl.replace(/\/$/, "");
-      const response = await fetch(`${baseUrl}/api/admin/users`, { credentials: "include" });
+      const response = await fetch(`${baseUrl}/api/team/members`, { credentials: "include" });
       if (response.ok) {
-        const data = (await response.json()) as { users: AdminUser[] };
-        setAdminUsers(data.users);
+        const data = (await response.json()) as { members: AdminUser[] };
+        setTeamMembers(data.members);
       }
     } catch { /* ignore */ } finally {
-      setAdminLoading(false);
+      setTeamLoading(false);
     }
   }
 
@@ -269,7 +272,7 @@ export function SkillLibraryApp({
       });
       if (response.ok) {
         setNotice(`Role updated to ${formatRoleLabel(newRole)}`);
-        await loadAdminUsers();
+        await loadTeamMembers();
       } else {
         setNotice("Failed to update user role");
       }
@@ -290,7 +293,7 @@ export function SkillLibraryApp({
       });
       if (response.ok) {
         setNotice(`${userName} has been removed`);
-        await loadAdminUsers();
+        await loadTeamMembers();
       } else {
         setNotice("Failed to remove user");
       }
@@ -299,12 +302,12 @@ export function SkillLibraryApp({
     }
   }
 
-  // Load admin users when the admin tab opens or the signed-in admin changes.
+  // Load team roster when the team tab opens for any signed-in user.
   useEffect(() => {
-    if (activeTab === "admin" && session?.role === "admin") {
-      void loadAdminUsers();
+    if (activeTab === "team" && session) {
+      void loadTeamMembers();
     }
-  }, [activeTab, session?.id, session?.role]);
+  }, [activeTab, session?.id]);
 
   useEffect(() => {
     if (skills) {
@@ -583,6 +586,17 @@ export function SkillLibraryApp({
 
   const resolvedRegistryUrl = registryUrl || branding.registryPublicUrl || (typeof window !== "undefined" ? window.location.origin : "");
 
+  async function copyMcpSetupPrompt(target: McpSetupTarget) {
+    const prompt = buildMcpSetupPrompt(target, buildMcpSetupContext(branding, workspaceId, resolvedRegistryUrl));
+    await navigator.clipboard?.writeText(prompt).catch(() => undefined);
+    const label = MCP_SETUP_TARGETS.find((entry) => entry.id === target)?.label ?? "Agent";
+    setCopiedMcpTarget(target);
+    setNotice(`Copied ${label} MCP setup prompt`);
+    window.setTimeout(() => {
+      setCopiedMcpTarget((current) => (current === target ? null : current));
+    }, 2500);
+  }
+
   return (
     <main className={`shell ${activeTab === "catalog" ? "layout-catalog" : "layout-single"}`}>
       <aside className="rail" aria-label="Workspace">
@@ -591,7 +605,7 @@ export function SkillLibraryApp({
         <NavButton icon={<Search size={19} />} label="Catalog" active={activeTab === "catalog"} onClick={() => setActiveTab("catalog")} />
         <NavButton icon={<UploadCloud size={19} />} label="Publish" active={activeTab === "publish"} onClick={() => setActiveTab("publish")} />
         <NavButton icon={<BarChart3 size={19} />} label="Reports" active={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
-        {isAdmin && <NavButton icon={<Users size={19} />} label="Admin" active={activeTab === "admin"} onClick={() => setActiveTab("admin")} />}
+        {hasSession && <NavButton icon={<Users size={19} />} label="Team" active={activeTab === "team"} onClick={() => setActiveTab("team")} />}
 
         <div className="rail-spacer" />
 
@@ -642,6 +656,34 @@ export function SkillLibraryApp({
                 <button className="secondary" onClick={() => setActiveTab("publish")}><UploadCloud size={17} />Publish draft</button>
               </div>
             </div>
+            <section className="mcp-connect-panel" aria-label="Connect your agent via MCP">
+              <div className="mcp-connect-copy">
+                <p className="kicker">Connect your agent</p>
+                <h3>Copy a setup prompt for your AI client</h3>
+                <p>
+                  MCP runs locally on your machine and talks to <strong>{resolvedRegistryUrl}</strong> with a bearer API token — not Microsoft SSO.
+                  Paste the copied prompt into Claude Code, Codex, Cursor, or another agent; it will configure MCP, ask for your token, and validate <code>tools/list</code> plus a live search.
+                </p>
+              </div>
+              <div className="mcp-connect-grid">
+                {MCP_SETUP_TARGETS.map((target) => (
+                  <button
+                    key={target.id}
+                    type="button"
+                    className={`mcp-connect-button ${copiedMcpTarget === target.id ? "copied" : ""}`}
+                    aria-label={`Copy ${target.label} MCP setup prompt`}
+                    onClick={() => void copyMcpSetupPrompt(target.id)}
+                  >
+                    <span className="mcp-connect-button-label">{target.label}</span>
+                    <span className="mcp-connect-button-hint">{target.hint}</span>
+                    <span className="mcp-connect-button-action">
+                      {copiedMcpTarget === target.id ? <ClipboardCheck size={16} /> : <Copy size={16} />}
+                      {copiedMcpTarget === target.id ? "Copied" : "Copy prompt"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
             <div className="metrics compact" aria-label="Registry metrics">
               <Metric label="Approved skills" value={catalog.length} />
               <Metric label="Installs" value={totals.installs} />
@@ -746,14 +788,15 @@ export function SkillLibraryApp({
 
         {activeTab === "reports" && <ReportPanel catalog={catalog} summary={reportSummary} />}
 
-        {activeTab === "admin" && isAdmin && session && (
-          <AdminPanel
-            users={adminUsers}
-            loading={adminLoading}
+        {activeTab === "team" && session && (
+          <TeamPanel
+            members={teamMembers}
+            loading={teamLoading}
             currentUser={session}
+            canManageRoles={isAdmin}
             onRoleChange={handleRoleChange}
             onDeleteUser={handleDeleteUser}
-            onRefresh={loadAdminUsers}
+            onRefresh={loadTeamMembers}
             notice={notice}
           />
         )}
@@ -1127,35 +1170,37 @@ function LoginScreen({
   );
 }
 
-function AdminPanel({
-  users,
+function TeamPanel({
+  members,
   loading,
   currentUser,
+  canManageRoles,
   onRoleChange,
   onDeleteUser,
   onRefresh,
   notice
 }: {
-  users: AdminUser[];
+  members: AdminUser[];
   loading: boolean;
   currentUser: SessionUser;
+  canManageRoles: boolean;
   onRoleChange: (userId: string, role: string) => void;
   onDeleteUser: (userId: string, name: string) => void;
   onRefresh: () => void;
   notice: string;
 }) {
-  const selfRecord = users.find((user) => user.id === currentUser.id);
-  const teammates = users.filter((user) => user.id !== currentUser.id);
+  const selfRecord = members.find((user) => user.id === currentUser.id);
+  const teammates = members.filter((user) => user.id !== currentUser.id);
 
   return (
-    <section className="admin-panel" aria-label="User administration">
+    <section className="admin-panel" aria-label="Team roster">
       <div className="admin-header">
         <div>
-          <div className="panel-title"><Users size={17} />User Administration</div>
+          <div className="panel-title"><Users size={17} />Team</div>
           <p style={{ margin: "0", color: "var(--muted)", fontSize: "0.88rem" }}>
             {teammates.length === 0
               ? "Only you have signed in so far"
-              : `You and ${teammates.length} other ${teammates.length === 1 ? "teammate have" : "teammates have"} signed in`}
+              : `You and ${teammates.length} other ${teammates.length === 1 ? "teammate" : "teammates"}`}
           </p>
         </div>
         <button onClick={onRefresh} disabled={loading} className="secondary">
@@ -1179,9 +1224,12 @@ function AdminPanel({
           <div className="admin-self-meta">
             <span className={`session-role role-${currentUser.role}`}>{formatRoleLabel(currentUser.role)}</span>
             {selfRecord ? (
-              <span className="admin-self-joined">
-                Joined {new Date(selfRecord.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-              </span>
+              <>
+                <span className="admin-self-joined">
+                  Joined {new Date(selfRecord.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </span>
+                <span className="admin-self-submissions">{selfRecord.skillsSubmitted} skill{selfRecord.skillsSubmitted === 1 ? "" : "s"} submitted</span>
+              </>
             ) : null}
           </div>
         </article>
@@ -1202,26 +1250,28 @@ function AdminPanel({
       <section className="admin-section" aria-label="Team members">
         <h3 className="admin-section-title">Team members</h3>
 
-        {loading && teammates.length === 0 ? (
+        {loading && members.length === 0 ? (
           <div className="admin-empty">
             <Loader2 size={20} className="spin" aria-hidden="true" />
             <span>Loading teammates…</span>
           </div>
-        ) : teammates.length === 0 ? (
-          <div className="admin-empty">No other teammates have signed in yet.</div>
+        ) : members.length === 0 ? (
+          <div className="admin-empty">No teammates have signed in yet.</div>
         ) : (
-          <div className="admin-table" role="table" aria-label="Team members">
+          <div className={`admin-table ${canManageRoles ? "admin-table--manageable" : "admin-table--readonly"}`} role="table" aria-label="Team members">
             <div className="admin-table-head" role="row">
               <span>User</span>
               <span>Role</span>
+              <span>Skills submitted</span>
               <span>Joined</span>
-              <span></span>
+              {canManageRoles ? <span></span> : null}
             </div>
-            {teammates.map((user) => (
-              <AdminUserRow
+            {members.map((user) => (
+              <TeamMemberRow
                 key={user.id}
                 user={user}
-                disableRoleChange={false}
+                isSelf={user.id === currentUser.id}
+                canManageRoles={canManageRoles}
                 onRoleChange={onRoleChange}
                 onDeleteUser={onDeleteUser}
               />
@@ -1235,14 +1285,16 @@ function AdminPanel({
   );
 }
 
-function AdminUserRow({
+function TeamMemberRow({
   user,
-  disableRoleChange,
+  isSelf,
+  canManageRoles,
   onRoleChange,
   onDeleteUser
 }: {
   user: AdminUser;
-  disableRoleChange: boolean;
+  isSelf: boolean;
+  canManageRoles: boolean;
   onRoleChange: (userId: string, role: string) => void;
   onDeleteUser: (userId: string, name: string) => void;
 }) {
@@ -1253,39 +1305,45 @@ function AdminUserRow({
           {user.image ? <img src={user.image} alt="" /> : <User size={14} />}
         </div>
         <div>
-          <strong>{user.name}</strong>
+          <strong>{user.name}{isSelf ? " (you)" : ""}</strong>
           <span className="admin-user-email">{user.email}</span>
         </div>
       </div>
       <div className="admin-role-cell">
-        <div className="role-select-wrapper">
-          <select
-            value={user.role}
-            onChange={(event) => void onRoleChange(user.id, event.target.value)}
-            disabled={disableRoleChange}
-            className={`role-select role-${user.role}`}
-          >
-            <option value="user">{WORKSPACE_ROLE_LABELS.user}</option>
-            <option value="maintainer">{WORKSPACE_ROLE_LABELS.maintainer}</option>
-            <option value="admin">{WORKSPACE_ROLE_LABELS.admin}</option>
-          </select>
-          <ChevronDown size={12} className="role-select-chevron" />
-        </div>
+        {canManageRoles && !isSelf ? (
+          <div className="role-select-wrapper">
+            <select
+              value={user.role}
+              onChange={(event) => void onRoleChange(user.id, event.target.value)}
+              className={`role-select role-${user.role}`}
+            >
+              <option value="user">{WORKSPACE_ROLE_LABELS.user}</option>
+              <option value="maintainer">{WORKSPACE_ROLE_LABELS.maintainer}</option>
+              <option value="admin">{WORKSPACE_ROLE_LABELS.admin}</option>
+            </select>
+            <ChevronDown size={12} className="role-select-chevron" />
+          </div>
+        ) : (
+          <span className={`session-role role-${user.role}`}>{formatRoleLabel(user.role)}</span>
+        )}
       </div>
+      <span className="admin-submissions-cell">{user.skillsSubmitted}</span>
       <span className="admin-date-cell">
         {new Date(user.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
       </span>
-      <div className="admin-actions-cell">
-        {!disableRoleChange ? (
-          <button
-            className="admin-delete-btn"
-            onClick={() => void onDeleteUser(user.id, user.name)}
-            title={`Remove ${user.name}`}
-          >
-            Remove
-          </button>
-        ) : null}
-      </div>
+      {canManageRoles ? (
+        <div className="admin-actions-cell">
+          {!isSelf ? (
+            <button
+              className="admin-delete-btn"
+              onClick={() => void onDeleteUser(user.id, user.name)}
+              title={`Remove ${user.name}`}
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

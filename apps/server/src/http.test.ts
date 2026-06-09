@@ -634,6 +634,43 @@ describe("HTTP registry API", () => {
     }
   });
 
+  it("signed-in users can list team members with submission counts", async () => {
+    const { app, store } = await createSeededApp();
+
+    try {
+      await store.query(
+        'insert into "user" (id, name, email, "emailVerified", role, created_at, updated_at) values ($1, $2, $3, $4, $5, now(), now())',
+        ["user-1", "Test User", "test@example.com", false, "user"]
+      );
+
+      await store.query(
+        `insert into skill_versions (id, package_id, version, lifecycle_state, artifact_digest, validation, provenance, created_at)
+         values ($1, $2, $3, $4, $5, $6, $7, now())`,
+        [
+          "version-draft",
+          "package-1",
+          "1.1.0",
+          "draft",
+          "sha256:two",
+          JSON.stringify({ ok: true, files: [], issues: [] }),
+          JSON.stringify({ kind: "upload", actorId: "user-1", importedAt: "2026-06-07T12:00:00.000Z" })
+        ]
+      );
+
+      const denied = await app.request("/api/team/members");
+      expect(denied.status).toBe(403);
+
+      const list = await app.request("/api/team/members", { headers: userHeaders() });
+      expect(list.status).toBe(200);
+      const listBody = (await list.json()) as { members: Array<{ id: string; skillsSubmitted: number }> };
+      expect(listBody.members).toEqual([
+        expect.objectContaining({ id: "user-1", email: "test@example.com", role: "user", skillsSubmitted: 1 })
+      ]);
+    } finally {
+      await store.close();
+    }
+  });
+
   it("admin can list, update, and delete users", async () => {
     const { app, store } = await createSeededApp();
 
@@ -644,16 +681,16 @@ describe("HTTP registry API", () => {
         ["user-1", "Test User", "test@example.com", false, "user"]
       );
 
-      // Non-admin is denied
+      // Non-admin cannot use admin list endpoint
       const denied = await app.request("/api/admin/users", { headers: userHeaders() });
       expect(denied.status).toBe(403);
 
       // Admin can list users
       const list = await app.request("/api/admin/users", { headers: adminHeaders() });
       expect(list.status).toBe(200);
-      const listBody = (await list.json()) as { users: any[] };
+      const listBody = (await list.json()) as { users: Array<{ id: string; skillsSubmitted: number }> };
       expect(listBody.users).toEqual([
-        expect.objectContaining({ id: "user-1", email: "test@example.com", role: "user" })
+        expect.objectContaining({ id: "user-1", email: "test@example.com", role: "user", skillsSubmitted: 0 })
       ]);
 
       // Admin can update a user's role

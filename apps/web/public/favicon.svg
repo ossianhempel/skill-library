@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Skill Library">
+  <rect width="64" height="64" fill="#f2f0e8"/>
+  <rect x="7" y="7" width="50" height="50" fill="#fbfaf4" stroke="#151713" stroke-width="4"/>
+  <rect x="14" y="14" width="36" height="36" fill="#315c4b"/>
+  <path d="M22 20h17a6 6 0 0 1 6 6v18H28a6 6 0 0 1-6-6V20Z" fill="#fbfaf4" stroke="#151713" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M30 20v24" stroke="#151713" stroke-width="3"/>
+  <path d="M35 28h7M35 35h7M24 28h3M24 35h3" stroke="#315c4b" stroke-width="3" stroke-linecap="square"/>
+  <rect x="14" y="14" width="36" height="36" fill="none" stroke="#151713" stroke-width="2"/>
+</svg>

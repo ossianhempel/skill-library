@@ -8,7 +8,7 @@ Production uses **Microsoft Entra ID SSO**. Open the registry URL, click **Sign 
 
 ### First admin
 
-The **first Microsoft account to sign in** is promoted to **Admin** automatically. That bootstrap admin can then promote teammates in the **Admin** tab. No separate setup script is required.
+The **first Microsoft account to sign in** is promoted to **Admin** automatically. That bootstrap admin can then promote teammates on the **Team** tab. No separate setup script is required.
 
 ### Roles
 
@@ -18,7 +18,7 @@ The **first Microsoft account to sign in** is promoted to **Admin** automaticall
 | **Editor** | `maintainer` | Everything viewers can do; approve, hide, and deprecate skills; view adoption reports |
 | **Admin** | `admin` | Manage teammate roles; all editor permissions |
 
-Admins change roles under **Admin → Team members**. You cannot change your own role.
+Admins change roles on the **Team** tab. Everyone signed in can open **Team** to see teammates and how many skills each person has submitted. You cannot change your own role.
 
 ### Draft review and approval
 

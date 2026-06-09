@@ -2,6 +2,18 @@
 
 The MCP package exposes registry tool contracts for agents without requiring them to scrape the web UI.
 
+## Deployment model
+
+| Surface | Hosted on registry? | Auth |
+|---------|---------------------|------|
+| Web UI | Yes (`https://your-registry/`) | Microsoft Entra SSO (cookies) |
+| HTTP API | Yes (`/api/*`) | Bearer API key or SSO session |
+| MCP | **No** — local stdio on the user's machine | Bearer API key (`SKILL_LIBRARY_MCP_TOKEN`) |
+
+MCP is **not** exposed as a remote endpoint on `skills.rebtech.se` or other registry deployments today. Each user runs `packages/mcp/dist/stdio.js` locally; it calls the registry HTTP API with a bearer token. **Microsoft SSO does not apply to MCP.**
+
+The web Overview tab includes one-click **Copy setup prompt** buttons (Claude Code, Claude Desktop, Codex, Cursor, ChatGPT) that paste ready-made instructions into your agent to configure MCP and validate `tools/list` + search.
+
 ## Current Tools
 
 Implemented tool helpers:

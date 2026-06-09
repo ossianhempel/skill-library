@@ -25,6 +25,8 @@ describe("SkillLibraryApp", () => {
     expect(screen.getByText("Rebtech skill registry")).toBeTruthy();
     expect(screen.getByText("Start here")).toBeTruthy();
     expect(screen.getByText("Find an approved skill or publish a new draft.")).toBeTruthy();
+    expect(screen.getByText("Connect your agent")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copy Claude Code MCP setup prompt" })).toBeTruthy();
     
     // In simplified UI, detail pane is hidden on Overview tab
     expect(screen.queryByText("SKILL.md")).toBeNull();

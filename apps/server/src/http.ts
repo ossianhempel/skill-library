@@ -395,6 +395,35 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     return context.json({ accepted: true }, 201);
   });
 
+  // Team roster — visible to any signed-in user.
+  app.get("/api/team/members", async (context) => {
+    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+
+    if (!hasRole(actor, "user")) {
+      return context.json({ error: "Sign-in required" }, 403);
+    }
+
+    const result = await store.query<TeamMemberRow>(`
+      select
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.created_at,
+        u.image,
+        count(v.id)::int as skills_submitted
+      from "user" u
+      left join skill_versions v on (
+        v.provenance->>'actorId' = u.id
+        or v.provenance->>'actorId' = u.email
+      )
+      group by u.id, u.name, u.email, u.role, u.created_at, u.image
+      order by u.created_at asc
+    `);
+
+    return context.json({ members: result.rows.map(mapTeamMemberRow) });
+  });
+
   // Admin user management routes
   app.get("/api/admin/users", async (context) => {
     const actor = await actorFromHeaders(context.req.raw.headers, auth);
@@ -403,8 +432,25 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Admin role required" }, 403);
     }
 
-    const result = await store.query<{ id: string; name: string; email: string; role: string; created_at: string; image: string | null }>("select id, name, email, role, created_at, image from \"user\" order by created_at asc");
-    return context.json({ users: result.rows });
+    const result = await store.query<TeamMemberRow>(`
+      select
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.created_at,
+        u.image,
+        count(v.id)::int as skills_submitted
+      from "user" u
+      left join skill_versions v on (
+        v.provenance->>'actorId' = u.id
+        or v.provenance->>'actorId' = u.email
+      )
+      group by u.id, u.name, u.email, u.role, u.created_at, u.image
+      order by u.created_at asc
+    `);
+
+    return context.json({ users: result.rows.map(mapTeamMemberRow) });
   });
 
   app.patch("/api/admin/users/:userId", async (context) => {
@@ -454,6 +500,28 @@ function parseAdminRole(value: string | undefined): "user" | "maintainer" | "adm
     return value;
   }
   return undefined;
+}
+
+interface TeamMemberRow {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  created_at: string;
+  image: string | null;
+  skills_submitted: number;
+}
+
+function mapTeamMemberRow(row: TeamMemberRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    created_at: row.created_at,
+    image: row.image,
+    skillsSubmitted: Number(row.skills_submitted ?? 0)
+  };
 }
 
 function parseUsageEventType(value: string | undefined) {
