@@ -112,12 +112,41 @@ server.listen(port, host, () => {
   console.log(`Serving web assets from ${staticDir}`);
 });
 
+// Graceful shutdown that prioritizes flushing PGlite to disk. On a Container Apps
+// deploy the platform sends SIGTERM, then SIGKILLs at the termination grace
+// deadline. A plain server.close() waits for ALL open connections to end, and
+// long-lived MCP/keep-alive streams may never drain in time -- if the callback
+// never fires, store.close() never runs and PGlite is killed mid-write (TOAST
+// corruption). So we stop new work, force-close lingering sockets, and always
+// flush the store under a hard backstop that can't hang past the grace window.
+let shuttingDown = false;
+async function shutdown(): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  server.close();
+  // Node 18.2+: drop idle keep-alives immediately, then force the rest shortly
+  // after so the event loop can proceed to the DB flush instead of blocking.
+  server.closeIdleConnections();
+  const forceCloseSockets = setTimeout(() => server.closeAllConnections(), 3000);
+  forceCloseSockets.unref();
+
+  // Backstop: never let shutdown outlast the platform grace period. If the flush
+  // itself wedges, exit non-zero rather than get SIGKILLed mid-write.
+  const backstop = setTimeout(() => process.exit(1), 20000);
+  backstop.unref();
+
+  try {
+    await store.close();
+  } finally {
+    clearTimeout(forceCloseSockets);
+    clearTimeout(backstop);
+    process.exit(0);
+  }
+}
+
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.once(signal, () => {
-    server.close(() => {
-      void store.close().finally(() => process.exit(0));
-    });
-  });
+  process.once(signal, () => void shutdown());
 }
 
 function toWebRequest(request: IncomingMessage, url: URL): Request {
