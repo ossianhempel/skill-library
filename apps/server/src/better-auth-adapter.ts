@@ -50,9 +50,7 @@ export function createBetterAuthAdapter(store: RegistryStore) {
 
         async findOne({ model, where }: { model: string; where: Array<{ field: string; value: unknown; operator?: string; mode?: string }> }) {
           if (!where || where.length === 0) {
-            const sql = `select * from "${model}" limit 1`;
-            const result = await store.query(sql);
-            return result.rows[0] ? mapAuthRowToFields(result.rows[0] as Record<string, unknown>) : null;
+            return null;
           }
 
           const conditions = buildConditions(where);
@@ -118,7 +116,6 @@ export function createBetterAuthAdapter(store: RegistryStore) {
 
         async delete({ model, where }: { model: string; where: Array<{ field: string; value: unknown; operator?: string; mode?: string }> }) {
           if (!where || where.length === 0) {
-            await store.query(`delete from "${model}"`);
             return 0;
           }
 
@@ -132,7 +129,6 @@ export function createBetterAuthAdapter(store: RegistryStore) {
 
         async deleteMany({ model, where }: { model: string; where: Array<{ field: string; value: unknown; operator?: string; mode?: string }> }) {
           if (!where || where.length === 0) {
-            await store.query(`delete from "${model}"`);
             return 0;
           }
 
