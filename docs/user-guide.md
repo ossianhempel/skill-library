@@ -28,6 +28,12 @@ Admins change roles on the **Team** tab. Everyone signed in can open **Team** to
 
 Viewers can submit drafts but cannot approve them.
 
+## Agent setup (MCP / CLI)
+
+After you sign in with Microsoft, open **Overview** and copy an **agent setup prompt** for your editor (Cursor, Claude Code, Codex, etc.). The prompt includes your **personal MCP bearer token** automatically — you do not need a separate token from an admin.
+
+That token is tied to your account and role. Treat it like a password.
+
 ## API token fallback (optional)
 
 For local development or automation without SSO, set a browser API token before opening the app:
@@ -36,7 +42,7 @@ For local development or automation without SSO, set a browser API token before 
 localStorage.setItem("skill-library-token", "<user-or-maintainer-token>")
 ```
 
-CLI and MCP use bearer tokens configured in `SKILL_LIBRARY_API_KEYS`. See [security.md](security.md).
+Legacy static deploy keys in `SKILL_LIBRARY_API_KEYS` still work for automation. See [security.md](security.md).
 
 ## Browse
 
@@ -48,7 +54,7 @@ Skill detail shows:
 
 - description and lifecycle state
 - latest version
-- validation summary
+- validation summary with specific rule IDs, messages, and file paths (errors and warnings)
 - bundled file preview list
 - generated CLI install prompt
 - ZIP fallback action
@@ -69,7 +75,10 @@ Any signed-in teammate can publish drafts through the web UI:
 
 - package metadata fields for workspace, slug, and version
 - upload file selection for package-tree publishing through `/api/workspaces/:workspaceId/packages/upload`
+- optional **Validate** preflight against `/api/validation/package-tree` before upload
 - Git import controls for `/api/workspaces/:workspaceId/packages/import-git`
+
+`SKILL.md` must include Agent Skills YAML frontmatter (`name`, `description`). See [validation-rules.md](validation-rules.md). Invalid packages can still be uploaded as drafts for maintainer review, but approval is blocked until validation passes.
 
 Editors and admins approve drafts through lifecycle actions (`approve`, `hide`, `deprecated`) on `/api/versions/:versionId/lifecycle`.
 

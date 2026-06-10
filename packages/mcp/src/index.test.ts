@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { InstallReport, SkillPackage, SkillVersion } from "@skill-library/domain";
+import { validatePackageTree } from "@skill-library/validation";
 import { createHttpMcpApi, createInstallPlan, createRegistryMcpTools, handleMcpJsonRpc, type McpRegistryApi } from "./index.js";
 
 describe("MCP registry tools", () => {
@@ -37,8 +38,8 @@ describe("MCP registry tools", () => {
 
     await expect(tools.search({ workspaceId: "workspace-1", query: "review" })).resolves.toEqual({ packages: [pkg] });
     await expect(tools.packageDetail({ packageId: "package-1" })).resolves.toEqual({ package: pkg, latestApproved: version });
-    await expect(tools.validatePackage({ entries: [{ path: "demo/SKILL.md", content: "# Demo\n" }] })).resolves.toEqual({
-      validation: { ok: true, files: [], issues: [] }
+    await expect(tools.validatePackage({ entries: [{ path: "demo/SKILL.md", content: skillMd("demo", "Demo skill.") }] })).resolves.toEqual({
+      validation: { ok: true, files: expect.any(Array), issues: expect.any(Array) }
     });
     await expect(
       tools.submitStatusReport({
@@ -53,6 +54,30 @@ describe("MCP registry tools", () => {
       })
     ).resolves.toEqual({ accepted: true });
     expect(reports).toHaveLength(1);
+  });
+
+  it("returns frontmatter validation issues through validatePackage", async () => {
+    const tools = createRegistryMcpTools({
+      async search() {
+        return [];
+      },
+      async packageDetail() {
+        return pkg;
+      },
+      async latestApprovedVersion() {
+        return version;
+      },
+      validate(entries) {
+        return validatePackageTree(entries);
+      }
+    });
+
+    await expect(tools.validatePackage({ entries: [{ path: "demo/SKILL.md", content: "# Missing frontmatter\n" }] })).resolves.toEqual({
+      validation: expect.objectContaining({
+        ok: false,
+        issues: expect.arrayContaining([expect.objectContaining({ ruleId: "skill-md-missing-frontmatter" })])
+      })
+    });
   });
 
   it("handles JSON-RPC tool list and tool calls", async () => {
@@ -175,4 +200,12 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { "content-type": "application/json" }
   });
+}
+
+function skillMd(name: string, description: string, body = "# Skill\n\nBody content.\n"): string {
+  return `---
+name: ${name}
+description: ${description}
+---
+${body}`;
 }

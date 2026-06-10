@@ -5,6 +5,23 @@ export type WorkspaceId = string;
 export type LifecycleState = "draft" | "published" | "approved" | "hidden" | "deprecated";
 export type InstallTargetKind = "codex-global" | "claude-global" | "openclaw-global" | "project";
 export type ValidationSeverity = "error" | "warning";
+
+export const VALIDATION_RULE_IDS = [
+  "required-skill-md",
+  "invalid-path",
+  "path-traversal",
+  "skill-md-missing-frontmatter",
+  "skill-md-missing-name",
+  "skill-md-missing-description",
+  "skill-md-invalid-name-format",
+  "skill-md-invalid-description-length",
+  "skill-md-name-directory-mismatch",
+  "skill-md-body-empty",
+  "skill-md-body-large",
+  "skill-md-slug-package-mismatch"
+] as const;
+
+export type ValidationRuleId = (typeof VALIDATION_RULE_IDS)[number];
 export type InstalledSkillState =
   | "current"
   | "stale"

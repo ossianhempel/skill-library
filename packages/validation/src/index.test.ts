@@ -6,10 +6,18 @@ import { join, resolve } from "node:path";
 import yazl from "yazl";
 import { packPackageZip, readPackageDirectory, readPackageZip, validatePackageTree } from "./index.js";
 
+function skillMd(name: string, description: string, body = "# Skill\n\nBody content.\n"): string {
+  return `---
+name: ${name}
+description: ${description}
+---
+${body}`;
+}
+
 describe("validatePackageTree", () => {
   it("accepts a skill root with bundled files", () => {
     const result = validatePackageTree([
-      { path: "code-review/SKILL.md", content: "# Code review\n" },
+      { path: "code-review/SKILL.md", content: skillMd("code-review", "Review code changes.") },
       { path: "code-review/scripts/check.ts", content: "export {};\n" }
     ]);
 
@@ -32,7 +40,7 @@ describe("validatePackageTree", () => {
   });
 
   it("rejects path traversal entries", () => {
-    const result = validatePackageTree([{ path: "../SKILL.md", content: "# Unsafe\n" }]);
+    const result = validatePackageTree([{ path: "../SKILL.md", content: skillMd("unsafe", "Unsafe path.") }]);
 
     expect(result.ok).toBe(false);
     expect(result.issues).toContainEqual(
@@ -44,14 +52,69 @@ describe("validatePackageTree", () => {
     );
   });
 
+  it("rejects SKILL.md without frontmatter", () => {
+    const result = validatePackageTree([{ path: "demo/SKILL.md", content: "# Demo\n" }]);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        ruleId: "skill-md-missing-frontmatter",
+        severity: "error"
+      })
+    );
+  });
+
+  it("rejects invalid frontmatter name format", () => {
+    const result = validatePackageTree([
+      { path: "demo/SKILL.md", content: skillMd("Bad_Name", "Invalid name format.") }
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        ruleId: "skill-md-invalid-name-format",
+        severity: "error"
+      })
+    );
+  });
+
+  it("rejects name directory mismatch", () => {
+    const result = validatePackageTree([
+      { path: "demo/SKILL.md", content: skillMd("other-name", "Name does not match folder.") }
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        ruleId: "skill-md-name-directory-mismatch",
+        severity: "error"
+      })
+    );
+  });
+
+  it("warns when the body is empty but frontmatter is valid", () => {
+    const result = validatePackageTree([
+      { path: "demo/SKILL.md", content: skillMd("demo", "Valid frontmatter with no body.", "") }
+    ]);
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        ruleId: "skill-md-body-empty",
+        severity: "warning"
+      })
+    );
+  });
+
   it("produces the same digest for identical artifacts regardless of entry order", () => {
+    const skillContent = skillMd("demo", "Deterministic digest.");
     const first = validatePackageTree([
-      { path: "demo/SKILL.md", content: "# Demo\n" },
+      { path: "demo/SKILL.md", content: skillContent },
       { path: "demo/references/a.md", content: "A\n" }
     ]);
     const second = validatePackageTree([
       { path: "demo/references/a.md", content: "A\n" },
-      { path: "demo/SKILL.md", content: "# Demo\n" }
+      { path: "demo/SKILL.md", content: skillContent }
     ]);
 
     expect(first.digest).toBe(second.digest);
@@ -61,7 +124,10 @@ describe("validatePackageTree", () => {
 describe("artifact readers", () => {
   it("reads a package directory into validation entries", async () => {
     const root = await mkdtemp(join(tmpdir(), "skill-library-validation-"));
-    await writeFile(join(root, "SKILL.md"), "# Directory skill\n");
+    await writeFile(
+      join(root, "SKILL.md"),
+      skillMd("directory-skill", "Directory skill example.", "# Directory skill\n")
+    );
 
     const entries = await readPackageDirectory(root);
     const result = validatePackageTree(entries);
@@ -74,7 +140,7 @@ describe("artifact readers", () => {
   it("reads a zip archive into validation entries", async () => {
     const archivePath = join(await mkdtemp(join(tmpdir(), "skill-library-validation-")), "skill.zip");
     await writeZip(archivePath, {
-      "zip-skill/SKILL.md": "# Zip skill\n",
+      "zip-skill/SKILL.md": skillMd("zip-skill", "Zip skill example."),
       "zip-skill/references/a.md": "A\n"
     });
 
@@ -89,7 +155,7 @@ describe("artifact readers", () => {
   it("packs normalized package entries as a readable zip archive", async () => {
     const archivePath = join(await mkdtemp(join(tmpdir(), "skill-library-validation-")), "packed.zip");
     const packed = await packPackageZip([
-      { path: "packed-skill/SKILL.md", content: "# Packed skill\n" },
+      { path: "packed-skill/SKILL.md", content: skillMd("packed-skill", "Packed skill example.") },
       { path: "packed-skill/references/a.md", content: "A\n" }
     ]);
 
@@ -116,6 +182,13 @@ describe("example skill packages", () => {
 
     expect(result.ok).toBe(false);
     expect(result.issues).toContainEqual(expect.objectContaining({ ruleId: "required-skill-md" }));
+  });
+
+  it("blocks the bad frontmatter example", async () => {
+    const result = await validateDirectory(resolve(process.cwd(), "..", "..", "examples", "skills", "invalid-bad-frontmatter"));
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual(expect.objectContaining({ ruleId: "skill-md-missing-frontmatter" }));
   });
 });
 

@@ -20,7 +20,7 @@ describe("registry artifact ingestion", () => {
       await store.migrate();
       const api = createRegistryApi(store);
       const result = await api.ingestArtifact([
-        { path: "demo/SKILL.md", content: "# Demo\n" },
+        { path: "demo/SKILL.md", content: skillMd("demo", "Demo skill package.") },
         { path: "demo/references/a.md", content: "A\n" }
       ]);
 
@@ -50,4 +50,12 @@ async function makeTmpDir() {
   const dir = await mkdtemp(join(tmpdir(), "skill-library-server-"));
   tmpDirs.push(dir);
   return dir;
+}
+
+function skillMd(name: string, description: string, body = "# Skill\n\nBody content.\n"): string {
+  return `---
+name: ${name}
+description: ${description}
+---
+${body}`;
 }

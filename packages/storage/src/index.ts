@@ -3,6 +3,11 @@ import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { Client } from "pg";
+import {
+  acquirePgliteWriterLock,
+  formatPglitePersistenceWarning,
+  type PgliteWriterLockOptions
+} from "./pglite-lock.js";
 import type {
   InstallReport,
   InstalledSkillState,
@@ -47,6 +52,7 @@ export interface RegistryStoreConfig {
   dataDir?: string;
   pgliteDataDir?: string;
   artifactDir?: string;
+  pgliteWriterLock?: PgliteWriterLockOptions;
 }
 
 export interface RegistryStoragePaths {
@@ -113,9 +119,17 @@ export async function createRegistryStore(config: RegistryStoreConfig = {}): Pro
     return new SqlRegistryStore(mode, paths, client, async () => client.end());
   }
 
+  console.warn(`[skill-library] ${formatPglitePersistenceWarning(paths.dataDir)}`);
+
+  await mkdir(paths.dataDir, { recursive: true });
+  const releasePgliteWriterLock = await acquirePgliteWriterLock(paths.dataDir, config.pgliteWriterLock);
   await mkdir(dirname(paths.pgliteDataDir), { recursive: true });
   const db = new PGlite(paths.pgliteDataDir);
-  return new SqlRegistryStore(mode, paths, db, async () => db.close());
+
+  return new SqlRegistryStore(mode, paths, db, async () => {
+    await db.close();
+    await releasePgliteWriterLock();
+  });
 }
 
 export class SqlRegistryStore implements RegistryStore {
@@ -728,6 +742,7 @@ const migrations = [
   `alter table "account" add column if not exists "accessTokenExpiresAt" timestamptz`,
   `alter table "account" add column if not exists "refreshTokenExpiresAt" timestamptz`,
   `alter table "account" add column if not exists "scope" text`,
+  `alter table "user" add column if not exists agent_api_token text unique`,
   `delete from "session" where "userId" in (
     select u.id from "user" u
     left join "account" a on a."userId" = u.id

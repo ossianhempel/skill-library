@@ -9,6 +9,19 @@ Skill Library runs as **one container** with **one persistent volume** at `/data
 
 No separate database container is required for the default setup.
 
+## PGlite persistence and single-writer rules
+
+When `DATABASE_URL` is unset, the app uses embedded **PGlite** under `/data/db`. PGlite is convenient for evaluation and small deployments, but it has strict operational requirements:
+
+1. **Persistent volume required.** Mount a durable volume at `/data` (or at `SKILL_LIBRARY_DATA_DIR`). Ephemeral container filesystems wipe the database on every redeploy with no startup error.
+2. **Exactly one writing instance.** PGlite is strictly single-writer. Run **one replica** only. Multiple replicas, or a rolling deploy that briefly runs old and new instances against the same data directory, can corrupt the database.
+3. **External backups.** Back up the entire `/data` volume on a schedule. PGlite does not provide managed point-in-time recovery.
+4. **Production / HA.** For production or high availability, set `DATABASE_URL` to external Postgres instead of relying on PGlite.
+
+At startup in PGlite mode, the app writes a single-writer lock file under the data directory and **fails fast** if another live instance already holds the lock. Stale locks from crashed instances are taken over automatically after a heartbeat timeout.
+
+**Rolling deploy hazard:** default rolling updates can start the new container before the old one stops, creating two writers on the same volume. Use a **stop-before-start** or otherwise **single-instance** deploy strategy for PGlite, or switch to external Postgres.
+
 Company or private deployments should fork the repo and deploy from the fork. See [forking.md](./forking.md) for syncing upstream with `./scripts/sync-from-upstream.sh` and scheduled drift checks with `./scripts/check-upstream-drift.sh`.
 
 ## Quick start (agent or human)

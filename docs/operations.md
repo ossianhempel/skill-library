@@ -29,6 +29,10 @@ Default PGlite mode stores runtime state under `/data`:
 
 Set `SKILL_LIBRARY_DATA_DIR` to change the root directory.
 
+PGlite mode requires a **persistent** data directory, **exactly one app replica**, and **external volume backups**. The app logs a startup warning and enforces a single-writer lock file in the data directory. If startup fails with a single-writer lock error, stop the other instance or wait for the stale-lock timeout before retrying. For production or HA, configure `DATABASE_URL` instead.
+
+Rolling deploys that overlap old and new containers on the same PGlite volume are unsafe. Use stop-before-start (single-instance) deploys, or external Postgres.
+
 ## Backups
 
 PGlite mode:
@@ -51,6 +55,8 @@ The app applies idempotent SQL migrations at startup. For upgrades:
 2. Deploy the new image.
 3. Start the app and check `/health`.
 4. Run a catalog search and artifact download smoke test.
+
+For PGlite, prefer stop-before-start upgrades so only one instance writes to `/data` during the cutover. Rolling updates that briefly run two instances against the same volume can corrupt PGlite even when both instances are healthy.
 
 ## API Keys
 

@@ -171,7 +171,7 @@ describe("HTTP registry API", () => {
     const { app, store } = await createSeededApp();
 
     try {
-      const entries = [{ path: "demo/SKILL.md", content: "# Demo\n" }];
+      const entries = [{ path: "demo/SKILL.md", content: skillMd("demo", "Demo skill package.") }];
       const validation = await app.request("/api/validation/package-tree", {
         method: "POST",
         body: JSON.stringify({ entries })
@@ -220,7 +220,7 @@ describe("HTTP registry API", () => {
           description: "Draft release notes from changes.",
           categories: ["release"],
           version: "1.0.0",
-          entries: [{ path: "release-notes/SKILL.md", content: "# Release notes\n" }],
+          entries: [{ path: "release-notes/SKILL.md", content: skillMd("release-notes", "Draft release notes from changes.") }],
           actorId: "actor-1"
         })
       });
@@ -258,7 +258,7 @@ describe("HTTP registry API", () => {
           packageName: "Review Helper",
           description: "Review local changes.",
           version: "1.0.0",
-          entries: [{ path: "SKILL.md", content: "# Review\n" }]
+          entries: [{ path: "SKILL.md", content: skillMd("review-helper", "Review local changes.", "# Review\n") }]
         })
       });
       const catalog = await app.request("/api/workspaces/acme/packages", { headers: maintainerHeaders() });
@@ -303,6 +303,57 @@ describe("HTTP registry API", () => {
       });
       expect(approve.status).toBe(422);
       await expect(approve.json()).resolves.toEqual({ error: "Cannot approve a version with validation errors." });
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("returns frontmatter validation issues from the package-tree API", async () => {
+    const { app, store } = await createSeededApp();
+
+    try {
+      const response = await app.request("/api/validation/package-tree", {
+        method: "POST",
+        body: JSON.stringify({
+          entries: [{ path: "broken/SKILL.md", content: "# Missing frontmatter\n" }]
+        })
+      });
+      const body = (await response.json()) as { validation: { ok: boolean; issues: { ruleId: string }[] } };
+
+      expect(response.status).toBe(200);
+      expect(body.validation.ok).toBe(false);
+      expect(body.validation.issues).toContainEqual(expect.objectContaining({ ruleId: "skill-md-missing-frontmatter" }));
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("creates invalid drafts for bad frontmatter but blocks approval", async () => {
+    const { app, store } = await createSeededApp();
+
+    try {
+      const response = await app.request("/api/workspaces/workspace-1/packages/upload", {
+        method: "POST",
+        headers: maintainerHeaders(),
+        body: JSON.stringify({
+          packageSlug: "bad-frontmatter",
+          packageName: "Bad Frontmatter",
+          description: "Missing YAML frontmatter.",
+          version: "1.0.0",
+          entries: [{ path: "bad-frontmatter/SKILL.md", content: "# No frontmatter\n" }]
+        })
+      });
+      const body = (await response.json()) as { version: { id: string; validation: { ok: boolean; issues: { ruleId: string }[] } } };
+      const approve = await app.request(`/api/versions/${body.version.id}/lifecycle`, {
+        method: "POST",
+        headers: maintainerHeaders(),
+        body: JSON.stringify({ toState: "approved" })
+      });
+
+      expect(response.status).toBe(201);
+      expect(body.version.validation.ok).toBe(false);
+      expect(body.version.validation.issues).toContainEqual(expect.objectContaining({ ruleId: "skill-md-missing-frontmatter" }));
+      expect(approve.status).toBe(422);
     } finally {
       await store.close();
     }
@@ -556,7 +607,7 @@ describe("HTTP registry API", () => {
           packageName: "Blocked Upload",
           description: "Should not upload with dev headers in production.",
           version: "1.0.0",
-          entries: [{ path: "blocked/SKILL.md", content: "# Blocked\n" }]
+          entries: [{ path: "blocked/SKILL.md", content: skillMd("blocked", "Blocked skill example.") }]
         })
       });
 
@@ -629,6 +680,39 @@ describe("HTTP registry API", () => {
       expect(allowedDownload.status).toBe(404);
       await expect(updated.json()).resolves.toEqual({ workspace: expect.objectContaining({ reportingPolicy: "required", visibility: "public" }) });
       expect(publicCatalog.status).toBe(200);
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("mints a personal agent token for signed-in users and accepts it for API auth", async () => {
+    const { app, store } = await createSeededApp();
+
+    try {
+      await store.query(
+        'insert into "user" (id, name, email, "emailVerified", role, created_at, updated_at) values ($1, $2, $3, $4, $5, now(), now())',
+        ["user-1", "Test User", "test@example.com", false, "user"]
+      );
+
+      const denied = await app.request("/api/me/agent-token");
+      expect(denied.status).toBe(403);
+
+      const minted = await app.request("/api/me/agent-token", { headers: userHeaders() });
+      expect(minted.status).toBe(200);
+      const mintedBody = (await minted.json()) as { token: string; role: string; actorId: string };
+      expect(mintedBody).toEqual({
+        token: expect.stringMatching(/^sl_[0-9a-f]+$/),
+        role: "user",
+        actorId: "user-1"
+      });
+
+      const stable = await app.request("/api/me/agent-token", { headers: userHeaders() });
+      await expect(stable.json()).resolves.toEqual(mintedBody);
+
+      const authorized = await app.request("/api/workspaces/workspace-1/packages", {
+        headers: { authorization: `Bearer ${mintedBody.token}` }
+      });
+      expect(authorized.status).toBe(200);
     } finally {
       await store.close();
     }
@@ -754,12 +838,20 @@ async function makeTmpDir() {
   return dir;
 }
 
+function skillMd(name: string, description: string, body = "# Skill\n\nBody content.\n"): string {
+  return `---
+name: ${name}
+description: ${description}
+---
+${body}`;
+}
+
 async function createGitSkillRepo() {
   const repoPath = await makeTmpDir();
   const skillPath = join(repoPath, "skills", "git-skill");
 
   await mkdir(skillPath, { recursive: true });
-  await writeFile(join(skillPath, "SKILL.md"), "# Git skill\n");
+  await writeFile(join(skillPath, "SKILL.md"), skillMd("git-skill", "Imported from Git.", "# Git skill\n"));
   await execFileAsync("git", ["init"], { cwd: repoPath });
   await execFileAsync("git", ["config", "user.email", "test@example.com"], { cwd: repoPath });
   await execFileAsync("git", ["config", "user.name", "Test User"], { cwd: repoPath });

@@ -20,7 +20,7 @@ Implemented tool helpers:
 
 - `search`: find packages in a workspace
 - `packageDetail`: fetch package detail and latest approved version
-- `validatePackage`: validate normalized package-tree entries through the shared validator/API contract
+- `validatePackage`: validate normalized package-tree entries through the shared validator/API contract, including Agent Skills `SKILL.md` frontmatter rules (see [validation-rules.md](validation-rules.md))
 - `installPlan`: return a concrete CLI command and metadata behavior
 - `submitStatusReport`: pass install/status reports to the registry API when reporting is available
 

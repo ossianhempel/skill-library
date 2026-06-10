@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import { Archive, BarChart3, CheckCircle2, ChevronDown, ClipboardCheck, Copy, Download, FileCode2, GitBranch, Loader2, LogOut, RefreshCw, Search, Shield, ShieldCheck, TerminalSquare, UploadCloud, User, Users } from "lucide-react";
-import { buildMcpSetupContext, buildMcpSetupPrompt, MCP_SETUP_TARGETS, type McpSetupTarget } from "./mcp-setup-prompts.js";
+import {
+  buildMcpSetupContext,
+  buildMcpSetupPrompt,
+  fetchMcpSetupAgentAuth,
+  MCP_SETUP_TARGETS,
+  withMcpSetupAgentAuth,
+  type McpSetupTarget
+} from "./mcp-setup-prompts.js";
+import { ValidationPanel } from "./validation-panel.js";
 import {
   DEFAULT_REGISTRY_BRANDING,
   WORKSPACE_ROLE_DESCRIPTIONS,
@@ -51,6 +59,7 @@ export interface WebApiClient {
   workspaceReports(workspaceId: string): Promise<PackageReport[]>;
   uploadVersion(workspaceId: string, input: UploadVersionInput): Promise<SkillVersion>;
   importGitVersion(workspaceId: string, input: GitImportInput): Promise<SkillVersion>;
+  validatePackageTree(entries: UploadVersionInput["entries"]): Promise<ValidationResult>;
   transitionVersion(versionId: string, toState: LifecycleState): Promise<SkillVersion>;
 }
 
@@ -139,6 +148,7 @@ export function SkillLibraryApp({
   const [publishForm, setPublishForm] = useState(emptyPublishForm);
   const [gitFields, setGitFields] = useState(emptyGitFields);
   const [uploadEntries, setUploadEntries] = useState<UploadVersionInput["entries"]>([]);
+  const [preflightValidation, setPreflightValidation] = useState<ValidationResult | undefined>();
   const [notice, setNotice] = useState("Ready");
   const [copiedMcpTarget, setCopiedMcpTarget] = useState<McpSetupTarget | null>(null);
   const [loading, setLoading] = useState(false);
@@ -352,6 +362,31 @@ export function SkillLibraryApp({
     }
   }
 
+  async function handlePreflightValidate() {
+    if (uploadEntries.length === 0) {
+      setNotice("Choose a skill directory before validating.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const validation = await apiClient.validatePackageTree(uploadEntries);
+      setPreflightValidation(validation);
+      setNotice(
+        validation.ok
+          ? validation.issues.some((issue) => issue.severity === "warning")
+            ? "Validation passed with warnings. You can upload the draft for maintainer review."
+            : "Validation passed. Ready to upload."
+          : "Validation found blocking errors. Fix them before approval; you can still upload an invalid draft for review."
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Validation failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleUpload() {
     if (uploadEntries.length === 0) {
       setNotice("Choose a skill directory or JSON package tree before uploading.");
@@ -363,7 +398,12 @@ export function SkillLibraryApp({
     try {
       const resolved = resolvePublishInput(publishForm);
       const version = await apiClient.uploadVersion(workspaceId, { ...resolved, entries: uploadEntries });
-      setNotice(`Uploaded as draft: version ${version.version}. Maintainers must Approve it from the Catalog page to make it available for download/install.`);
+      setPreflightValidation(version.validation);
+      setNotice(
+        version.validation.ok
+          ? `Uploaded as draft: version ${version.version}. Validation passed. Maintainers must Approve it from the Catalog page to make it available for download/install.`
+          : `Uploaded as draft: version ${version.version}. Validation found blocking errors — fix frontmatter before approval. Maintainers can review the issue list in Catalog.`
+      );
       await loadCatalog();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Upload failed");
@@ -433,6 +473,7 @@ export function SkillLibraryApp({
     const files = [...(event.currentTarget.files ?? [])];
     if (files.length === 0) {
       setUploadEntries([]);
+      setPreflightValidation(undefined);
       setNotice("No files staged");
       return;
     }
@@ -444,12 +485,14 @@ export function SkillLibraryApp({
 
     if (!hasSkillMd) {
       setUploadEntries([]);
+      setPreflightValidation(undefined);
       setNotice("Validation error: The selected folder does not contain a SKILL.md file. Publishing requires a SKILL.md file.");
       return;
     }
 
     const entries = await filesToPackageEntries(files);
     setUploadEntries(entries);
+    setPreflightValidation(undefined);
 
     const firstRelativePath = files[0]?.webkitRelativePath;
     let slug = publishForm.packageSlug;
@@ -534,12 +577,14 @@ export function SkillLibraryApp({
 
     if (!hasSkillMd) {
       setUploadEntries([]);
+      setPreflightValidation(undefined);
       setNotice("Validation error: The selected folder does not contain a SKILL.md file. Publishing requires a SKILL.md file.");
       return;
     }
 
     const entries = await filesToPackageEntries(files);
     setUploadEntries(entries);
+    setPreflightValidation(undefined);
 
     const firstRelativePath = files[0]?.webkitRelativePath;
     let slug = publishForm.packageSlug;
@@ -587,11 +632,30 @@ export function SkillLibraryApp({
   const resolvedRegistryUrl = registryUrl || branding.registryPublicUrl || (typeof window !== "undefined" ? window.location.origin : "");
 
   async function copyMcpSetupPrompt(target: McpSetupTarget) {
-    const prompt = buildMcpSetupPrompt(target, buildMcpSetupContext(branding, workspaceId, resolvedRegistryUrl));
+    const agentAuth = await fetchMcpSetupAgentAuth({
+      registryUrl: resolvedRegistryUrl,
+      hasSession: Boolean(session),
+      activeToken
+    });
+
+    if (!agentAuth) {
+      setNotice(
+        session
+          ? "Could not load your MCP token. Sign out and back in, then try again. If this persists, the registry may need an update."
+          : "Sign in to copy a setup prompt with your personal MCP token."
+      );
+      return;
+    }
+
+    const context = withMcpSetupAgentAuth(
+      buildMcpSetupContext(branding, workspaceId, resolvedRegistryUrl),
+      agentAuth
+    );
+    const prompt = buildMcpSetupPrompt(target, context);
     await navigator.clipboard?.writeText(prompt).catch(() => undefined);
     const label = MCP_SETUP_TARGETS.find((entry) => entry.id === target)?.label ?? "Agent";
     setCopiedMcpTarget(target);
-    setNotice(`Copied ${label} MCP setup prompt`);
+    setNotice(`Copied ${label} agent setup prompt with your MCP token`);
     window.setTimeout(() => {
       setCopiedMcpTarget((current) => (current === target ? null : current));
     }, 2500);
@@ -659,10 +723,12 @@ export function SkillLibraryApp({
             <section className="mcp-connect-panel" aria-label="Connect your agent via MCP">
               <div className="mcp-connect-copy">
                 <p className="kicker">Connect your agent</p>
-                <h3>Copy a setup prompt for your AI client</h3>
+                <h3>Copy agent setup prompt</h3>
                 <p>
-                  MCP runs locally on your machine and talks to <strong>{resolvedRegistryUrl}</strong> with a bearer API token — not Microsoft SSO.
-                  Paste the copied prompt into Claude Code, Codex, Cursor, or another agent; it will configure MCP, ask for your token, and validate <code>tools/list</code> plus a live search.
+                  {session || activeToken
+                    ? "Choose your agent below. The copied prompt embeds your personal MCP bearer token — paste it into Claude Code, Codex, Cursor, or another agent to configure local MCP and validate search."
+                    : "Sign in first. The copied prompt will embed your personal MCP bearer token so your agent can authenticate without Microsoft SSO."}{" "}
+                  Registry: <strong>{resolvedRegistryUrl}</strong>
                 </p>
               </div>
               <div className="mcp-connect-grid">
@@ -754,6 +820,14 @@ export function SkillLibraryApp({
                 <input type="file" {...{ webkitdirectory: "", directory: "" }} multiple onChange={handleFileSelection} style={{ display: "none" }} />
               </label>
               <div className="actions" style={{ marginTop: "16px" }}>
+                <button
+                  className="secondary"
+                  onClick={() => void handlePreflightValidate()}
+                  disabled={loading || uploadEntries.length === 0}
+                >
+                  <ClipboardCheck size={17} />
+                  Validate
+                </button>
                 <button 
                   onClick={handleUpload} 
                   disabled={loading || uploadEntries.length === 0}
@@ -763,6 +837,12 @@ export function SkillLibraryApp({
                   Upload skill
                 </button>
               </div>
+              {preflightValidation ? (
+                <div className="panel" style={{ marginTop: "16px" }}>
+                  <div className="panel-title"><ClipboardCheck size={17} />Preflight validation</div>
+                  <ValidationPanel validation={preflightValidation} />
+                </div>
+              ) : null}
             </section>
 
             <section className="publish-console" aria-label="Import from Git">
@@ -838,7 +918,7 @@ export function SkillLibraryApp({
 
             <div className="panel">
               <div className="panel-title"><CheckCircle2 size={17} />Validation</div>
-              <p className="validation-copy">{selected.activeVersion?.validation?.ok ? "Package shape is valid. SKILL.md found and bundled files preserved." : "Validation needs attention."}</p>
+              <ValidationPanel validation={selected.activeVersion?.validation} />
               <div className="version-line"><span>Active version</span><strong>{selected.activeVersion?.version ?? "No version selected"}</strong></div>
               {selected.latestApproved && selected.activeVersion?.id !== selected.latestApproved.id ? (
                 <div className="version-line"><span>Approved install</span><strong>{selected.latestApproved.version}</strong></div>
@@ -1016,6 +1096,9 @@ export function createWebApiClient({ registryUrl = "", token, request = fetch }:
     },
     async importGitVersion(workspaceId, input) {
       return (await jsonRequest<{ version: SkillVersion }>(request, `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/packages/import-git`, jsonInit(input, token))).version;
+    },
+    async validatePackageTree(entries) {
+      return (await jsonRequest<{ validation: ValidationResult }>(request, `${baseUrl}/api/validation/package-tree`, jsonInit({ entries }, token))).validation;
     },
     async transitionVersion(versionId, toState) {
       return (await jsonRequest<{ version: SkillVersion }>(request, `${baseUrl}/api/versions/${encodeURIComponent(versionId)}/lifecycle`, jsonInit({ toState }, token))).version;

@@ -36,7 +36,12 @@ The web UI uses cookie-based sessions. Admin user management routes require an a
 
 ## Bearer API keys
 
-Production-style scripted access uses `SKILL_LIBRARY_API_KEYS`:
+Production-style scripted access uses two token sources:
+
+1. **Static deploy keys** in `SKILL_LIBRARY_API_KEYS` for automation and bootstrap.
+2. **Personal agent tokens** minted for each signed-in SSO user and stored on their `user` row (`agent_api_token`). The web Overview page embeds this token in copied agent setup prompts.
+
+Static keys use this format:
 
 ```sh
 SKILL_LIBRARY_API_KEYS=maintainer-secret:maintainer:maintainer-1,user-secret:user:user-1
@@ -48,10 +53,12 @@ Each comma-separated entry is:
 token:role:actor-id
 ```
 
+Personal agent tokens are created on first request to `GET /api/me/agent-token` (session required). They inherit the user's current role from the database on each request.
+
 Requests use:
 
 ```text
-Authorization: Bearer maintainer-secret
+Authorization: Bearer <token>
 ```
 
 ## Development header fallback

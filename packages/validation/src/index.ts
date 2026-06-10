@@ -4,6 +4,9 @@ import { relative } from "node:path";
 import yauzl from "yauzl";
 import yazl from "yazl";
 import type { ArtifactFile, ValidationResult } from "@skill-library/domain";
+import { validateSkillMd } from "./skill-md.js";
+
+// Rule catalog: docs/validation-rules.md
 
 export interface PackageTreeEntry {
   path: string;
@@ -13,7 +16,7 @@ export interface PackageTreeEntry {
 
 export function validatePackageTree(entries: PackageTreeEntry[]): ValidationResult {
   const normalized = entries.map(normalizeEntry);
-  const issues = normalized.flatMap((entry) => validatePath(entry.path));
+  const issues: ValidationResult["issues"] = normalized.flatMap((entry) => validatePath(entry.path));
   const safeEntries = normalized.filter((entry) => !validatePath(entry.path).some((issue) => issue.severity === "error"));
   const skillRoot = findSkillRoot(safeEntries.map((entry) => entry.path));
 
@@ -24,6 +27,15 @@ export function validatePackageTree(entries: PackageTreeEntry[]): ValidationResu
       message: "Package must contain exactly one skill root with SKILL.md.",
       path: "SKILL.md"
     });
+  } else {
+    const skillMdPath = skillRoot === "." ? "SKILL.md" : `${skillRoot}/SKILL.md`;
+    const skillMdEntry = safeEntries.find((entry) => entry.path === skillMdPath && entry.kind === "file");
+
+    if (skillMdEntry) {
+      const content =
+        typeof skillMdEntry.content === "string" ? skillMdEntry.content : Buffer.from(skillMdEntry.content).toString("utf8");
+      issues.push(...validateSkillMd(content, skillRoot, skillMdPath));
+    }
   }
 
   const files = safeEntries.map(toArtifactFile).sort((left, right) => left.path.localeCompare(right.path));

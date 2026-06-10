@@ -1,11 +1,25 @@
 import type { Actor, WorkspaceRole } from "@skill-library/domain";
+import type { RegistryStore } from "@skill-library/storage";
 import type { BetterAuthInstance } from "./better-auth.js";
+import { actorFromUserAgentToken } from "./agent-token.js";
 
-export async function actorFromHeaders(headers: Headers, auth?: BetterAuthInstance): Promise<Actor | undefined> {
+export async function actorFromHeaders(
+  headers: Headers,
+  auth?: BetterAuthInstance,
+  store?: RegistryStore
+): Promise<Actor | undefined> {
   const tokenActor = actorFromBearerToken(headers.get("authorization"));
 
   if (tokenActor) {
     return tokenActor;
+  }
+
+  if (store) {
+    const userTokenActor = await actorFromUserAgentToken(store, headers.get("authorization"));
+
+    if (userTokenActor) {
+      return userTokenActor;
+    }
   }
 
   if (auth) {

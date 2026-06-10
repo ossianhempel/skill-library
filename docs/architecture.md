@@ -41,6 +41,8 @@ Storage is configured through one `RegistryStoreConfig` shape:
 - `artifactDir`: defaults to `${dataDir}/artifacts`.
 - `databaseUrl`: when set, switches relational storage from PGlite to external Postgres.
 
+PGlite mode enforces a single-writer lock file under `dataDir` at startup and logs persistence guidance. External Postgres mode skips the lock.
+
 The registry server should call `createRegistryStore`, run `migrate`, and keep all clients on the same API regardless of the selected database mode.
 
 ## Current Verification

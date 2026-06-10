@@ -579,6 +579,72 @@ p { color: var(--muted); line-height: 1.45; }
 
 .validation-copy { min-height: 56px; }
 
+.validation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.validation-summary {
+  margin: 0;
+  min-height: 40px;
+}
+
+.validation-summary-ok {
+  color: var(--accent-strong, #2d6a4f);
+}
+
+.validation-summary-error {
+  color: #9b2226;
+}
+
+.validation-group-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.validation-issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.validation-issue {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-10);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 8px);
+  background: rgba(251, 250, 244, 0.9);
+  font-size: var(--font-size-sm);
+}
+
+.validation-errors .validation-issue {
+  border-color: rgba(155, 34, 38, 0.35);
+}
+
+.validation-warnings .validation-issue {
+  border-color: rgba(180, 120, 0, 0.35);
+}
+
+.validation-rule-id {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.validation-issue-path {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
 .version-line {
   border-top: 1px solid var(--line);
   padding-top: var(--space-12);

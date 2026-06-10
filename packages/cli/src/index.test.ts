@@ -54,8 +54,8 @@ describe("CLI install foundations", () => {
       latestApprovedVersionId: "version-2"
     });
 
-    await writeFile(join(skillRoot, "SKILL.md"), "# Demo\n");
-    const contentDigest = validatePackageTree([{ path: "SKILL.md", content: "# Demo\n" }]).digest;
+    await writeFile(join(skillRoot, "SKILL.md"), skillMd("demo-skill", "Demo skill.", "# Demo\n"));
+    const contentDigest = validatePackageTree([{ path: "SKILL.md", content: skillMd("demo-skill", "Demo skill.", "# Demo\n") }]).digest;
 
     await writeInstallMetadata(skillRoot, makeMetadata({ versionId: "version-1", contentDigest }));
     await expect(getInstalledSkillStatus(skillRoot, latest)).resolves.toEqual(
@@ -91,14 +91,14 @@ describe("CLI install foundations", () => {
       destinationRoot,
       metadata,
       entries: [
-        { path: "demo-skill/SKILL.md", content: "# Demo\n" },
+        { path: "demo-skill/SKILL.md", content: skillMd("demo-skill", "Demo skill.", "# Demo\n") },
         { path: "demo-skill/references/a.md", content: "A\n" }
       ]
     });
 
     expect(result.skillRoot).toBe(join(destinationRoot, "demo-skill"));
     expect(result.filesWritten).toEqual(["SKILL.md", "references/a.md"]);
-    await expect(readFile(join(result.skillRoot, "SKILL.md"), "utf8")).resolves.toBe("# Demo\n");
+    await expect(readFile(join(result.skillRoot, "SKILL.md"), "utf8")).resolves.toBe(skillMd("demo-skill", "Demo skill.", "# Demo\n"));
     await expect(readInstallMetadata(result.skillRoot)).resolves.toEqual(metadata);
   });
 
@@ -112,12 +112,12 @@ describe("CLI install foundations", () => {
     const install = {
       destinationRoot,
       metadata: makeMetadata({ versionId: "version-1" }),
-      entries: [{ path: "demo-skill/SKILL.md", content: "# Remote\n" }]
+      entries: [{ path: "demo-skill/SKILL.md", content: skillMd("demo-skill", "Remote skill.", "# Remote\n") }]
     };
 
     await expect(installPackageTree(install)).rejects.toThrow("Refusing to overwrite unmanaged");
     await expect(installPackageTree({ ...install, force: true })).resolves.toEqual(expect.objectContaining({ skillRoot: unmanagedRoot }));
-    await expect(readFile(join(unmanagedRoot, "SKILL.md"), "utf8")).resolves.toBe("# Remote\n");
+    await expect(readFile(join(unmanagedRoot, "SKILL.md"), "utf8")).resolves.toBe(skillMd("demo-skill", "Remote skill.", "# Remote\n"));
   });
 
   it("searches the registry through HTTP", async () => {
@@ -138,12 +138,12 @@ describe("CLI install foundations", () => {
     const destinationRoot = await makeTmpDir();
     const archivePath = join(await makeTmpDir(), "artifact.zip");
     const entries = [
-      { path: "remote-skill/SKILL.md", content: "# Remote\n" },
+      { path: "remote-skill/SKILL.md", content: skillMd("remote-skill", "Remote skill.", "# Remote\n") },
       { path: "remote-skill/references/a.md", content: "A\n" }
     ];
     const digest = validatePackageTree(entries).digest!;
     const installedDigest = validatePackageTree([
-      { path: "SKILL.md", content: "# Remote\n" },
+      { path: "SKILL.md", content: skillMd("remote-skill", "Remote skill.", "# Remote\n") },
       { path: "references/a.md", content: "A\n" }
     ]).digest!;
     const archive = await packPackageZip(entries);
@@ -183,7 +183,7 @@ describe("CLI install foundations", () => {
     });
 
     expect(result.filesWritten).toEqual(["SKILL.md", "references/a.md"]);
-    await expect(readFile(join(result.skillRoot, "SKILL.md"), "utf8")).resolves.toBe("# Remote\n");
+    await expect(readFile(join(result.skillRoot, "SKILL.md"), "utf8")).resolves.toBe(skillMd("remote-skill", "Remote skill.", "# Remote\n"));
     await expect(readInstallMetadata(result.skillRoot)).resolves.toEqual(
       expect.objectContaining({
         registryUrl: "http://registry.test",
@@ -209,19 +209,19 @@ describe("CLI install foundations", () => {
     const destinationRoot = await makeTmpDir();
     const skillRoot = join(destinationRoot, "remote-skill");
     const archivePath = join(await makeTmpDir(), "artifact.zip");
-    const entries = [{ path: "remote-skill/SKILL.md", content: "# Remote v2\n" }];
+    const entries = [{ path: "remote-skill/SKILL.md", content: skillMd("remote-skill", "Remote skill v2.", "# Remote v2\n") }];
     const digest = validatePackageTree(entries).digest!;
-    const installedDigest = validatePackageTree([{ path: "SKILL.md", content: "# Remote v2\n" }]).digest!;
+    const installedDigest = validatePackageTree([{ path: "SKILL.md", content: skillMd("remote-skill", "Remote skill v2.", "# Remote v2\n") }]).digest!;
     const archive = await packPackageZip(entries);
     const reports: unknown[] = [];
 
     await mkdir(skillRoot, { recursive: true });
-    await writeFile(join(skillRoot, "SKILL.md"), "# Remote v1\n");
+    await writeFile(join(skillRoot, "SKILL.md"), skillMd("remote-skill", "Remote skill v1.", "# Remote v1\n"));
     await writeInstallMetadata(
       skillRoot,
       makeMetadata({
         versionId: "version-1",
-        contentDigest: validatePackageTree([{ path: "SKILL.md", content: "# Remote v1\n" }]).digest,
+        contentDigest: validatePackageTree([{ path: "SKILL.md", content: skillMd("remote-skill", "Remote skill v1.", "# Remote v1\n") }]).digest,
         reportConsent: true,
         installTarget: { kind: "project", agent: "codex", root: destinationRoot }
       })
@@ -258,7 +258,7 @@ describe("CLI install foundations", () => {
 
     expect(result.updated).toBe(true);
     expect(result.status.state).toBe("stale");
-    await expect(readFile(join(skillRoot, "SKILL.md"), "utf8")).resolves.toBe("# Remote v2\n");
+    await expect(readFile(join(skillRoot, "SKILL.md"), "utf8")).resolves.toBe(skillMd("remote-skill", "Remote skill v2.", "# Remote v2\n"));
     await expect(readInstallMetadata(skillRoot)).resolves.toEqual(expect.objectContaining({ versionId: "version-2", contentDigest: installedDigest }));
     expect(reports).toEqual([expect.objectContaining({ packageId: "package-1", versionId: "version-2", state: "current" })]);
   });
@@ -267,10 +267,10 @@ describe("CLI install foundations", () => {
     const destinationRoot = await makeTmpDir();
     const archivePath = join(await makeTmpDir(), "artifact.zip");
     const initialEntries = [
-      { path: "remote-skill/SKILL.md", content: "# Remote v1\n" },
+      { path: "remote-skill/SKILL.md", content: skillMd("remote-skill", "Remote skill v1.", "# Remote v1\n") },
       { path: "remote-skill/references/a.md", content: "A\n" }
     ];
-    const entries = [{ path: "remote-skill/SKILL.md", content: "# Remote v2\n" }];
+    const entries = [{ path: "remote-skill/SKILL.md", content: skillMd("remote-skill", "Remote skill v2.", "# Remote v2\n") }];
     const digest = validatePackageTree(entries).digest!;
     const archive = await packPackageZip(entries);
     const installed = await installPackageTree({
@@ -280,7 +280,7 @@ describe("CLI install foundations", () => {
       metadata: makeMetadata({
         versionId: "version-1",
         contentDigest: validatePackageTree([
-          { path: "SKILL.md", content: "# Remote v1\n" },
+          { path: "SKILL.md", content: skillMd("remote-skill", "Remote skill v1.", "# Remote v1\n") },
           { path: "references/a.md", content: "A\n" }
         ]).digest
       }),
@@ -318,10 +318,10 @@ describe("CLI install foundations", () => {
 
   it("does not update current installs", async () => {
     const skillRoot = await makeTmpDir();
-    const contentDigest = validatePackageTree([{ path: "SKILL.md", content: "# Current\n" }]).digest;
+    const contentDigest = validatePackageTree([{ path: "SKILL.md", content: skillMd("current-skill", "Current skill.", "# Current\n") }]).digest;
     const reports: unknown[] = [];
 
-    await writeFile(join(skillRoot, "SKILL.md"), "# Current\n");
+    await writeFile(join(skillRoot, "SKILL.md"), skillMd("current-skill", "Current skill.", "# Current\n"));
     await writeInstallMetadata(skillRoot, makeMetadata({ versionId: "version-1", contentDigest, reportConsent: true }));
 
     const client = createRegistryClient({
@@ -354,7 +354,7 @@ describe("CLI install foundations", () => {
   it("runs search, info, install-plan, status, install, and update commands", async () => {
     const destinationRoot = await makeTmpDir();
     const archivePath = join(await makeTmpDir(), "artifact.zip");
-    const entries = [{ path: "cli-skill/SKILL.md", content: "# CLI\n" }];
+    const entries = [{ path: "cli-skill/SKILL.md", content: skillMd("cli-skill", "CLI skill.", "# CLI\n") }];
     const digest = validatePackageTree(entries).digest!;
     const archive = await packPackageZip(entries);
     const outputs: string[] = [];
@@ -427,9 +427,33 @@ describe("CLI install foundations", () => {
 
     expect(errors).toEqual([]);
     expect(outputs.some((line) => line.includes("skill-library install cli-skill --target project"))).toBe(true);
-    await expect(readFile(join(destinationRoot, "cli-skill", "SKILL.md"), "utf8")).resolves.toBe("# CLI\n");
+    await expect(readFile(join(destinationRoot, "cli-skill", "SKILL.md"), "utf8")).resolves.toBe(skillMd("cli-skill", "CLI skill.", "# CLI\n"));
+  });
+
+  it("reports frontmatter validation issues from validate --root", async () => {
+    const skillRoot = await makeTmpDir();
+    await writeFile(join(skillRoot, "SKILL.md"), "# Missing frontmatter\n");
+    const outputs: string[] = [];
+
+    await expect(runCli(["validate", "--root", skillRoot], { stdout: (line) => outputs.push(line), stderr: () => undefined })).resolves.toBe(0);
+    expect(JSON.parse(outputs.join("\n"))).toEqual(
+      expect.objectContaining({
+        validation: expect.objectContaining({
+          ok: false,
+          issues: expect.arrayContaining([expect.objectContaining({ ruleId: "skill-md-missing-frontmatter" })])
+        })
+      })
+    );
   });
 });
+
+function skillMd(name: string, description: string, body = "# Skill\n\nBody content.\n"): string {
+  return `---
+name: ${name}
+description: ${description}
+---
+${body}`;
+}
 
 async function makeTmpDir() {
   const dir = await mkdtemp(join(tmpdir(), "skill-library-cli-"));
@@ -477,7 +501,7 @@ function jsonResponse(body: unknown, status = 200) {
 async function installWithReportingPolicy(reportingPolicy: "disabled" | "required", reportConsent: boolean) {
   const destinationRoot = await makeTmpDir();
   const archivePath = join(await makeTmpDir(), "artifact.zip");
-  const entries = [{ path: "policy-skill/SKILL.md", content: "# Policy\n" }];
+  const entries = [{ path: "policy-skill/SKILL.md", content: skillMd("policy-skill", "Policy skill.", "# Policy\n") }];
   const digest = validatePackageTree(entries).digest!;
   const archive = await packPackageZip(entries);
   const reports: unknown[] = [];

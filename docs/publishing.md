@@ -2,6 +2,8 @@
 
 Publishing starts with an uploaded package tree or a Git import. Both paths use the same validation, artifact packing, and immutable storage behavior.
 
+`SKILL.md` must include valid [Agent Skills](https://agentskills.io/specification) YAML frontmatter (`name`, `description`) and pass the open-spec rules documented in [validation-rules.md](validation-rules.md). Invalid frontmatter creates an inspectable draft but blocks approval and artifact ingestion.
+
 ## Who can publish and approve
 
 | Action | Minimum role |

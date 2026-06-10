@@ -12,7 +12,7 @@ Implemented library behavior:
 - HTTP registry client for workspace config, search, package detail, latest approved version, artifact download, and install reporting
 - latest-approved install flow that downloads a registry artifact, verifies digest, installs files, writes metadata, and optionally reports install state
 - update flow that reads existing metadata, checks latest approved version, refuses locally modified updates unless forced, and reinstalls into the existing managed skill root
-- local package validation for directories or zip archives
+- local package validation for directories or zip archives, including Agent Skills `SKILL.md` frontmatter checks (see [validation-rules.md](validation-rules.md))
 - bearer token support for private catalogs and reporting
 - user-facing command runner for `workspace`, `search`, `info`, `install`, `validate`, `update`, `status`, and `install-plan`
 - managed-install overwrite safety

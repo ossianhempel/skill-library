@@ -45,7 +45,31 @@ Valid examples:
 pnpm --filter @skill-library/validation test
 ```
 
-The test suite reads `examples/skills/review-helper-v1`, `examples/skills/review-helper-v2`, and `examples/skills/invalid-missing-skill`.
+The test suite reads `examples/skills/review-helper-v1`, `examples/skills/review-helper-v2`, `examples/skills/invalid-missing-skill`, and `examples/skills/invalid-bad-frontmatter`.
+
+Each valid example includes Agent Skills YAML frontmatter (`name`, `description`) in `SKILL.md`. See [validation-rules.md](validation-rules.md) for the full rule catalog.
+
+Preflight validation API check (expect blocking frontmatter error):
+
+```sh
+curl -s -X POST http://localhost:3000/api/validation/package-tree \
+  -H 'content-type: application/json' \
+  -d '{"entries":[{"path":"broken/SKILL.md","content":"# No frontmatter\n"}]}'
+```
+
+Expect `validation.ok: false` and a `skill-md-missing-frontmatter` issue in the response.
+
+Bad-frontmatter upload still creates a draft but cannot be approved:
+
+```sh
+# After uploading a package whose SKILL.md lacks frontmatter, attempt:
+curl -s -X POST http://localhost:3000/api/versions/<version-id>/lifecycle \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer maintainer-secret' \
+  -d '{"toState":"approved"}'
+```
+
+Expect HTTP 422 with `Cannot approve a version with validation errors.`
 
 ## Publish Version 1
 

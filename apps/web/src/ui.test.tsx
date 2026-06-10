@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_REGISTRY_BRANDING, type PackageReport, type SkillPackage, type SkillVersion } from "@skill-library/domain";
+import { DEFAULT_REGISTRY_BRANDING, type PackageReport, type SkillPackage, type SkillVersion, type ValidationResult } from "@skill-library/domain";
 import {
   buildInstallPrompt,
   buildUploadRequest,
@@ -14,8 +14,29 @@ import {
   summarizeReports,
   type WebApiClient
 } from "./ui.js";
+import { ValidationPanel } from "./validation-panel.js";
 
 afterEach(() => cleanup());
+
+describe("ValidationPanel", () => {
+  it("renders validation errors and warnings", () => {
+    const validation: ValidationResult = {
+      ok: false,
+      files: [],
+      issues: [
+        { ruleId: "skill-md-missing-name", severity: "error", message: "Missing name.", path: "demo/SKILL.md" },
+        { ruleId: "skill-md-body-empty", severity: "warning", message: "Empty body.", path: "demo/SKILL.md" }
+      ]
+    };
+
+    render(<ValidationPanel validation={validation} />);
+
+    expect(screen.getByText("Validation found blocking errors.")).toBeTruthy();
+    expect(screen.getByText("Missing name.")).toBeTruthy();
+    expect(screen.getByText("Empty body.")).toBeTruthy();
+    expect(screen.getByText("skill-md-missing-name")).toBeTruthy();
+  });
+});
 
 describe("SkillLibraryApp", () => {
   it("renders a focused overview and opens the main sections through navigation", () => {
@@ -26,7 +47,7 @@ describe("SkillLibraryApp", () => {
     expect(screen.getByText("Start here")).toBeTruthy();
     expect(screen.getByText("Find an approved skill or publish a new draft.")).toBeTruthy();
     expect(screen.getByText("Connect your agent")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Copy Claude Code MCP setup prompt" })).toBeTruthy();
+    expect(screen.getByText("Copy agent setup prompt")).toBeTruthy();
     
     // In simplified UI, detail pane is hidden on Overview tab
     expect(screen.queryByText("SKILL.md")).toBeNull();
@@ -91,6 +112,56 @@ describe("SkillLibraryApp", () => {
     ]);
   });
 
+  it("shows validation issues in catalog detail", () => {
+    const invalidSkill = {
+      ...skill,
+      activeVersion: {
+        ...latestApproved,
+        validation: {
+          ok: false,
+          files: [{ path: "SKILL.md", size: 9, digest: "sha256:file", kind: "file" as const }],
+          issues: [
+            { ruleId: "skill-md-missing-frontmatter", severity: "error" as const, message: "Missing frontmatter.", path: "SKILL.md" },
+            { ruleId: "skill-md-body-empty", severity: "warning" as const, message: "Empty body.", path: "SKILL.md" }
+          ]
+        }
+      }
+    };
+
+    render(<SkillLibraryApp skills={[invalidSkill]} branding={testBranding} />);
+    fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+
+    expect(screen.getByText("Missing frontmatter.")).toBeTruthy();
+    expect(screen.getByText("Empty body.")).toBeTruthy();
+  });
+
+  it("runs preflight validation before upload", async () => {
+    const api = fakeApi();
+    const validationResult: ValidationResult = {
+      ok: false,
+      files: [],
+      issues: [{ ruleId: "skill-md-missing-frontmatter", severity: "error", message: "Missing frontmatter.", path: "SKILL.md" }]
+    };
+    api.validatePackageTree = vi.fn(async () => validationResult);
+
+    const { container } = render(<SkillLibraryApp api={api} authToken="test-token" workspaceId="workspace-1" />);
+
+    await waitFor(() => expect(api.search).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Publish" }));
+
+    const slugInputs = screen.getAllByPlaceholderText("my-skill");
+    fireEvent.change(slugInputs[0]!, { target: { value: "review-helper" } });
+    fireEvent.change(screen.getByPlaceholderText("1.0.0"), { target: { value: "1.0.0" } });
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [new File(["# Review\n"], "SKILL.md", { type: "text/markdown" })] } });
+    await screen.findByText(/1 files staged for upload/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Validate" }));
+    await waitFor(() => expect(api.validatePackageTree).toHaveBeenCalled());
+    expect(screen.getByText("Missing frontmatter.")).toBeTruthy();
+  });
+
   it("runs upload, Git import, and lifecycle actions through the API client", async () => {
     const api = fakeApi();
     const { container } = render(<SkillLibraryApp api={api} authToken="test-token" workspaceId="workspace-1" />);
@@ -144,7 +215,11 @@ const latestApproved: SkillVersion = {
   version: "1.0.0",
   lifecycleState: "approved",
   artifactDigest: "sha256:one",
-  validation: { ok: true, files: [{ path: "SKILL.md", size: 9, digest: "sha256:file", kind: "file" }], issues: [] },
+  validation: {
+    ok: true,
+    files: [{ path: "SKILL.md", size: 9, digest: "sha256:file", kind: "file" }],
+    issues: []
+  },
   provenance: { kind: "upload", importedAt: "2026-06-07T12:00:00.000Z" },
   createdAt: "2026-06-07T12:00:00.000Z",
   approvedAt: "2026-06-07T12:05:00.000Z"
@@ -196,6 +271,7 @@ function fakeApi(): WebApiClient {
     latestApprovedVersion: vi.fn(async () => latestApproved),
     packageVersions: vi.fn(async () => [latestApproved]),
     workspaceReports: vi.fn(async () => [report]),
+    validatePackageTree: vi.fn(async () => ({ ok: true, files: [], issues: [] })),
     uploadVersion: vi.fn(async () => latestApproved),
     importGitVersion: vi.fn(async () => latestApproved),
     transitionVersion: vi.fn(async (_versionId, toState) => ({ ...latestApproved, lifecycleState: toState }))

@@ -3,13 +3,31 @@ import { createRegistryApi, type RegistryApi } from "./index.js";
 import type { RegistryStore } from "@skill-library/storage";
 import type { PackageTreeEntry } from "@skill-library/validation";
 import type { LifecycleState, RegistryBrandingConfig, Workspace } from "@skill-library/domain";
-import { actorFromHeaders, hasRole } from "./auth.js";
+import { actorFromHeaders, devHeaderAuthEnabled, hasRole, parseRole } from "./auth.js";
 import { getBetterAuthInstance, type BetterAuthInstance } from "./better-auth.js";
+import { getOrCreateAgentToken } from "./agent-token.js";
 
 export function createHttpApp(store: RegistryStore, branding: RegistryBrandingConfig) {
   const api = createRegistryApi(store);
   const auth = getBetterAuthInstance(store);
   const app = new Hono();
+  const resolveActor = (headers: Headers) => actorFromHeaders(headers, auth, store);
+
+  async function canAccessWorkspace(headers: Headers, workspace: Workspace): Promise<boolean> {
+    const actor = await resolveActor(headers);
+    return workspace.visibility === "public" || hasRole(actor, "user");
+  }
+
+  async function canAccessPackage(headers: Headers, packageId: string): Promise<boolean> {
+    const pkg = await api.packageDetail(packageId);
+
+    if (!pkg) {
+      return true;
+    }
+
+    const workspace = await api.workspaceDetail(pkg.workspaceId);
+    return !workspace || (await canAccessWorkspace(headers, workspace));
+  }
 
   app.on(["POST", "GET"], "/api/auth/*", (context) => auth.handler(context.req.raw));
 
@@ -24,7 +42,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Workspace not found" }, 404);
     }
 
-    if (!(await canAccessWorkspace(context.req.raw.headers, workspace, auth))) {
+    if (!(await canAccessWorkspace(context.req.raw.headers, workspace))) {
       return context.json({ error: "User role required" }, 403);
     }
 
@@ -32,7 +50,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.patch("/api/workspaces/:workspaceId", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "admin")) {
       return context.json({ error: "Admin role required" }, 403);
@@ -63,11 +81,11 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     const workspaceId = context.req.param("workspaceId");
     const workspace = await api.workspaceDetail(workspaceId);
 
-    if (workspace && !(await canAccessWorkspace(context.req.raw.headers, workspace, auth))) {
+    if (workspace && !(await canAccessWorkspace(context.req.raw.headers, workspace))) {
       return context.json({ error: "User role required" }, 403);
     }
 
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
     const packages = await api.search(workspaceId, context.req.query("q"));
 
     if (hasRole(actor, "maintainer")) {
@@ -93,7 +111,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Package not found" }, 404);
     }
 
-    if (!(await canAccessPackage(api, context.req.raw.headers, packageDetail.id, auth))) {
+    if (!(await canAccessPackage(context.req.raw.headers, packageDetail.id))) {
       return context.json({ error: "User role required" }, 403);
     }
 
@@ -103,7 +121,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.get("/api/packages/:packageId/latest-approved", async (context) => {
-    if (!(await canAccessPackage(api, context.req.raw.headers, context.req.param("packageId"), auth))) {
+    if (!(await canAccessPackage(context.req.raw.headers, context.req.param("packageId")))) {
       return context.json({ error: "User role required" }, 403);
     }
 
@@ -117,7 +135,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.get("/api/packages/:packageId/report", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "maintainer")) {
       return context.json({ error: "Maintainer role required" }, 403);
@@ -133,11 +151,11 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.get("/api/packages/:packageId/versions", async (context) => {
-    if (!(await canAccessPackage(api, context.req.raw.headers, context.req.param("packageId"), auth))) {
+    if (!(await canAccessPackage(context.req.raw.headers, context.req.param("packageId")))) {
       return context.json({ error: "User role required" }, 403);
     }
 
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
     const versions = await api.packageVersions(context.req.param("packageId"));
 
     if (!hasRole(actor, "maintainer")) {
@@ -154,11 +172,11 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Version not found" }, 404);
     }
 
-    if (!(await canAccessPackage(api, context.req.raw.headers, version.packageId, auth))) {
+    if (!(await canAccessPackage(context.req.raw.headers, version.packageId))) {
       return context.json({ error: "User role required" }, 403);
     }
 
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "maintainer") && version.lifecycleState !== "approved") {
       return context.json({ error: "Approved version required" }, 403);
@@ -173,7 +191,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.post("/api/artifacts/ingest", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "maintainer")) {
       return context.json({ error: "Maintainer role required" }, 403);
@@ -189,7 +207,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.post("/api/workspaces/:workspaceId/packages/upload", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "user")) {
       return context.json({ error: "Sign-in required" }, 403);
@@ -228,7 +246,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.post("/api/workspaces/:workspaceId/packages/import-git", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "user")) {
       return context.json({ error: "Sign-in required" }, 403);
@@ -273,7 +291,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.post("/api/versions/:versionId/lifecycle", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "maintainer")) {
       return context.json({ error: "Maintainer role required" }, 403);
@@ -324,11 +342,11 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Artifact digest mismatch" }, 404);
     }
 
-    if (!(await canAccessPackage(api, context.req.raw.headers, packageId, auth))) {
+    if (!(await canAccessPackage(context.req.raw.headers, packageId))) {
       return context.json({ error: "User role required" }, 403);
     }
 
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "maintainer") && version.lifecycleState !== "approved") {
       return context.json({ error: "Approved version required" }, 403);
@@ -351,7 +369,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.get("/api/workspaces/:workspaceId/usage-counts", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "maintainer")) {
       return context.json({ error: "Maintainer role required" }, 403);
@@ -368,7 +386,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.get("/api/workspaces/:workspaceId/reports", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "maintainer")) {
       return context.json({ error: "Maintainer role required" }, 403);
@@ -379,7 +397,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.post("/api/install-reports", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "user")) {
       return context.json({ error: "User role required" }, 403);
@@ -395,9 +413,54 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     return context.json({ accepted: true }, 201);
   });
 
+  app.get("/api/me/agent-token", async (context) => {
+    const headers = context.req.raw.headers;
+
+    if (auth) {
+      try {
+        const session = await auth.api.getSession({ headers });
+
+        if (session?.user) {
+          const user = session.user as typeof session.user & { role?: string };
+          const token = await getOrCreateAgentToken(store, session.user.id);
+
+          if (!token) {
+            return context.json({ error: "Could not create agent token." }, 500);
+          }
+
+          return context.json({
+            token,
+            role: parseRole(user.role ?? null) ?? "user",
+            actorId: session.user.id
+          });
+        }
+      } catch (error) {
+        console.error("Agent token session lookup failed:", error);
+      }
+    }
+
+    const actor = await resolveActor(headers);
+
+    if (actor && devHeaderAuthEnabled()) {
+      const token = await getOrCreateAgentToken(store, actor.id);
+
+      if (!token) {
+        return context.json({ error: "Sign-in required." }, 403);
+      }
+
+      return context.json({
+        token,
+        role: actor.role,
+        actorId: actor.id
+      });
+    }
+
+    return context.json({ error: "Sign-in required." }, 403);
+  });
+
   // Team roster — visible to any signed-in user.
   app.get("/api/team/members", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "user")) {
       return context.json({ error: "Sign-in required" }, 403);
@@ -426,7 +489,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
 
   // Admin user management routes
   app.get("/api/admin/users", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "admin")) {
       return context.json({ error: "Admin role required" }, 403);
@@ -454,7 +517,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.patch("/api/admin/users/:userId", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "admin")) {
       return context.json({ error: "Admin role required" }, 403);
@@ -481,7 +544,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.delete("/api/admin/users/:userId", async (context) => {
-    const actor = await actorFromHeaders(context.req.raw.headers, auth);
+    const actor = await resolveActor(context.req.raw.headers);
 
     if (!hasRole(actor, "admin")) {
       return context.json({ error: "Admin role required" }, 403);
@@ -550,22 +613,6 @@ function parseVisibility(value: string | undefined): Workspace["visibility"] | u
   }
 
   return undefined;
-}
-
-async function canAccessWorkspace(headers: Headers, workspace: Workspace, auth: BetterAuthInstance): Promise<boolean> {
-  const actor = await actorFromHeaders(headers, auth);
-  return workspace.visibility === "public" || hasRole(actor, "user");
-}
-
-async function canAccessPackage(api: RegistryApi, headers: Headers, packageId: string, auth: BetterAuthInstance): Promise<boolean> {
-  const pkg = await api.packageDetail(packageId);
-
-  if (!pkg) {
-    return true;
-  }
-
-  const workspace = await api.workspaceDetail(pkg.workspaceId);
-  return !workspace || await canAccessWorkspace(headers, workspace, auth);
 }
 
 async function parsePackageTreeBody(request: Request): Promise<{ entries: PackageTreeEntry[] }> {

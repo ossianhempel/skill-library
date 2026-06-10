@@ -4,7 +4,9 @@ import {
   MCP_SETUP_TARGETS,
   MCP_TOOL_NAMES,
   buildMcpSetupContext,
-  buildMcpSetupPrompt
+  buildMcpSetupPrompt,
+  fetchMcpSetupAgentAuth,
+  withMcpSetupAgentAuth
 } from "./mcp-setup-prompts.js";
 
 describe("mcp-setup-prompts", () => {
@@ -36,7 +38,25 @@ describe("mcp-setup-prompts", () => {
     expect(prompt).toContain("does **not** use Microsoft SSO");
     expect(prompt).toContain("SKILL_LIBRARY_MCP_TOKEN");
     expect(prompt).toContain("local stdio process");
-    expect(prompt).toContain("do not try Microsoft login for MCP");
+    expect(prompt).toContain("Ask me for my API token if I have not provided one yet");
+  });
+
+  it("embeds the signed-in user's personal MCP token when provided", () => {
+    const prompt = buildMcpSetupPrompt(
+      "cursor",
+      withMcpSetupAgentAuth(context, {
+        token: "sl_test_token_123",
+        role: "maintainer",
+        actorId: "user-abc"
+      })
+    );
+
+    expect(prompt).toContain("SKILL_LIBRARY_MCP_TOKEN=sl_test_token_123");
+    expect(prompt).toContain("SKILL_LIBRARY_MCP_ROLE=maintainer");
+    expect(prompt).toContain("SKILL_LIBRARY_MCP_ACTOR=user-abc");
+    expect(prompt).toContain('"SKILL_LIBRARY_MCP_TOKEN": "sl_test_token_123"');
+    expect(prompt).not.toContain("<my-api-token>");
+    expect(prompt).not.toContain("Ask me for my API token");
   });
 
   it("includes registry URL, workspace, and validation steps", () => {
@@ -62,5 +82,37 @@ describe("mcp-setup-prompts", () => {
 
     expect(prompt).toContain("claude_desktop_config.json");
     expect(prompt).toContain("mcpServers");
+  });
+
+  it("loads a personal MCP token for signed-in users", async () => {
+    const auth = await fetchMcpSetupAgentAuth({
+      registryUrl: "https://skills.rebtech.se",
+      hasSession: true,
+      request: async () =>
+        new Response(JSON.stringify({ token: "sl_test_token_123", role: "user", actorId: "user-abc" }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        })
+    });
+
+    expect(auth).toEqual({
+      token: "sl_test_token_123",
+      role: "user",
+      actorId: "user-abc"
+    });
+  });
+
+  it("falls back to the local dev API key when there is no session", async () => {
+    const auth = await fetchMcpSetupAgentAuth({
+      registryUrl: "http://localhost:3000",
+      hasSession: false,
+      activeToken: "maintainer-secret"
+    });
+
+    expect(auth).toEqual({
+      token: "maintainer-secret",
+      role: "user",
+      actorId: "local-dev"
+    });
   });
 });
