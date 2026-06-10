@@ -133,7 +133,7 @@ function buildSharedSetupBrief(context: McpSetupContext): string {
     `- SKILL_LIBRARY_REGISTRY_URL=${context.registryUrl}`,
     `- SKILL_LIBRARY_MCP_TOKEN=${mcpToken(context)}`,
     `- SKILL_LIBRARY_MCP_ROLE=${mcpRole(context)}`,
-    `- SKILL_LIBRARY_MCP_ACTOR=${mcpActor(context)}`,
+    `- SKILL_LIBRARY_MCP_ACTOR=${mcpActor(context)} (optional — defaults to "mcp" if omitted)`,
     "",
     "Phase 3 — validate the connection:",
     `1. Start the stdio server and send JSON-RPC tools/list. Expect tools: ${toolList}.`,
@@ -147,7 +147,7 @@ function buildSharedSetupBrief(context: McpSetupContext): string {
 
 function buildPlatformSteps(target: McpSetupTarget, context: McpSetupContext): string {
   const mcpEntry = buildStdioMcpJson(context);
-  const mcpPath = "${SKILL_LIBRARY_REPO}/packages/mcp/dist/stdio.js";
+  const mcpPath = "<absolute-path-to>/packages/mcp/dist/stdio.js";
 
   switch (target) {
     case "claude-code":
@@ -226,19 +226,13 @@ function buildPlatformSteps(target: McpSetupTarget, context: McpSetupContext): s
 
     case "chatgpt":
       return [
-        "Platform: ChatGPT desktop app",
+        "Platform: ChatGPT",
         "",
-        "ChatGPT connectors are primarily remote HTTP MCP servers. This registry ships a **local stdio** MCP, so use one of:",
-        "1. Run a local MCP bridge if ChatGPT only supports HTTP in my build, or",
-        "2. Configure via ChatGPT → Settings → Connectors / Developer → MCP (if stdio is supported in my version).",
+        "ChatGPT only supports **remote HTTP MCP connectors** (Settings → Connectors). It cannot run a local stdio MCP server.",
+        `This registry ships a **local stdio** MCP and does **not** expose a hosted HTTP endpoint, so ChatGPT cannot connect to ${context.appName} today.`,
         "",
-        "If stdio is supported, use the same shape as Claude Desktop:",
-        "```json",
-        mcpEntry,
-        "```",
-        "",
-        "If only HTTP is supported, explain that this registry does not expose a hosted MCP endpoint yet and recommend Claude Code, Cursor, or Codex for native stdio MCP instead.",
-        "Either way, validate with tools/list + search once connected."
+        "Tell me this directly — do not fabricate a stdio config for ChatGPT. Recommend I use Claude Code, Cursor, Codex, or Claude Desktop for native stdio MCP instead.",
+        "(If a hosted HTTP MCP endpoint is added later, ChatGPT can connect by pasting that URL as a custom connector — no clone or build needed.)"
       ].join("\n");
   }
 }
