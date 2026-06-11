@@ -51,7 +51,7 @@ curl http://localhost:3000/health
 | `MICROSOFT_TENANT_ID` | For SSO | Org tenant ID (or `common`) |
 | `SKILL_LIBRARY_API_KEYS` | Recommended | CLI/MCP bearer tokens. Format: `token:role:actor-id,...` |
 | `PORT` | No | Host port. Default `3000`. |
-| `DATABASE_URL` | No | External Postgres. Omit to use bundled PGlite. |
+| `DATABASE_URL` | No | External engine. `postgres://` for PostgreSQL, `sqlserver://` for Azure SQL Server. Omit to use bundled PGlite. |
 
 Azure redirect URI:
 
@@ -60,6 +60,29 @@ ${BETTER_AUTH_URL}/api/auth/callback/microsoft
 ```
 
 First user to sign in via Microsoft SSO receives the `admin` role automatically.
+
+## Database engines and Azure SQL Server
+
+The registry runs on three relational engines, selected entirely by the `DATABASE_URL` scheme — no code changes, no separate build:
+
+| Engine | `DATABASE_URL` | Notes |
+|--------|----------------|-------|
+| PGlite | _(unset)_ | Bundled default. Single-writer, one replica. See PGlite rules above. |
+| PostgreSQL | `postgres://user:pass@host:5432/db` | External managed/self-hosted Postgres. |
+| Azure SQL Server | `sqlserver://user:pass@host:1433/db` | Microsoft SQL Server / T-SQL. TLS on by default. |
+
+**Azure SQL Server.** Encryption is required by Azure and is on by default, so a bare `sqlserver://` URL connects with `encrypt=true` against Azure's CA-issued certificate. Two query parameters adjust TLS for other environments:
+
+- `?trustServerCertificate=true` — accept a self-signed certificate (local containers).
+- `?encrypt=false` — disable TLS entirely (non-Azure servers without TLS).
+
+```text
+DATABASE_URL=sqlserver://app_user:secret@my-server.database.windows.net:1433/skill_library
+```
+
+Provide an empty database; the app creates its own schema on boot. On startup the registry runs both migration owners against the shared connection — the app's Kysely migrator creates the registry tables and Better Auth's migrator creates the auth tables (`user`/`session`/`account`/`verification`). Migrations are idempotent, so a restart against an already-migrated database is a safe no-op.
+
+The connection pool is sized via `tarn` (min 0, max 10). The app user needs permission to create tables on first boot; thereafter only DML is exercised.
 
 ## Docker Compose (default)
 
