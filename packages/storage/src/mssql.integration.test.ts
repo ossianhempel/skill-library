@@ -146,4 +146,17 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
     });
     expect(true).toBe(true);
   });
+
+  it("computes usage counts and package reports (analytics on T-SQL)", async () => {
+    const downloads = await store.countUsageEvents({ workspaceId: workspace.id, packageId: pkg.id, eventType: "download" });
+    expect(downloads).toBe(1);
+
+    const report = await store.getPackageReport(pkg.id);
+    expect(report?.downloads).toBe(1);
+    expect(report?.versionCount).toBe(2);
+    expect(report?.installs.total).toBe(1);
+
+    const reports = await store.getWorkspaceReports(workspace.id);
+    expect(reports).toHaveLength(1);
+  });
 });

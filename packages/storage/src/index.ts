@@ -524,27 +524,25 @@ export class SqlRegistryStore implements RegistryStore {
   }
 
   async countUsageEvents(filter: UsageEventFilter): Promise<number> {
-    const conditions = ["workspace_id = $1"];
-    const params: unknown[] = [filter.workspaceId];
+    let query = this.kysely
+      .selectFrom("usage_events")
+      .select((eb) => eb.fn.countAll().as("count"))
+      .where("workspace_id", "=", filter.workspaceId);
 
     if (filter.eventType) {
-      params.push(filter.eventType);
-      conditions.push(`event_type = $${params.length}`);
+      query = query.where("event_type", "=", filter.eventType);
     }
-
     if (filter.packageId) {
-      params.push(filter.packageId);
-      conditions.push(`package_id = $${params.length}`);
+      query = query.where("package_id", "=", filter.packageId);
     }
-
     if (filter.versionId) {
-      params.push(filter.versionId);
-      conditions.push(`version_id = $${params.length}`);
+      query = query.where("version_id", "=", filter.versionId);
     }
 
-    const result = await this.db.query<{ count: string | number }>(`select count(*) as count from usage_events where ${conditions.join(" and ")}`, params);
+    const row = await query.executeTakeFirst();
 
-    return Number(result.rows[0]?.count ?? 0);
+    // count is bigint on Postgres (string), int on SQL Server (number) — normalize.
+    return Number(row?.count ?? 0);
   }
 
   async getPackageReport(packageId: string): Promise<PackageReport | undefined> {
@@ -566,12 +564,11 @@ export class SqlRegistryStore implements RegistryStore {
       packageId,
       eventType: "download"
     });
-    const reportRows = await this.db.query<InstallReportRow>(
-      `select install_id, state, reported_at
-       from install_reports
-       where package_id = $1`,
-      [packageId]
-    );
+    const reportRows = await this.kysely
+      .selectFrom("install_reports")
+      .select(["install_id", "state", "reported_at"])
+      .where("package_id", "=", packageId)
+      .execute();
 
     return buildPackageReport({
       packageId,
@@ -580,9 +577,9 @@ export class SqlRegistryStore implements RegistryStore {
       latestApprovedVersionId: latestApprovedVersion?.id,
       views,
       downloads,
-      reports: reportRows.rows.map((row) => ({
+      reports: reportRows.map((row) => ({
         installId: row.install_id,
-        state: row.state,
+        state: row.state as InstalledSkillState,
         reportedAt: toIsoString(row.reported_at)
       }))
     });
