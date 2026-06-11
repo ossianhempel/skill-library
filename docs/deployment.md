@@ -84,6 +84,33 @@ Provide an empty database; the app creates its own schema on boot. On startup th
 
 The connection pool is sized via `tarn` (min 0, max 10). The app user needs permission to create tables on first boot; thereafter only DML is exercised.
 
+### Running the cross-engine test matrix locally
+
+`pnpm test` runs the full suite on PGlite (the default). The PostgreSQL and SQL Server store suites are **gated** — they skip unless their `*_TEST_URL` is set — so contributors without those engines are never blocked. CI runs PGlite + PostgreSQL on every push/PR and the SQL Server job on pushes to `main` and manual dispatch (`.github/workflows/ci.yml`).
+
+**PostgreSQL** (validates the `pg` driver/pool path):
+
+```sh
+docker run -d --name sl-pg-test -e POSTGRES_PASSWORD=Skill_Lib_Test_2026 \
+  -e POSTGRES_DB=postgres -p 55432:5432 postgres:16
+cd packages/storage
+POSTGRES_TEST_URL='postgres://postgres:Skill_Lib_Test_2026@localhost:55432/postgres' \
+  pnpm exec vitest run src/postgres.integration.test.ts
+```
+
+**SQL Server** (validates the divergent T-SQL dialect — `MERGE`, `OUTPUT`, `OFFSET/FETCH`, `nvarchar(max)` JSON, `JSON_VALUE`):
+
+```sh
+docker run -d --name sl-mssql-test -e ACCEPT_EULA=Y \
+  -e MSSQL_SA_PASSWORD='Skill_Lib_Test_2026!' -p 14333:1433 \
+  mcr.microsoft.com/mssql/server:2022-latest
+cd packages/storage
+MSSQL_TEST_URL='sqlserver://sa:Skill_Lib_Test_2026!@localhost:14333' \
+  pnpm exec vitest run src/mssql.integration.test.ts
+```
+
+Each suite provisions a clean `skilltest` database on the target server, runs the migrations, and exercises CRUD, upserts, JSON round-trips, analytics, and the auth/agent-token paths.
+
 ## Docker Compose (default)
 
 ```sh

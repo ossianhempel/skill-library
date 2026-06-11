@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pin the engine drivers' default; individual jobs override DATABASE selection via
+  # the *_TEST_URL the gated integration suites read.
+  CI: "true"
+
+jobs:
+  # Default gate: build, typecheck, and the full unit suite on the bundled PGlite
+  # engine. PGlite is embedded Postgres, so this also exercises the Postgres SQL
+  # dialect for every store method.
+  build-and-test:
+    name: Build & test (PGlite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+
+  # Default matrix engine: real PostgreSQL over the `pg` driver. PGlite proves the
+  # SQL dialect; this proves the driver/pool/connection path against a live server.
+  postgres:
+    name: Storage suite (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run the live PostgreSQL store suite
+        env:
+          POSTGRES_TEST_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: pnpm --filter @skill-library/storage exec vitest run src/postgres.integration.test.ts
+
+  # Gated engine: Azure SQL Server / T-SQL. This is the divergent dialect (MERGE,
+  # OUTPUT, OFFSET/FETCH, nvarchar(max) JSON, JSON_VALUE), so it gets its own job.
+  # Kept off pull-request runs — the image is heavy and slow to boot, and contributors
+  # without SQL Server should not be blocked — so it validates on push to main and on
+  # manual dispatch. Locally the suite skips unless MSSQL_TEST_URL is set.
+  sqlserver:
+    name: Storage suite (SQL Server, gated)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Skill_Lib_CI_2026!"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Skill_Lib_CI_2026!' -C -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 30s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run the live SQL Server store suite
+        env:
+          # The suite appends ?trustServerCertificate=true (the container presents a
+          # self-signed cert) in its own setup.
+          MSSQL_TEST_URL: "sqlserver://sa:Skill_Lib_CI_2026!@localhost:1433"
+        run: pnpm --filter @skill-library/storage exec vitest run src/mssql.integration.test.ts
