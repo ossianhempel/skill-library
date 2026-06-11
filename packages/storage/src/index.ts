@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
-import { Client } from "pg";
 import {
   acquirePgliteWriterLock,
   formatPglitePersistenceWarning,
@@ -39,8 +38,14 @@ export interface RegistryStore {
   kysely?: Kysely<DatabaseSchema>;
   migrate(): Promise<void>;
   close(): Promise<void>;
-  query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
   countUsers(): Promise<number>;
+  getAgentToken(userId: string): Promise<string | undefined>;
+  /** Persist a new agent token. Returns the token if the user existed, else undefined. */
+  setAgentToken(userId: string, token: string): Promise<string | undefined>;
+  findUserByAgentToken(token: string): Promise<UserIdentity | undefined>;
+  listTeamMembers(): Promise<TeamMemberRecord[]>;
+  updateUserRole(userId: string, role: string): Promise<UserRecord | undefined>;
+  deleteUser(userId: string): Promise<void>;
   putArtifact(artifact: ArtifactInput): Promise<StoredArtifact>;
   getArtifact(digest: string): Promise<StoredArtifact | undefined>;
   readArtifactContent(digest: string): Promise<Buffer | undefined>;
@@ -101,8 +106,25 @@ export interface VersionTransitionInput {
   replacementVersionId?: string;
 }
 
-interface Queryable {
-  query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
+/** Minimal actor identity resolved from an agent token. */
+export interface UserIdentity {
+  id: string;
+  role: string;
+}
+
+/** A Better-Auth-owned user as surfaced to admin/team views. */
+export interface UserRecord {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  image: string | null;
+}
+
+/** A team member plus their count of submitted skill versions. */
+export interface TeamMemberRecord extends UserRecord {
+  skillsSubmitted: number;
 }
 
 const defaultDataDir = process.env.SKILL_LIBRARY_DATA_DIR ?? "/data";
@@ -128,23 +150,15 @@ export async function createRegistryStore(config: RegistryStoreConfig = {}): Pro
   await mkdir(paths.artifactDir, { recursive: true });
 
   if (engine === "postgres") {
-    const client = new Client({ connectionString: config.databaseUrl });
-    await client.connect();
-    // Kysely runs migrations over its own pool; the legacy client serves CRUD until
-    // those queries are ported. Both close on shutdown.
     const { db: kysely } = createKyselyInstance({ databaseUrl: config.databaseUrl, databaseEngine: "postgres" });
-    return new SqlRegistryStore(engine, paths, client, "postgres", kysely, async () => {
-      await client.end();
+    return new SqlRegistryStore(engine, paths, "postgres", kysely, async () => {
       await kysely.destroy();
     });
   }
 
   if (engine === "mssql") {
-    // SQL Server runs entirely through Kysely. The legacy raw-query path is not available
-    // here; the analytics reads that still use it are ported in their own unit. Until then
-    // those few methods throw a clear error rather than silently returning wrong results.
     const { db: kysely } = createKyselyInstance({ databaseUrl: config.databaseUrl, databaseEngine: "mssql" });
-    return new SqlRegistryStore(engine, paths, rawQueryUnsupported("mssql"), "mssql", kysely, async () => {
+    return new SqlRegistryStore(engine, paths, "mssql", kysely, async () => {
       await kysely.destroy();
     });
   }
@@ -159,7 +173,7 @@ export async function createRegistryStore(config: RegistryStoreConfig = {}): Pro
   // closes the instance, so we close it directly once here instead of via kysely.destroy().
   const { db: kysely } = createKyselyInstance({ databaseEngine: "pglite", pgliteInstance: db });
 
-  return new SqlRegistryStore("pglite", paths, db, "pglite", kysely, async () => {
+  return new SqlRegistryStore("pglite", paths, "pglite", kysely, async () => {
     if (!db.closed) {
       await db.close();
     }
@@ -167,26 +181,10 @@ export async function createRegistryStore(config: RegistryStoreConfig = {}): Pro
   });
 }
 
-/**
- * Placeholder Queryable for engines whose remaining raw-SQL methods (the analytics
- * reads) have not yet been ported. Throws clearly instead of returning wrong data.
- */
-function rawQueryUnsupported(engine: DatabaseEngine): Queryable {
-  return {
-    async query() {
-      throw new Error(
-        `This query path is not yet ported to the ${engine} engine. ` +
-          `Reporting/analytics queries are pending their cross-dialect port.`
-      );
-    }
-  };
-}
-
 export class SqlRegistryStore implements RegistryStore {
   constructor(
     readonly mode: DatabaseMode,
     readonly paths: RegistryStoragePaths,
-    private readonly db: Queryable,
     readonly engine: DatabaseEngine,
     readonly kysely: Kysely<DatabaseSchema>,
     private readonly closeDb: () => Promise<void>
@@ -199,10 +197,6 @@ export class SqlRegistryStore implements RegistryStore {
 
   async close(): Promise<void> {
     await this.closeDb();
-  }
-
-  async query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<{ rows: T[] }> {
-    return this.db.query<T>(sql, params);
   }
 
   // Dialect-aware upsert helpers. Postgres/PGlite use ON CONFLICT; SQL Server has no
@@ -550,6 +544,106 @@ export class SqlRegistryStore implements RegistryStore {
     return Number(row?.count ?? 0);
   }
 
+  // Dialect-aware text extraction from a JSON column. Postgres/PGlite use the `->>`
+  // operator on jsonb; SQL Server stores JSON as nvarchar(max) and reads it with
+  // JSON_VALUE(col, '$.key'). Used by the team-roster join on provenance->>'actorId'.
+  private jsonText(columnRef: string, key: string) {
+    return this.engine === "mssql"
+      ? sql<string>`json_value(${sql.ref(columnRef)}, ${sql.lit(`$.${key}`)})`
+      : sql<string>`${sql.ref(columnRef)} ->> ${sql.lit(key)}`;
+  }
+
+  async getAgentToken(userId: string): Promise<string | undefined> {
+    const row = await this.kysely
+      .selectFrom("user")
+      .select("agent_api_token")
+      .where("id", "=", userId)
+      .executeTakeFirst();
+
+    return row?.agent_api_token ?? undefined;
+  }
+
+  async setAgentToken(userId: string, token: string): Promise<string | undefined> {
+    // Bind updated_at as a JS Date rather than now()/sysdatetimeoffset() so the write
+    // is identical across dialects.
+    const result = await this.kysely
+      .updateTable("user")
+      .set({ agent_api_token: token, updated_at: new Date() })
+      .where("id", "=", userId)
+      .executeTakeFirst();
+
+    return Number(result?.numUpdatedRows ?? 0n) > 0 ? token : undefined;
+  }
+
+  async findUserByAgentToken(token: string): Promise<UserIdentity | undefined> {
+    const row = await this.kysely
+      .selectFrom("user")
+      .select(["id", "role"])
+      .where("agent_api_token", "=", token)
+      .executeTakeFirst();
+
+    return row ? { id: row.id, role: row.role } : undefined;
+  }
+
+  async listTeamMembers(): Promise<TeamMemberRecord[]> {
+    const actorId = this.jsonText("v.provenance", "actorId");
+
+    const rows = await this.kysely
+      .selectFrom("user as u")
+      .leftJoin("skill_versions as v", (join) =>
+        join.on((eb) => eb.or([eb(actorId, "=", eb.ref("u.id")), eb(actorId, "=", eb.ref("u.email"))]))
+      )
+      .select((eb) => [
+        "u.id",
+        "u.name",
+        "u.email",
+        "u.role",
+        "u.created_at",
+        "u.image",
+        eb.fn.count("v.id").as("skills_submitted")
+      ])
+      .groupBy(["u.id", "u.name", "u.email", "u.role", "u.created_at", "u.image"])
+      .orderBy("u.created_at", "asc")
+      .execute();
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      createdAt: toIsoString(row.created_at),
+      image: row.image,
+      skillsSubmitted: Number(row.skills_submitted ?? 0)
+    }));
+  }
+
+  async updateUserRole(userId: string, role: string): Promise<UserRecord | undefined> {
+    await this.kysely.updateTable("user").set({ role }).where("id", "=", userId).execute();
+
+    // Read back instead of RETURNING/OUTPUT so the path is dialect-agnostic; a missing
+    // user yields undefined (404 at the caller).
+    const row = await this.kysely
+      .selectFrom("user")
+      .select(["id", "name", "email", "role", "created_at", "image"])
+      .where("id", "=", userId)
+      .executeTakeFirst();
+
+    return row
+      ? {
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          role: row.role,
+          createdAt: toIsoString(row.created_at),
+          image: row.image
+        }
+      : undefined;
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await this.kysely.deleteFrom("user").where("id", "=", userId).execute();
+  }
+
   async getPackageReport(packageId: string): Promise<PackageReport | undefined> {
     const pkg = await this.getPackage(packageId);
 
@@ -640,9 +734,28 @@ export class MemoryRegistryStore implements RegistryStore {
 
   async close(): Promise<void> {}
 
-  async query<T = Record<string, unknown>>(_sql: string, _params?: unknown[]): Promise<{ rows: T[] }> {
-    return { rows: [] };
+  // The in-memory store has no user table; auth/agent-token flows are unsupported here.
+  async getAgentToken(_userId: string): Promise<string | undefined> {
+    return undefined;
   }
+
+  async setAgentToken(_userId: string, _token: string): Promise<string | undefined> {
+    return undefined;
+  }
+
+  async findUserByAgentToken(_token: string): Promise<UserIdentity | undefined> {
+    return undefined;
+  }
+
+  async listTeamMembers(): Promise<TeamMemberRecord[]> {
+    return [];
+  }
+
+  async updateUserRole(_userId: string, _role: string): Promise<UserRecord | undefined> {
+    return undefined;
+  }
+
+  async deleteUser(_userId: string): Promise<void> {}
 
   async putArtifact(artifact: ArtifactInput): Promise<StoredArtifact> {
     return {

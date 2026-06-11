@@ -113,14 +113,20 @@ describe("createRegistryStore PGlite guard integration", () => {
   it("does not create a PGlite writer lock in postgres mode", async () => {
     const dataDir = await makeTmpDir();
 
-    await expect(
-      createRegistryStore({
-        dataDir,
-        databaseUrl: "postgres://127.0.0.1:1/none"
-      })
-    ).rejects.toThrow();
+    // Postgres mode unifies on Kysely, whose pool connects lazily, so store creation
+    // never touches the PGlite writer lock. A bad connection surfaces later at
+    // migrate()/first query on boot, not here.
+    const store = await createRegistryStore({
+      dataDir,
+      databaseUrl: "postgres://127.0.0.1:1/none"
+    });
 
-    await expect(readFile(join(dataDir, PGLITE_WRITER_LOCK_FILE), "utf8")).rejects.toThrow();
+    try {
+      expect(store.mode).toBe("postgres");
+      await expect(readFile(join(dataDir, PGLITE_WRITER_LOCK_FILE), "utf8")).rejects.toThrow();
+    } finally {
+      await store.close();
+    }
   });
 });
 

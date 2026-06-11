@@ -174,4 +174,49 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
     expect(row.email).toBe("ada@example.com");
     expect(Boolean(row.emailVerified)).toBe(false);
   });
+
+  it("sets, reads, and resolves an agent token through the shared instance (U6)", async () => {
+    expect(await store.getAgentToken("u-1")).toBeUndefined();
+
+    const token = "sl_mssql_u6_token";
+    expect(await store.setAgentToken("u-1", token)).toBe(token);
+    expect(await store.getAgentToken("u-1")).toBe(token);
+    expect(await store.findUserByAgentToken(token)).toEqual({ id: "u-1", role: "admin" });
+
+    // Missing user / unknown token both yield undefined, not a throw.
+    expect(await store.setAgentToken("nobody", "x")).toBeUndefined();
+    expect(await store.findUserByAgentToken("unknown-token")).toBeUndefined();
+  });
+
+  it("counts submissions via the JSON-path join (JSON_VALUE on T-SQL) (U6)", async () => {
+    // A version whose provenance.actorId matches the user exercises the dialect-aware
+    // JSON extract: JSON_VALUE(provenance, '$.actorId') on SQL Server vs ->> on Postgres.
+    await store.kysely!
+      .insertInto("skill_versions")
+      .values({
+        id: "v-by-u1",
+        package_id: pkg.id,
+        version: "2.0.0",
+        lifecycle_state: "draft",
+        artifact_digest: "sha256:abc",
+        validation: JSON.stringify({ ok: true }),
+        provenance: JSON.stringify({ source: "test", actorId: "u-1" }),
+        created_at: new Date()
+      })
+      .execute();
+
+    const members = await store.listTeamMembers();
+    const ada = members.find((member) => member.id === "u-1");
+    expect(ada?.skillsSubmitted).toBe(1);
+  });
+
+  it("updates a user role and deletes the user (U6)", async () => {
+    const updated = await store.updateUserRole("u-1", "maintainer");
+    expect(updated?.role).toBe("maintainer");
+    expect(await store.updateUserRole("missing", "user")).toBeUndefined();
+
+    await store.deleteUser("u-1");
+    expect(await store.countUsers()).toBe(0);
+    await store.deleteUser("u-1"); // safe no-op on a missing id
+  });
 });

@@ -689,10 +689,10 @@ describe("HTTP registry API", () => {
     const { app, store } = await createSeededApp();
 
     try {
-      await store.query(
-        'insert into "user" (id, name, email, "emailVerified", role, created_at, updated_at) values ($1, $2, $3, $4, $5, now(), now())',
-        ["user-1", "Test User", "test@example.com", false, "user"]
-      );
+      await store.kysely!
+        .insertInto("user")
+        .values({ id: "user-1", name: "Test User", email: "test@example.com", emailVerified: false, role: "user" })
+        .execute();
 
       const denied = await app.request("/api/me/agent-token");
       expect(denied.status).toBe(403);
@@ -722,24 +722,24 @@ describe("HTTP registry API", () => {
     const { app, store } = await createSeededApp();
 
     try {
-      await store.query(
-        'insert into "user" (id, name, email, "emailVerified", role, created_at, updated_at) values ($1, $2, $3, $4, $5, now(), now())',
-        ["user-1", "Test User", "test@example.com", false, "user"]
-      );
+      await store.kysely!
+        .insertInto("user")
+        .values({ id: "user-1", name: "Test User", email: "test@example.com", emailVerified: false, role: "user" })
+        .execute();
 
-      await store.query(
-        `insert into skill_versions (id, package_id, version, lifecycle_state, artifact_digest, validation, provenance, created_at)
-         values ($1, $2, $3, $4, $5, $6, $7, now())`,
-        [
-          "version-draft",
-          "package-1",
-          "1.1.0",
-          "draft",
-          "sha256:two",
-          JSON.stringify({ ok: true, files: [], issues: [] }),
-          JSON.stringify({ kind: "upload", actorId: "user-1", importedAt: "2026-06-07T12:00:00.000Z" })
-        ]
-      );
+      await store.kysely!
+        .insertInto("skill_versions")
+        .values({
+          id: "version-draft",
+          package_id: "package-1",
+          version: "1.1.0",
+          lifecycle_state: "draft",
+          artifact_digest: "sha256:two",
+          validation: JSON.stringify({ ok: true, files: [], issues: [] }),
+          provenance: JSON.stringify({ kind: "upload", actorId: "user-1", importedAt: "2026-06-07T12:00:00.000Z" }),
+          created_at: new Date()
+        })
+        .execute();
 
       const denied = await app.request("/api/team/members");
       expect(denied.status).toBe(403);
@@ -760,10 +760,10 @@ describe("HTTP registry API", () => {
 
     try {
       // Seed a user into the "user" table
-      await store.query(
-        'insert into "user" (id, name, email, "emailVerified", role, created_at, updated_at) values ($1, $2, $3, $4, $5, now(), now())',
-        ["user-1", "Test User", "test@example.com", false, "user"]
-      );
+      await store.kysely!
+        .insertInto("user")
+        .values({ id: "user-1", name: "Test User", email: "test@example.com", emailVerified: false, role: "user" })
+        .execute();
 
       // Non-admin cannot use admin list endpoint
       const denied = await app.request("/api/admin/users", { headers: userHeaders() });

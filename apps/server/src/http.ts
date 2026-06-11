@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { createRegistryApi, type RegistryApi } from "./index.js";
-import type { RegistryStore } from "@skill-library/storage";
+import type { RegistryStore, TeamMemberRecord } from "@skill-library/storage";
 import type { PackageTreeEntry } from "@skill-library/validation";
 import type { LifecycleState, RegistryBrandingConfig, Workspace } from "@skill-library/domain";
 import { actorFromHeaders, devHeaderAuthEnabled, hasRole, parseRole } from "./auth.js";
@@ -466,25 +466,9 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Sign-in required" }, 403);
     }
 
-    const result = await store.query<TeamMemberRow>(`
-      select
-        u.id,
-        u.name,
-        u.email,
-        u.role,
-        u.created_at,
-        u.image,
-        count(v.id)::int as skills_submitted
-      from "user" u
-      left join skill_versions v on (
-        v.provenance->>'actorId' = u.id
-        or v.provenance->>'actorId' = u.email
-      )
-      group by u.id, u.name, u.email, u.role, u.created_at, u.image
-      order by u.created_at asc
-    `);
+    const members = await store.listTeamMembers();
 
-    return context.json({ members: result.rows.map(mapTeamMemberRow) });
+    return context.json({ members: members.map(mapTeamMemberRow) });
   });
 
   // Admin user management routes
@@ -495,25 +479,9 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Admin role required" }, 403);
     }
 
-    const result = await store.query<TeamMemberRow>(`
-      select
-        u.id,
-        u.name,
-        u.email,
-        u.role,
-        u.created_at,
-        u.image,
-        count(v.id)::int as skills_submitted
-      from "user" u
-      left join skill_versions v on (
-        v.provenance->>'actorId' = u.id
-        or v.provenance->>'actorId' = u.email
-      )
-      group by u.id, u.name, u.email, u.role, u.created_at, u.image
-      order by u.created_at asc
-    `);
+    const members = await store.listTeamMembers();
 
-    return context.json({ users: result.rows.map(mapTeamMemberRow) });
+    return context.json({ users: members.map(mapTeamMemberRow) });
   });
 
   app.patch("/api/admin/users/:userId", async (context) => {
@@ -531,16 +499,22 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Request body must include a valid role (user, maintainer, or admin)." }, 400);
     }
 
-    const result = await store.query<{ id: string; name: string; email: string; role: string; created_at: string; image: string | null }>(
-      'update "user" set role = $1 where id = $2 returning id, name, email, role, created_at, image',
-      [role, userId]
-    );
+    const user = await store.updateUserRole(userId, role);
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return context.json({ error: "User not found" }, 404);
     }
 
-    return context.json({ user: result.rows[0] });
+    return context.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        created_at: user.createdAt,
+        image: user.image
+      }
+    });
   });
 
   app.delete("/api/admin/users/:userId", async (context) => {
@@ -551,7 +525,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     }
 
     const userId = context.req.param("userId");
-    await store.query('delete from "user" where id = $1', [userId]);
+    await store.deleteUser(userId);
     return context.json({ deleted: true });
   });
 
@@ -565,25 +539,15 @@ function parseAdminRole(value: string | undefined): "user" | "maintainer" | "adm
   return undefined;
 }
 
-interface TeamMemberRow {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  created_at: string;
-  image: string | null;
-  skills_submitted: number;
-}
-
-function mapTeamMemberRow(row: TeamMemberRow) {
+function mapTeamMemberRow(member: TeamMemberRecord) {
   return {
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    role: row.role,
-    created_at: row.created_at,
-    image: row.image,
-    skillsSubmitted: Number(row.skills_submitted ?? 0)
+    id: member.id,
+    name: member.name,
+    email: member.email,
+    role: member.role,
+    created_at: member.createdAt,
+    image: member.image,
+    skillsSubmitted: member.skillsSubmitted
   };
 }
 
