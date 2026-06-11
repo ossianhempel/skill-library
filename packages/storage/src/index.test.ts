@@ -107,6 +107,61 @@ describe("PGlite registry store", () => {
     }
   });
 
+  it("builds download history and catalog stats for package reporting", async () => {
+    const dataDir = await makeTmpDir();
+    const store = await createRegistryStore({ dataDir });
+
+    try {
+      await store.migrate();
+      await seedStore(store as SqlRegistryStore);
+
+      await store.recordUsageEvent({
+        id: "usage-download-1",
+        workspaceId: "workspace-1",
+        packageId: "package-1",
+        versionId: "version-2",
+        eventType: "download",
+        createdAt: "2026-06-07T12:00:00.000Z"
+      });
+      await store.recordUsageEvent({
+        id: "usage-download-2",
+        workspaceId: "workspace-1",
+        packageId: "package-1",
+        versionId: "version-2",
+        eventType: "download",
+        createdAt: "2026-06-07T12:30:00.000Z"
+      });
+
+      await expect(store.getDownloadHistory({
+        workspaceId: "workspace-1",
+        packageId: "package-1",
+        eventType: "download"
+      })).resolves.toEqual(expect.arrayContaining([
+        expect.objectContaining({ count: 2 })
+      ]));
+
+      await expect(store.getPackageReport("package-1")).resolves.toEqual(
+        expect.objectContaining({
+          downloads: 2,
+          downloadHistory: expect.arrayContaining([
+            expect.objectContaining({ count: 2 })
+          ]),
+          lastModifiedAt: "2026-06-07T11:00:00.000Z"
+        })
+      );
+
+      await expect(store.getWorkspaceCatalogStats("workspace-1")).resolves.toEqual([
+        expect.objectContaining({
+          packageId: "package-1",
+          downloads: 2,
+          lastModifiedAt: "2026-06-07T11:00:00.000Z"
+        })
+      ]);
+    } finally {
+      await store.close();
+    }
+  });
+
   it("records usage events for reporting counters", async () => {
     const dataDir = await makeTmpDir();
     const store = await createRegistryStore({ dataDir });

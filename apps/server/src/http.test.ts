@@ -515,6 +515,10 @@ describe("HTTP registry API", () => {
           latestApprovedVersionId: "version-1",
           views: 1,
           downloads: 1,
+          downloadHistory: expect.arrayContaining([
+            expect.objectContaining({ date: expect.any(String), count: expect.any(Number) })
+          ]),
+          lastModifiedAt: expect.any(String),
           installs: {
             total: 2,
             byState: expect.objectContaining({
@@ -527,6 +531,41 @@ describe("HTTP registry API", () => {
       });
       await expect(workspaceReports.json()).resolves.toEqual({
         reports: [expect.objectContaining({ packageId: "package-1", installs: expect.objectContaining({ total: 2 }) })]
+      });
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("serves catalog stats to viewers without exposing install reports", async () => {
+    const { app, store } = await createSeededApp();
+
+    try {
+      await store.recordUsageEvent({
+        id: "usage-download-catalog",
+        workspaceId: "workspace-1",
+        packageId: "package-1",
+        versionId: "version-1",
+        eventType: "download",
+        createdAt: "2026-06-07T12:00:00.000Z"
+      });
+
+      const catalogStats = await app.request("/api/workspaces/workspace-1/catalog-stats", { headers: userHeaders() });
+      const reports = await app.request("/api/workspaces/workspace-1/reports", { headers: userHeaders() });
+
+      expect(catalogStats.status).toBe(200);
+      expect(reports.status).toBe(403);
+      await expect(catalogStats.json()).resolves.toEqual({
+        stats: [
+          expect.objectContaining({
+            packageId: "package-1",
+            downloads: 1,
+            downloadHistory: expect.arrayContaining([
+              expect.objectContaining({ date: expect.any(String), count: expect.any(Number) })
+            ]),
+            lastModifiedAt: expect.any(String)
+          })
+        ]
       });
     } finally {
       await store.close();

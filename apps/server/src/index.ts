@@ -19,6 +19,7 @@ export interface RegistryApi {
   usageCount: RegistryStore["countUsageEvents"];
   packageReport: RegistryStore["getPackageReport"];
   workspaceReports: RegistryStore["getWorkspaceReports"];
+  workspaceCatalogStats: RegistryStore["getWorkspaceCatalogStats"];
   validate(entries: PackageTreeEntry[]): ReturnType<typeof validatePackageTree>;
   ingestArtifact(entries: PackageTreeEntry[]): Promise<IngestedArtifact>;
   createUploadedVersion(input: CreateUploadedVersionInput): Promise<SkillVersion>;
@@ -152,6 +153,9 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
     },
     workspaceReports(workspaceId) {
       return store.getWorkspaceReports(workspaceId);
+    },
+    workspaceCatalogStats(workspaceId) {
+      return store.getWorkspaceCatalogStats(workspaceId);
     },
     validate(entries) {
       return validatePackageTree(entries);

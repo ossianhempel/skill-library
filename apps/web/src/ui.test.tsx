@@ -59,6 +59,8 @@ describe("SkillLibraryApp", () => {
     // Catalog view shows the list, details, and installation prompt
     fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
     expect(screen.getAllByText("Review Helper").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("1.0.0").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("9").length).toBeGreaterThan(0);
     expect(screen.getByText("SKILL.md")).toBeTruthy();
     expect(screen.getByText(/skill-library install review-helper/)).toBeTruthy();
 
@@ -107,6 +109,8 @@ describe("SkillLibraryApp", () => {
         files: ["SKILL.md"],
         installs: 4,
         downloads: 9,
+        downloadHistory: report.downloadHistory,
+        lastModifiedAt: report.lastModifiedAt,
         staleInstalls: 1
       })
     ]);
@@ -232,6 +236,11 @@ const report: PackageReport = {
   latestApprovedVersionId: "version-1",
   views: 12,
   downloads: 9,
+  downloadHistory: Array.from({ length: 14 }, (_, index) => ({
+    date: `2026-06-${String(index + 1).padStart(2, "0")}`,
+    count: index + 1
+  })),
+  lastModifiedAt: "2026-06-07T12:00:00.000Z",
   installs: {
     total: 4,
     byState: {
@@ -261,6 +270,8 @@ const skill = {
   files: ["SKILL.md"],
   installs: 3,
   downloads: 9,
+  downloadHistory: report.downloadHistory,
+  lastModifiedAt: report.lastModifiedAt,
   staleInstalls: 1,
   report
 };
@@ -270,6 +281,12 @@ function fakeApi(): WebApiClient {
     search: vi.fn(async () => [pkg]),
     latestApprovedVersion: vi.fn(async () => latestApproved),
     packageVersions: vi.fn(async () => [latestApproved]),
+    workspaceCatalogStats: vi.fn(async () => [{
+      packageId: "package-1",
+      downloads: 9,
+      downloadHistory: report.downloadHistory,
+      lastModifiedAt: report.lastModifiedAt
+    }]),
     workspaceReports: vi.fn(async () => [report]),
     validatePackageTree: vi.fn(async () => ({ ok: true, files: [], issues: [] })),
     uploadVersion: vi.fn(async () => latestApproved),

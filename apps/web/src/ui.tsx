@@ -9,10 +9,14 @@ import {
   type McpSetupTarget
 } from "./mcp-setup-prompts.js";
 import { ValidationPanel } from "./validation-panel.js";
+import { SkillStatsMeta } from "./skill-stats.js";
 import {
   DEFAULT_REGISTRY_BRANDING,
+  DOWNLOAD_HISTORY_DAYS,
   WORKSPACE_ROLE_DESCRIPTIONS,
   WORKSPACE_ROLE_LABELS,
+  type CatalogPackageStats,
+  type DownloadHistoryPoint,
   type LifecycleState,
   type PackageReport,
   type RegistryBrandingConfig,
@@ -48,6 +52,8 @@ export interface CatalogSkill {
   files: string[];
   installs: number;
   downloads: number;
+  downloadHistory: DownloadHistoryPoint[];
+  lastModifiedAt: string;
   staleInstalls: number;
   report?: PackageReport;
 }
@@ -56,6 +62,7 @@ export interface WebApiClient {
   search(workspaceId: string, query?: string): Promise<SkillPackage[]>;
   latestApprovedVersion(packageId: string): Promise<SkillVersion | undefined>;
   packageVersions(packageId: string): Promise<SkillVersion[]>;
+  workspaceCatalogStats(workspaceId: string): Promise<CatalogPackageStats[]>;
   workspaceReports(workspaceId: string): Promise<PackageReport[]>;
   uploadVersion(workspaceId: string, input: UploadVersionInput): Promise<SkillVersion>;
   importGitVersion(workspaceId: string, input: GitImportInput): Promise<SkillVersion>;
@@ -107,6 +114,8 @@ const devSampleSkills: CatalogSkill[] = [
     files: ["SKILL.md", "scripts/review.ts", "references/checklist.md"],
     installs: 43,
     downloads: 118,
+    downloadHistory: demoDownloadHistory([4, 6, 8, 5, 9, 7, 11, 10, 12, 8, 14, 9, 13, 12]),
+    lastModifiedAt: "2026-06-07T12:00:00.000Z",
     staleInstalls: 6,
     report: packageReport("workspace-1-review-helper", 2, 43, 118, 37, 6)
   },
@@ -117,6 +126,8 @@ const devSampleSkills: CatalogSkill[] = [
     files: ["SKILL.md", "templates/release.md"],
     installs: 17,
     downloads: 52,
+    downloadHistory: demoDownloadHistory([2, 3, 4, 3, 5, 4, 6, 5, 4, 3, 5, 4, 6, 4]),
+    lastModifiedAt: "2026-06-07T12:00:00.000Z",
     staleInstalls: 0,
     report: packageReport("workspace-1-release-notes", 1, 17, 52, 17, 0)
   },
@@ -127,6 +138,8 @@ const devSampleSkills: CatalogSkill[] = [
     files: ["SKILL.md", "scripts/import.ts", "references/provenance.md"],
     installs: 8,
     downloads: 21,
+    downloadHistory: demoDownloadHistory([1, 1, 2, 1, 2, 2, 3, 1, 2, 1, 2, 1, 1, 1]),
+    lastModifiedAt: "2026-06-07T12:00:00.000Z",
     staleInstalls: 3,
     report: packageReport("workspace-1-git-importer", 1, 8, 21, 5, 3)
   }
@@ -910,6 +923,17 @@ export function SkillLibraryApp({
             )}
           </div>
 
+          <div className="panel">
+            <div className="panel-title"><BarChart3 size={17} />Usage</div>
+            <SkillStatsMeta
+              version={selected.latestApproved?.version ?? selected.activeVersion?.version}
+              downloads={selected.downloads}
+              downloadHistory={selected.downloadHistory}
+              updatedAt={selected.pkg.updatedAt}
+              lastModifiedAt={selected.lastModifiedAt}
+            />
+          </div>
+
           <div className="split">
             <div className="panel">
               <div className="panel-title"><FileCode2 size={17} />Contents</div>
@@ -938,7 +962,7 @@ export function SkillLibraryApp({
             </div>
           )}
 
-          <div className="activity-strip"><GitBranch size={18} /><span>Git import provenance, lifecycle approval, and download counters are available through the registry API.</span></div>
+          <div className="activity-strip"><GitBranch size={18} /><span>Download counts and sparklines reflect the last {DOWNLOAD_HISTORY_DAYS} days of artifact downloads.</span></div>
         </section>
       )}
     </main>
@@ -1043,8 +1067,13 @@ export function pickActiveVersion(latestApproved: SkillVersion | undefined, vers
 }
 
 export async function loadCatalogSkills(api: WebApiClient, workspaceId: string, query?: string): Promise<CatalogSkill[]> {
-  const [packages, reports] = await Promise.all([api.search(workspaceId, query), api.workspaceReports(workspaceId).catch(() => [])]);
+  const [packages, reports, catalogStats] = await Promise.all([
+    api.search(workspaceId, query),
+    api.workspaceReports(workspaceId).catch(() => []),
+    api.workspaceCatalogStats(workspaceId).catch(() => [])
+  ]);
   const reportsByPackage = new Map(reports.map((report) => [report.packageId, report]));
+  const statsByPackage = new Map(catalogStats.map((stats) => [stats.packageId, stats]));
 
   return Promise.all(
     packages.map(async (pkg) => {
@@ -1052,6 +1081,7 @@ export async function loadCatalogSkills(api: WebApiClient, workspaceId: string, 
       const versions = await api.packageVersions(pkg.id).catch(() => []);
       const activeVersion = pickActiveVersion(latestApproved, versions);
       const report = reportsByPackage.get(pkg.id);
+      const stats = statsByPackage.get(pkg.id);
       const validation = activeVersion?.validation;
 
       return {
@@ -1061,7 +1091,9 @@ export async function loadCatalogSkills(api: WebApiClient, workspaceId: string, 
         validation,
         files: validation?.files.map((file) => file.path) ?? [],
         installs: report?.installs.total ?? 0,
-        downloads: report?.downloads ?? 0,
+        downloads: stats?.downloads ?? report?.downloads ?? 0,
+        downloadHistory: stats?.downloadHistory ?? report?.downloadHistory ?? emptyDownloadHistory(),
+        lastModifiedAt: stats?.lastModifiedAt ?? report?.lastModifiedAt ?? resolveLastModifiedAt(versions),
         staleInstalls: (report?.installs.byState.stale ?? 0) + (report?.installs.byState["modified-local-content"] ?? 0),
         report
       };
@@ -1087,6 +1119,9 @@ export function createWebApiClient({ registryUrl = "", token, request = fetch }:
     },
     async packageVersions(packageId) {
       return (await jsonRequest<{ versions: SkillVersion[] }>(request, `${baseUrl}/api/packages/${encodeURIComponent(packageId)}/versions`, authHeaders(token))).versions;
+    },
+    async workspaceCatalogStats(workspaceId) {
+      return (await jsonRequest<{ stats: CatalogPackageStats[] }>(request, `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/catalog-stats`, authHeaders(token))).stats;
     },
     async workspaceReports(workspaceId) {
       return (await jsonRequest<{ reports: PackageReport[] }>(request, `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/reports`, authHeaders(token))).reports;
@@ -1160,6 +1195,14 @@ function FeaturedSkill({ skill, onOpen }: { skill: CatalogSkill; onOpen: () => v
         <p className="kicker">Featured approved skill</p>
         <h2>{skill.pkg.name}</h2>
         <p>{skill.pkg.description}</p>
+        <SkillStatsMeta
+          compact
+          version={skill.latestApproved?.version ?? skill.activeVersion?.version}
+          downloads={skill.downloads}
+          downloadHistory={skill.downloadHistory}
+          updatedAt={skill.pkg.updatedAt}
+          lastModifiedAt={skill.lastModifiedAt}
+        />
       </div>
       <button onClick={onOpen}>Open catalog</button>
     </article>
@@ -1434,10 +1477,20 @@ function TeamMemberRow({
 function SkillRow({ skill, active, onSelect }: { skill: CatalogSkill; active: boolean; onSelect: () => void }) {
   return (
     <article className={active ? "skill-row active" : "skill-row"} onClick={onSelect}>
-      <div>
-        <h2>{skill.pkg.name}</h2>
-        <p>{skill.pkg.description}</p>
-        <div className="tags">{skill.pkg.categories.map((category) => <span key={category}>{category}</span>)}</div>
+      <div className="skill-row-main">
+        <div className="skill-row-copy">
+          <h2>{skill.pkg.name}</h2>
+          <p>{skill.pkg.description}</p>
+          <div className="tags">{skill.pkg.categories.map((category) => <span key={category}>{category}</span>)}</div>
+        </div>
+        <SkillStatsMeta
+          compact
+          version={skill.latestApproved?.version ?? skill.activeVersion?.version}
+          downloads={skill.downloads}
+          downloadHistory={skill.downloadHistory}
+          updatedAt={skill.pkg.updatedAt}
+          lastModifiedAt={skill.lastModifiedAt}
+        />
       </div>
       <LifecycleBadge state={skill.activeVersion?.lifecycleState ?? skill.latestApproved?.lifecycleState ?? "draft"} />
     </article>
@@ -1540,6 +1593,34 @@ function version(id: string, packageId: string, semver: string, lifecycleState: 
   };
 }
 
+function emptyDownloadHistory(): DownloadHistoryPoint[] {
+  return Array.from({ length: DOWNLOAD_HISTORY_DAYS }, (_, index) => {
+    const day = new Date();
+    day.setUTCHours(0, 0, 0, 0);
+    day.setUTCDate(day.getUTCDate() - (DOWNLOAD_HISTORY_DAYS - 1 - index));
+
+    return {
+      date: day.toISOString().slice(0, 10),
+      count: 0
+    };
+  });
+}
+
+function demoDownloadHistory(counts: number[]): DownloadHistoryPoint[] {
+  const history = emptyDownloadHistory();
+
+  return history.map((point, index) => ({
+    ...point,
+    count: counts[index] ?? 0
+  }));
+}
+
+function resolveLastModifiedAt(versions: SkillVersion[]): string {
+  const sorted = [...versions].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+
+  return sorted[0]?.createdAt ?? new Date(0).toISOString();
+}
+
 function packageReport(packageId: string, versionCount: number, installs: number, downloads: number, current: number, stale: number): PackageReport {
   return {
     packageId,
@@ -1548,6 +1629,8 @@ function packageReport(packageId: string, versionCount: number, installs: number
     latestApprovedVersionId: `version-${packageId}`,
     views: downloads * 2,
     downloads,
+    downloadHistory: demoDownloadHistory([1, 2, 3, 2, 4, 3, 5, 4, 6, 5, 4, 3, 5, 4]),
+    lastModifiedAt: "2026-06-07T12:00:00.000Z",
     installs: {
       total: installs,
       byState: {

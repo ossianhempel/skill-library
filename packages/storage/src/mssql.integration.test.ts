@@ -156,6 +156,16 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
     expect(report?.versionCount).toBe(2);
     expect(report?.installs.total).toBe(1);
 
+    // Cross-dialect download history: CAST(created_at AS date) + GROUP BY on T-SQL.
+    expect(report?.downloadHistory).toHaveLength(14);
+    expect(report?.downloadHistory.reduce((total, point) => total + point.count, 0)).toBe(1);
+    expect(report?.lastModifiedAt).toBeTruthy();
+
+    const catalogStats = await store.getWorkspaceCatalogStats(workspace.id);
+    expect(catalogStats).toHaveLength(1);
+    expect(catalogStats[0]?.downloads).toBe(1);
+    expect(catalogStats[0]?.downloadHistory).toHaveLength(14);
+
     const reports = await store.getWorkspaceReports(workspace.id);
     expect(reports).toHaveLength(1);
   });

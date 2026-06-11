@@ -396,6 +396,18 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     return context.json({ reports });
   });
 
+  app.get("/api/workspaces/:workspaceId/catalog-stats", async (context) => {
+    const workspaceId = context.req.param("workspaceId");
+    const workspace = await api.workspaceDetail(workspaceId);
+
+    if (workspace && !(await canAccessWorkspace(context.req.raw.headers, workspace))) {
+      return context.json({ error: "User role required" }, 403);
+    }
+
+    const stats = await api.workspaceCatalogStats(workspaceId);
+    return context.json({ stats });
+  });
+
   app.post("/api/install-reports", async (context) => {
     const actor = await resolveActor(context.req.raw.headers);
 

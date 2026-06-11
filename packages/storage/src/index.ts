@@ -11,6 +11,8 @@ import { sql, type Kysely } from "kysely";
 import { createKyselyInstance, resolveDatabaseEngine, type DatabaseEngine, type DatabaseSchema } from "./kysely.js";
 import { runRegistryMigrations, runAuthMigrations } from "./migrations.js";
 import type {
+  CatalogPackageStats,
+  DownloadHistoryPoint,
   InstallReport,
   InstalledSkillState,
   LifecycleState,
@@ -20,6 +22,7 @@ import type {
   UsageEvent,
   Workspace
 } from "@skill-library/domain";
+import { DOWNLOAD_HISTORY_DAYS } from "@skill-library/domain";
 
 export type DatabaseMode = DatabaseEngine;
 
@@ -62,8 +65,10 @@ export interface RegistryStore {
   recordInstallReport(report: InstallReport): Promise<void>;
   recordUsageEvent(event: UsageEvent): Promise<void>;
   countUsageEvents(filter: UsageEventFilter): Promise<number>;
+  getDownloadHistory(filter: UsageEventFilter, days?: number): Promise<DownloadHistoryPoint[]>;
   getPackageReport(packageId: string): Promise<PackageReport | undefined>;
   getWorkspaceReports(workspaceId: string): Promise<PackageReport[]>;
+  getWorkspaceCatalogStats(workspaceId: string, days?: number): Promise<CatalogPackageStats[]>;
 }
 
 export interface RegistryStoreConfig {
@@ -644,6 +649,34 @@ export class SqlRegistryStore implements RegistryStore {
     await this.kysely.deleteFrom("user").where("id", "=", userId).execute();
   }
 
+  async getDownloadHistory(filter: UsageEventFilter, days: number = DOWNLOAD_HISTORY_DAYS): Promise<DownloadHistoryPoint[]> {
+    // Bucket downloads by calendar day. CAST(created_at AS date) is portable across
+    // Postgres/PGlite and SQL Server; the returned day is normalized to YYYY-MM-DD in JS.
+    const day = sql`cast(created_at as date)`;
+
+    let query = this.kysely
+      .selectFrom("usage_events")
+      .select((eb) => [day.as("day"), eb.fn.countAll().as("count")])
+      .where("workspace_id", "=", filter.workspaceId)
+      .where("event_type", "=", "download")
+      .where("created_at", ">=", new Date(downloadHistoryStartIso(days)));
+
+    if (filter.packageId) {
+      query = query.where("package_id", "=", filter.packageId);
+    }
+
+    if (filter.versionId) {
+      query = query.where("version_id", "=", filter.versionId);
+    }
+
+    const rows = await query.groupBy(day).orderBy(day).execute();
+
+    return fillDownloadHistory(
+      rows.map((row) => fromDownloadHistoryRow(row as DownloadHistoryRow)),
+      days
+    );
+  }
+
   async getPackageReport(packageId: string): Promise<PackageReport | undefined> {
     const pkg = await this.getPackage(packageId);
 
@@ -663,6 +696,11 @@ export class SqlRegistryStore implements RegistryStore {
       packageId,
       eventType: "download"
     });
+    const downloadHistory = await this.getDownloadHistory({
+      workspaceId: pkg.workspaceId,
+      packageId,
+      eventType: "download"
+    });
     const reportRows = await this.kysely
       .selectFrom("install_reports")
       .select(["install_id", "state", "reported_at"])
@@ -676,12 +714,42 @@ export class SqlRegistryStore implements RegistryStore {
       latestApprovedVersionId: latestApprovedVersion?.id,
       views,
       downloads,
+      downloadHistory,
+      lastModifiedAt: resolveLastModifiedAt(versions),
       reports: reportRows.map((row) => ({
         installId: row.install_id,
         state: row.state as InstalledSkillState,
         reportedAt: toIsoString(row.reported_at)
       }))
     });
+  }
+
+  async getWorkspaceCatalogStats(workspaceId: string, days: number = DOWNLOAD_HISTORY_DAYS): Promise<CatalogPackageStats[]> {
+    const packages = await this.listPackages(workspaceId);
+    const stats: CatalogPackageStats[] = [];
+
+    for (const pkg of packages) {
+      const versions = await this.listVersions(pkg.id);
+      const downloads = await this.countUsageEvents({
+        workspaceId,
+        packageId: pkg.id,
+        eventType: "download"
+      });
+      const downloadHistory = await this.getDownloadHistory({
+        workspaceId,
+        packageId: pkg.id,
+        eventType: "download"
+      }, days);
+
+      stats.push({
+        packageId: pkg.id,
+        downloads,
+        downloadHistory,
+        lastModifiedAt: resolveLastModifiedAt(versions)
+      });
+    }
+
+    return stats;
   }
 
   async getWorkspaceReports(workspaceId: string): Promise<PackageReport[]> {
@@ -865,6 +933,31 @@ export class MemoryRegistryStore implements RegistryStore {
     return 0;
   }
 
+  async getDownloadHistory(filter: UsageEventFilter, days: number = DOWNLOAD_HISTORY_DAYS): Promise<DownloadHistoryPoint[]> {
+    const startMs = Date.parse(downloadHistoryStartIso(days));
+    const counts = new Map<string, number>();
+
+    for (const event of this.usageEvents) {
+      if (
+        event.workspaceId !== filter.workspaceId ||
+        event.eventType !== "download" ||
+        Date.parse(event.createdAt) < startMs ||
+        (filter.packageId && event.packageId !== filter.packageId) ||
+        (filter.versionId && event.versionId !== filter.versionId)
+      ) {
+        continue;
+      }
+
+      const day = event.createdAt.slice(0, 10);
+      counts.set(day, (counts.get(day) ?? 0) + 1);
+    }
+
+    return fillDownloadHistory(
+      [...counts.entries()].map(([date, count]) => ({ date, count })).sort((left, right) => left.date.localeCompare(right.date)),
+      days
+    );
+  }
+
   async getPackageReport(packageId: string): Promise<PackageReport | undefined> {
     const pkg = await this.getPackage(packageId);
 
@@ -884,6 +977,11 @@ export class MemoryRegistryStore implements RegistryStore {
       packageId,
       eventType: "download"
     });
+    const downloadHistory = await this.getDownloadHistory({
+      workspaceId: pkg.workspaceId,
+      packageId,
+      eventType: "download"
+    });
 
     return buildPackageReport({
       packageId,
@@ -892,8 +990,38 @@ export class MemoryRegistryStore implements RegistryStore {
       latestApprovedVersionId: latestApprovedVersion?.id,
       views,
       downloads,
+      downloadHistory,
+      lastModifiedAt: resolveLastModifiedAt(versions),
       reports: this.reports.filter((report) => report.packageId === packageId)
     });
+  }
+
+  async getWorkspaceCatalogStats(workspaceId: string, days: number = DOWNLOAD_HISTORY_DAYS): Promise<CatalogPackageStats[]> {
+    const packages = await this.listPackages(workspaceId);
+    const stats: CatalogPackageStats[] = [];
+
+    for (const pkg of packages) {
+      const versions = await this.listVersions(pkg.id);
+      const downloads = await this.countUsageEvents({
+        workspaceId,
+        packageId: pkg.id,
+        eventType: "download"
+      });
+      const downloadHistory = await this.getDownloadHistory({
+        workspaceId,
+        packageId: pkg.id,
+        eventType: "download"
+      }, days);
+
+      stats.push({
+        packageId: pkg.id,
+        downloads,
+        downloadHistory,
+        lastModifiedAt: resolveLastModifiedAt(versions)
+      });
+    }
+
+    return stats;
   }
 
   async getWorkspaceReports(workspaceId: string): Promise<PackageReport[]> {
@@ -968,6 +1096,11 @@ interface InstallReportRow {
   reported_at: string | Date;
 }
 
+interface DownloadHistoryRow {
+  day: string | Date;
+  count: string | number;
+}
+
 interface ReportInput {
   packageId: string;
   workspaceId: string;
@@ -975,6 +1108,8 @@ interface ReportInput {
   latestApprovedVersionId?: string;
   views: number;
   downloads: number;
+  downloadHistory: DownloadHistoryPoint[];
+  lastModifiedAt: string;
   reports: Pick<InstallReport, "installId" | "state" | "reportedAt">[];
 }
 
@@ -1002,11 +1137,58 @@ function buildPackageReport(input: ReportInput): PackageReport {
     latestApprovedVersionId: input.latestApprovedVersionId,
     views: input.views,
     downloads: input.downloads,
+    downloadHistory: input.downloadHistory,
+    lastModifiedAt: input.lastModifiedAt,
     installs: {
       total: latestByInstall.size,
       byState
     }
   };
+}
+
+function resolveLastModifiedAt(versions: SkillVersion[]): string {
+  const newest = versions[0];
+
+  return newest?.createdAt ?? new Date(0).toISOString();
+}
+
+function downloadHistoryStartIso(days: number): string {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  start.setUTCDate(start.getUTCDate() - (days - 1));
+
+  return start.toISOString();
+}
+
+function fillDownloadHistory(points: DownloadHistoryPoint[], days: number): DownloadHistoryPoint[] {
+  const counts = new Map(points.map((point) => [point.date, point.count]));
+  const filled: DownloadHistoryPoint[] = [];
+  const cursor = new Date();
+  cursor.setUTCHours(0, 0, 0, 0);
+  cursor.setUTCDate(cursor.getUTCDate() - (days - 1));
+
+  for (let index = 0; index < days; index += 1) {
+    const date = cursor.toISOString().slice(0, 10);
+    filled.push({ date, count: counts.get(date) ?? 0 });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return filled;
+}
+
+function fromDownloadHistoryRow(row: DownloadHistoryRow): DownloadHistoryPoint {
+  return {
+    date: toDayString(row.day),
+    count: Number(row.count)
+  };
+}
+
+function toDayString(value: string | Date): string {
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  return new Date(value).toISOString().slice(0, 10);
 }
 
 function fromPackageRow(row: PackageRow): SkillPackage {

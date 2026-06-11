@@ -123,6 +123,18 @@ export interface InstallReport {
 
 export type InstallStateCounts = Record<InstalledSkillState, number>;
 
+export interface DownloadHistoryPoint {
+  date: string;
+  count: number;
+}
+
+export interface CatalogPackageStats {
+  packageId: SkillPackageId;
+  downloads: number;
+  downloadHistory: DownloadHistoryPoint[];
+  lastModifiedAt: string;
+}
+
 export interface PackageReport {
   packageId: SkillPackageId;
   workspaceId: WorkspaceId;
@@ -130,11 +142,15 @@ export interface PackageReport {
   latestApprovedVersionId?: SkillVersionId;
   views: number;
   downloads: number;
+  downloadHistory: DownloadHistoryPoint[];
+  lastModifiedAt: string;
   installs: {
     total: number;
     byState: InstallStateCounts;
   };
 }
+
+export const DOWNLOAD_HISTORY_DAYS = 14;
 
 export type UsageEventType = "view" | "download";
 export type WorkspaceRole = "user" | "maintainer" | "admin";

@@ -141,6 +141,16 @@ describe.skipIf(!ADMIN_URL)("PostgreSQL registry store (live)", () => {
     expect(report?.downloads).toBe(1);
     expect(report?.versionCount).toBe(2);
     expect(report?.installs.total).toBe(1);
+
+    // Cross-dialect download history: cast(created_at as date) + group-by over the pg driver.
+    expect(report?.downloadHistory).toHaveLength(14);
+    expect(report?.downloadHistory.reduce((total, point) => total + point.count, 0)).toBe(1);
+    expect(report?.lastModifiedAt).toBeTruthy();
+
+    const catalogStats = await store.getWorkspaceCatalogStats(workspace.id);
+    expect(catalogStats).toHaveLength(1);
+    expect(catalogStats[0]?.downloads).toBe(1);
+    expect(catalogStats[0]?.downloadHistory).toHaveLength(14);
   });
 
   it("creates auth tables and exercises user + agent-token paths over the pg driver (U5/U6)", async () => {
