@@ -149,6 +149,15 @@ export interface DatabaseSchema {
   lifecycle_events: LifecycleEventsTable;
   install_reports: InstallReportsTable;
   usage_events: UsageEventsTable;
+  // Better Auth tables. Runtime CRUD is owned by Better Auth's native Kysely adapter;
+  // these types exist so the store can create the schema cross-dialect and run typed
+  // maintenance queries (orphan cleanup, user count). Column names mirror the existing
+  // schema: mostly camelCase (Better Auth defaults), with 4 snake_case columns mapped
+  // via Better Auth's `fields` config.
+  user: UserTable;
+  session: SessionTable;
+  account: AccountTable;
+  verification: VerificationTable;
 }
 
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
@@ -222,4 +231,52 @@ interface UsageEventsTable {
   version_id: string | null;
   event_type: string;
   created_at: GeneratedTimestamp;
+}
+
+interface UserTable {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: ColumnType<boolean, boolean | undefined, boolean>;
+  image: string | null;
+  role: Generated<string>;
+  agent_api_token: string | null;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
+}
+
+interface SessionTable {
+  id: string;
+  expiresAt: Timestamp;
+  token: string;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
+  ip_address: string | null;
+  user_agent: string | null;
+  userId: string;
+}
+
+interface AccountTable {
+  id: string;
+  accountId: string;
+  providerId: string;
+  userId: string;
+  accessToken: string | null;
+  refreshToken: string | null;
+  idToken: string | null;
+  accessTokenExpiresAt: Timestamp | null;
+  refreshTokenExpiresAt: Timestamp | null;
+  scope: string | null;
+  password: string | null;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
+}
+
+interface VerificationTable {
+  id: string;
+  identifier: string;
+  value: string;
+  expiresAt: Timestamp;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
 }

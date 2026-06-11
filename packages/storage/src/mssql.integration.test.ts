@@ -159,4 +159,19 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
     const reports = await store.getWorkspaceReports(workspace.id);
     expect(reports).toHaveLength(1);
   });
+
+  it("creates Better Auth tables and round-trips a user on T-SQL (U5)", async () => {
+    // runAuthMigrations created user/session/account/verification cross-dialect; exercise
+    // the bit boolean and datetimeoffset-defaulted columns through the shared Kysely instance.
+    await store.kysely!
+      .insertInto("user")
+      .values({ id: "u-1", name: "Ada", email: "ada@example.com", emailVerified: false, role: "admin" })
+      .execute();
+
+    expect(await store.countUsers()).toBe(1);
+
+    const row = await store.kysely!.selectFrom("user").selectAll().where("id", "=", "u-1").executeTakeFirstOrThrow();
+    expect(row.email).toBe("ada@example.com");
+    expect(Boolean(row.emailVerified)).toBe(false);
+  });
 });

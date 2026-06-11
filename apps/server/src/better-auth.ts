@@ -1,5 +1,4 @@
 import { betterAuth } from "better-auth";
-import { createBetterAuthAdapter } from "./better-auth-adapter.js";
 import type { RegistryStore } from "@skill-library/storage";
 
 const developmentAuthSecret = "fallback-development-secret-key-must-be-changed-in-production";
@@ -39,11 +38,22 @@ function resolveTrustedOrigins(): string[] {
 export function getBetterAuthInstance(store: RegistryStore) {
   const trustedOrigins = resolveTrustedOrigins();
 
+  if (!store.kysely || !store.engine) {
+    throw new Error("Better Auth requires a SQL-backed RegistryStore (Kysely instance unavailable).");
+  }
+
+  // Better Auth's native Kysely adapter shares the store's single Kysely instance; `type`
+  // drives its dialect-specific handling (mssql OUTPUT clause, bit booleans, etc.).
+  const databaseType = store.engine === "mssql" ? "mssql" : "postgres";
+
   return betterAuth({
     baseURL: process.env.BETTER_AUTH_URL,
     trustedOrigins: trustedOrigins.length > 0 ? trustedOrigins : undefined,
-    database: createBetterAuthAdapter(store) as any,
+    database: { db: store.kysely, type: databaseType } as any,
     account: {
+      // Map the snake_case timestamp columns the existing schema uses (Better Auth defaults
+      // to camelCase). This replaces the retired custom adapter's hand-written column mapping.
+      fields: { createdAt: "created_at", updatedAt: "updated_at" },
       accountLinking: {
         enabled: true,
         trustedProviders: ["microsoft"],
@@ -52,12 +62,29 @@ export function getBetterAuthInstance(store: RegistryStore) {
       },
     },
     user: {
+      fields: { createdAt: "created_at", updatedAt: "updated_at" },
       additionalFields: {
         role: {
           type: "string",
           defaultValue: "user",
           input: false
+        },
+        agent_api_token: {
+          type: "string",
+          required: false,
+          input: false
         }
+      }
+    },
+    verification: {
+      fields: { createdAt: "created_at", updatedAt: "updated_at" }
+    },
+    session: {
+      fields: {
+        createdAt: "created_at",
+        updatedAt: "updated_at",
+        ipAddress: "ip_address",
+        userAgent: "user_agent"
       }
     },
     socialProviders: {
@@ -72,8 +99,7 @@ export function getBetterAuthInstance(store: RegistryStore) {
       user: {
         create: {
           before: async (user: Record<string, any>) => {
-            const result = await store.query<{ count: number }>('select count(*) as count from "user"');
-            const count = Number(result.rows[0]?.count ?? 0);
+            const count = await store.countUsers();
 
             if (count === 0) {
               return { data: { ...user, role: "admin" } };

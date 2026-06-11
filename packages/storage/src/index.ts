@@ -10,7 +10,7 @@ import {
 } from "./pglite-lock.js";
 import { sql, type Kysely } from "kysely";
 import { createKyselyInstance, resolveDatabaseEngine, type DatabaseEngine, type DatabaseSchema } from "./kysely.js";
-import { runRegistryMigrations } from "./migrations.js";
+import { runRegistryMigrations, runAuthMigrations } from "./migrations.js";
 import type {
   InstallReport,
   InstalledSkillState,
@@ -34,9 +34,13 @@ export type { DatabaseEngine, DatabaseSchema, KyselyEngineConfig } from "./kysel
 export interface RegistryStore {
   mode: DatabaseMode;
   paths: RegistryStoragePaths;
+  /** Resolved engine and shared Kysely instance — present on SQL-backed stores, absent on the in-memory store. */
+  engine?: DatabaseEngine;
+  kysely?: Kysely<DatabaseSchema>;
   migrate(): Promise<void>;
   close(): Promise<void>;
   query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
+  countUsers(): Promise<number>;
   putArtifact(artifact: ArtifactInput): Promise<StoredArtifact>;
   getArtifact(digest: string): Promise<StoredArtifact | undefined>;
   readArtifactContent(digest: string): Promise<Buffer | undefined>;
@@ -183,22 +187,14 @@ export class SqlRegistryStore implements RegistryStore {
     readonly mode: DatabaseMode,
     readonly paths: RegistryStoragePaths,
     private readonly db: Queryable,
-    private readonly engine: DatabaseEngine,
-    private readonly kysely: Kysely<DatabaseSchema>,
+    readonly engine: DatabaseEngine,
+    readonly kysely: Kysely<DatabaseSchema>,
     private readonly closeDb: () => Promise<void>
   ) {}
 
   async migrate(): Promise<void> {
     await runRegistryMigrations(this.kysely, this.engine);
-
-    // Auth tables are still created via legacy Postgres DDL until Better Auth's native
-    // Kysely adapter owns them (U5). These statements are Postgres-only; on mssql the
-    // auth schema comes from Better Auth, so skip them.
-    if (this.engine !== "mssql") {
-      for (const migration of legacyAuthMigrations) {
-        await this.db.query(migration);
-      }
-    }
+    await runAuthMigrations(this.kysely, this.engine);
   }
 
   async close(): Promise<void> {
@@ -545,6 +541,15 @@ export class SqlRegistryStore implements RegistryStore {
     return Number(row?.count ?? 0);
   }
 
+  async countUsers(): Promise<number> {
+    const row = await this.kysely
+      .selectFrom("user")
+      .select((eb) => eb.fn.countAll().as("count"))
+      .executeTakeFirst();
+
+    return Number(row?.count ?? 0);
+  }
+
   async getPackageReport(packageId: string): Promise<PackageReport | undefined> {
     const pkg = await this.getPackage(packageId);
 
@@ -743,6 +748,10 @@ export class MemoryRegistryStore implements RegistryStore {
     }).length;
   }
 
+  async countUsers(): Promise<number> {
+    return 0;
+  }
+
   async getPackageReport(packageId: string): Promise<PackageReport | undefined> {
     const pkg = await this.getPackage(packageId);
 
@@ -800,65 +809,6 @@ const installStates: InstalledSkillState[] = [
   "modified-local-content"
 ];
 
-// Auth tables stay on the legacy raw-SQL path until the Better Auth native Kysely
-// adapter takes over schema ownership (see U5). Registry tables are created by
-// runRegistryMigrations (cross-dialect). These statements are Postgres-only and run
-// for the pglite/postgres engines; mssql auth schema is owned by Better Auth.
-const legacyAuthMigrations = [
-  `create table if not exists "user" (
-    id text primary key,
-    name text not null,
-    email text not null unique,
-    "emailVerified" boolean not null default false,
-    image text,
-    role text not null default 'user',
-    created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
-  )`,
-  `create table if not exists "session" (
-    id text primary key,
-    "expiresAt" timestamptz not null,
-    token text not null unique,
-    created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now(),
-    ip_address text,
-    user_agent text,
-    "userId" text not null references "user"(id) on delete cascade
-  )`,
-  `create table if not exists "account" (
-    id text primary key,
-    "accountId" text not null,
-    "providerId" text not null,
-    "userId" text not null references "user"(id) on delete cascade,
-    "accessToken" text,
-    "refreshToken" text,
-    "idToken" text,
-    "accessTokenExpiresAt" timestamptz,
-    "refreshTokenExpiresAt" timestamptz,
-    "scope" text,
-    password text,
-    created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
-  )`,
-  `alter table "account" add column if not exists "accessTokenExpiresAt" timestamptz`,
-  `alter table "account" add column if not exists "refreshTokenExpiresAt" timestamptz`,
-  `alter table "account" add column if not exists "scope" text`,
-  `alter table "user" add column if not exists agent_api_token text unique`,
-  `delete from "session" where "userId" in (
-    select u.id from "user" u
-    left join "account" a on a."userId" = u.id
-    where a.id is null
-  )`,
-  `delete from "user" where id not in (select "userId" from "account")`,
-  `create table if not exists "verification" (
-    id text primary key,
-    identifier text not null,
-    value text not null,
-    "expiresAt" timestamptz not null,
-    created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
-  )`
-];
 
 interface PackageRow {
   id: string;

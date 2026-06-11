@@ -127,12 +127,98 @@ export async function runRegistryMigrations(db: Kysely<DatabaseSchema>, engine: 
   }
 }
 
+/**
+ * Cross-dialect creation of the Better Auth tables (user/session/account/verification).
+ * Better Auth's native Kysely adapter owns runtime CRUD; the store owns the schema so it
+ * works on every engine. Column names mirror the existing schema (mostly camelCase, with
+ * created_at/updated_at/ip_address/user_agent snake_case — mapped via Better Auth `fields`).
+ * Idempotent via introspection. Orphan cleanups run after creation (no-ops on a fresh DB).
+ */
+export async function runAuthMigrations(db: Kysely<DatabaseSchema>, engine: DatabaseEngine): Promise<void> {
+  const t = engineColumnTypes(engine);
+  const existing = new Set((await db.introspection.getTables()).map((table) => table.name));
+
+  if (!existing.has("user")) {
+    await db.schema
+      .createTable("user")
+      .addColumn("id", t.keyText, (c) => c.primaryKey())
+      .addColumn("name", t.freeText, (c) => c.notNull())
+      .addColumn("email", t.keyText, (c) => c.notNull().unique())
+      .addColumn("emailVerified", t.bool, (c) => c.notNull().defaultTo(t.falseDefault))
+      .addColumn("image", t.freeText)
+      .addColumn("role", t.keyText, (c) => c.notNull().defaultTo(sql.lit("user")))
+      .addColumn("agent_api_token", t.keyText, (c) => c.unique())
+      .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
+      .addColumn("updated_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
+      .execute();
+  }
+
+  if (!existing.has("session")) {
+    await db.schema
+      .createTable("session")
+      .addColumn("id", t.keyText, (c) => c.primaryKey())
+      .addColumn("expiresAt", t.timestamp, (c) => c.notNull())
+      .addColumn("token", t.keyText, (c) => c.notNull().unique())
+      .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
+      .addColumn("updated_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
+      .addColumn("ip_address", t.freeText)
+      .addColumn("user_agent", t.freeText)
+      .addColumn("userId", t.keyText, (c) => c.notNull().references("user.id").onDelete("cascade"))
+      .execute();
+  }
+
+  if (!existing.has("account")) {
+    await db.schema
+      .createTable("account")
+      .addColumn("id", t.keyText, (c) => c.primaryKey())
+      .addColumn("accountId", t.keyText, (c) => c.notNull())
+      .addColumn("providerId", t.keyText, (c) => c.notNull())
+      .addColumn("userId", t.keyText, (c) => c.notNull().references("user.id").onDelete("cascade"))
+      .addColumn("accessToken", t.freeText)
+      .addColumn("refreshToken", t.freeText)
+      .addColumn("idToken", t.freeText)
+      .addColumn("accessTokenExpiresAt", t.timestamp)
+      .addColumn("refreshTokenExpiresAt", t.timestamp)
+      .addColumn("scope", t.freeText)
+      .addColumn("password", t.freeText)
+      .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
+      .addColumn("updated_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
+      .execute();
+  }
+
+  if (!existing.has("verification")) {
+    await db.schema
+      .createTable("verification")
+      .addColumn("id", t.keyText, (c) => c.primaryKey())
+      .addColumn("identifier", t.keyText, (c) => c.notNull())
+      .addColumn("value", t.freeText, (c) => c.notNull())
+      .addColumn("expiresAt", t.timestamp, (c) => c.notNull())
+      .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
+      .addColumn("updated_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
+      .execute();
+  }
+
+  // Remove orphaned auth rows left by historical partial-signup bugs (no-op on fresh DBs).
+  await db
+    .deleteFrom("session")
+    .where("userId", "in", (eb) =>
+      eb.selectFrom("user").leftJoin("account", "account.userId", "user.id").select("user.id").where("account.id", "is", null)
+    )
+    .execute();
+  await db
+    .deleteFrom("user")
+    .where("id", "not in", (eb) => eb.selectFrom("account").select("account.userId"))
+    .execute();
+}
+
 interface ColumnTypeMap {
   keyText: RawBuilder<unknown>;
   freeText: RawBuilder<unknown>;
   json: RawBuilder<unknown>;
   timestamp: RawBuilder<unknown>;
+  bool: RawBuilder<unknown>;
   now: RawBuilder<unknown>;
+  falseDefault: RawBuilder<unknown>;
   emptyJsonArray: RawBuilder<unknown>;
 }
 
@@ -144,7 +230,9 @@ export function engineColumnTypes(engine: DatabaseEngine): ColumnTypeMap {
       freeText: sql`nvarchar(max)`,
       json: sql`nvarchar(max)`,
       timestamp: sql`datetimeoffset`,
+      bool: sql`bit`,
       now: sql`sysdatetimeoffset()`,
+      falseDefault: sql`0`,
       emptyJsonArray: sql`'[]'`
     };
   }
@@ -155,7 +243,9 @@ export function engineColumnTypes(engine: DatabaseEngine): ColumnTypeMap {
     freeText: sql`text`,
     json: sql`jsonb`,
     timestamp: sql`timestamptz`,
+    bool: sql`boolean`,
     now: sql`now()`,
+    falseDefault: sql`false`,
     emptyJsonArray: sql`'[]'::jsonb`
   };
 }
