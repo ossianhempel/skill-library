@@ -8,8 +8,8 @@ import {
   formatPglitePersistenceWarning,
   type PgliteWriterLockOptions
 } from "./pglite-lock.js";
-import type { Kysely } from "kysely";
-import { createKyselyInstance, type DatabaseEngine, type DatabaseSchema } from "./kysely.js";
+import { sql, type Kysely } from "kysely";
+import { createKyselyInstance, resolveDatabaseEngine, type DatabaseEngine, type DatabaseSchema } from "./kysely.js";
 import { runRegistryMigrations } from "./migrations.js";
 import type {
   InstallReport,
@@ -22,7 +22,7 @@ import type {
   Workspace
 } from "@skill-library/domain";
 
-export type DatabaseMode = "pglite" | "postgres";
+export type DatabaseMode = DatabaseEngine;
 
 export {
   resolveDatabaseEngine,
@@ -118,19 +118,29 @@ export function resolveStoragePaths(config: RegistryStoreConfig = {}): RegistryS
 }
 
 export async function createRegistryStore(config: RegistryStoreConfig = {}): Promise<RegistryStore> {
-  const mode = resolveDatabaseMode(config);
+  const engine = resolveDatabaseEngine(config);
   const paths = resolveStoragePaths(config);
 
   await mkdir(paths.artifactDir, { recursive: true });
 
-  if (mode === "postgres") {
+  if (engine === "postgres") {
     const client = new Client({ connectionString: config.databaseUrl });
     await client.connect();
     // Kysely runs migrations over its own pool; the legacy client serves CRUD until
     // those queries are ported. Both close on shutdown.
     const { db: kysely } = createKyselyInstance({ databaseUrl: config.databaseUrl, databaseEngine: "postgres" });
-    return new SqlRegistryStore(mode, paths, client, "postgres", kysely, async () => {
+    return new SqlRegistryStore(engine, paths, client, "postgres", kysely, async () => {
       await client.end();
+      await kysely.destroy();
+    });
+  }
+
+  if (engine === "mssql") {
+    // SQL Server runs entirely through Kysely. The legacy raw-query path is not available
+    // here; the analytics reads that still use it are ported in their own unit. Until then
+    // those few methods throw a clear error rather than silently returning wrong results.
+    const { db: kysely } = createKyselyInstance({ databaseUrl: config.databaseUrl, databaseEngine: "mssql" });
+    return new SqlRegistryStore(engine, paths, rawQueryUnsupported("mssql"), "mssql", kysely, async () => {
       await kysely.destroy();
     });
   }
@@ -145,12 +155,27 @@ export async function createRegistryStore(config: RegistryStoreConfig = {}): Pro
   // closes the instance, so we close it directly once here instead of via kysely.destroy().
   const { db: kysely } = createKyselyInstance({ databaseEngine: "pglite", pgliteInstance: db });
 
-  return new SqlRegistryStore(mode, paths, db, "pglite", kysely, async () => {
+  return new SqlRegistryStore("pglite", paths, db, "pglite", kysely, async () => {
     if (!db.closed) {
       await db.close();
     }
     await releasePgliteWriterLock();
   });
+}
+
+/**
+ * Placeholder Queryable for engines whose remaining raw-SQL methods (the analytics
+ * reads) have not yet been ported. Throws clearly instead of returning wrong data.
+ */
+function rawQueryUnsupported(engine: DatabaseEngine): Queryable {
+  return {
+    async query() {
+      throw new Error(
+        `This query path is not yet ported to the ${engine} engine. ` +
+          `Reporting/analytics queries are pending their cross-dialect port.`
+      );
+    }
+  };
 }
 
 export class SqlRegistryStore implements RegistryStore {
@@ -184,6 +209,66 @@ export class SqlRegistryStore implements RegistryStore {
     return this.db.query<T>(sql, params);
   }
 
+  // Dialect-aware upsert helpers. Postgres/PGlite use ON CONFLICT; SQL Server has no
+  // ON CONFLICT, so it gets an equivalent exists-then-insert / update-then-insert inside a
+  // transaction. Table names are dynamic here, so these two helpers hold the only `any`
+  // casts in the store — every call site passes a fully typed value object.
+  private async insertIgnore(
+    table: keyof DatabaseSchema,
+    conflictColumns: string[],
+    values: Record<string, unknown>,
+    matches: ReadonlyArray<readonly [string, unknown]>
+  ): Promise<void> {
+    if (this.engine === "mssql") {
+      await this.kysely.transaction().execute(async (trx) => {
+        let query = (trx as any).selectFrom(table).select(conflictColumns[0]);
+        for (const [column, value] of matches) {
+          query = query.where(column, "=", value);
+        }
+        const existing = await query.executeTakeFirst();
+        if (!existing) {
+          await (trx as any).insertInto(table).values(values).execute();
+        }
+      });
+      return;
+    }
+
+    await (this.kysely as any)
+      .insertInto(table)
+      .values(values)
+      .onConflict((oc: any) => oc.columns(conflictColumns).doNothing())
+      .execute();
+  }
+
+  private async upsertRow(
+    table: keyof DatabaseSchema,
+    keyColumn: string,
+    keyValue: unknown,
+    insertValues: Record<string, unknown>,
+    updateValues: Record<string, unknown>
+  ): Promise<void> {
+    if (this.engine === "mssql") {
+      await this.kysely.transaction().execute(async (trx) => {
+        const updated = await (trx as any)
+          .updateTable(table)
+          .set(updateValues)
+          .where(keyColumn, "=", keyValue)
+          .executeTakeFirst();
+
+        if (Number(updated?.numUpdatedRows ?? 0n) === 0) {
+          await (trx as any).insertInto(table).values(insertValues).execute();
+        }
+      });
+      return;
+    }
+
+    await (this.kysely as any)
+      .insertInto(table)
+      .values(insertValues)
+      .onConflict((oc: any) => oc.column(keyColumn).doUpdateSet(updateValues))
+      .execute();
+  }
+
   async putArtifact(artifact: ArtifactInput): Promise<StoredArtifact> {
     const storagePath = artifactPath(this.paths.artifactDir, artifact.digest);
 
@@ -194,11 +279,11 @@ export class SqlRegistryStore implements RegistryStore {
       }
     });
 
-    await this.db.query(
-      `insert into artifacts (digest, storage_path, size_bytes)
-       values ($1, $2, $3)
-       on conflict (digest) do nothing`,
-      [artifact.digest, storagePath, artifact.content.byteLength]
+    await this.insertIgnore(
+      "artifacts",
+      ["digest"],
+      { digest: artifact.digest, storage_path: storagePath, size_bytes: artifact.content.byteLength },
+      [["digest", artifact.digest]]
     );
 
     const stored = await this.getArtifact(artifact.digest);
@@ -237,48 +322,70 @@ export class SqlRegistryStore implements RegistryStore {
   }
 
   async upsertWorkspace(workspace: Workspace): Promise<void> {
-    await this.db.query(
-      `insert into workspaces (id, slug, name, reporting_policy, visibility)
-       values ($1, $2, $3, $4, $5)
-       on conflict (id) do update set slug = excluded.slug, name = excluded.name, reporting_policy = excluded.reporting_policy, visibility = excluded.visibility`,
-      [workspace.id, workspace.slug, workspace.name, workspace.reportingPolicy, workspace.visibility]
+    await this.upsertRow(
+      "workspaces",
+      "id",
+      workspace.id,
+      {
+        id: workspace.id,
+        slug: workspace.slug,
+        name: workspace.name,
+        reporting_policy: workspace.reportingPolicy,
+        visibility: workspace.visibility
+      },
+      {
+        slug: workspace.slug,
+        name: workspace.name,
+        reporting_policy: workspace.reportingPolicy,
+        visibility: workspace.visibility
+      }
     );
   }
 
   async upsertPackage(pkg: SkillPackage): Promise<void> {
-    await this.db.query(
-      `insert into skill_packages (id, workspace_id, slug, name, description, categories, created_at, updated_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)
-       on conflict (id) do update set
-         workspace_id = excluded.workspace_id,
-         slug = excluded.slug,
-         name = excluded.name,
-         description = excluded.description,
-         categories = excluded.categories,
-         updated_at = excluded.updated_at`,
-      [pkg.id, pkg.workspaceId, pkg.slug, pkg.name, pkg.description, JSON.stringify(pkg.categories), pkg.createdAt, pkg.updatedAt]
+    const categories = JSON.stringify(pkg.categories);
+
+    await this.upsertRow(
+      "skill_packages",
+      "id",
+      pkg.id,
+      {
+        id: pkg.id,
+        workspace_id: pkg.workspaceId,
+        slug: pkg.slug,
+        name: pkg.name,
+        description: pkg.description,
+        categories,
+        created_at: pkg.createdAt,
+        updated_at: pkg.updatedAt
+      },
+      {
+        workspace_id: pkg.workspaceId,
+        slug: pkg.slug,
+        name: pkg.name,
+        description: pkg.description,
+        categories,
+        updated_at: pkg.updatedAt
+      }
     );
   }
 
   async createVersion(version: SkillVersion): Promise<SkillVersion> {
-    await this.db.query(
-      `insert into skill_versions (
-        id, package_id, version, lifecycle_state, artifact_digest, validation, provenance, created_at, approved_at, replacement_version_id
-      )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [
-        version.id,
-        version.packageId,
-        version.version,
-        version.lifecycleState,
-        version.artifactDigest,
-        JSON.stringify(version.validation),
-        JSON.stringify(version.provenance),
-        version.createdAt,
-        version.approvedAt ?? null,
-        version.replacementVersionId ?? null
-      ]
-    );
+    await this.kysely
+      .insertInto("skill_versions")
+      .values({
+        id: version.id,
+        package_id: version.packageId,
+        version: version.version,
+        lifecycle_state: version.lifecycleState,
+        artifact_digest: version.artifactDigest,
+        validation: JSON.stringify(version.validation),
+        provenance: JSON.stringify(version.provenance),
+        created_at: version.createdAt,
+        approved_at: version.approvedAt ?? null,
+        replacement_version_id: version.replacementVersionId ?? null
+      })
+      .execute();
 
     return version;
   }
@@ -292,17 +399,26 @@ export class SqlRegistryStore implements RegistryStore {
 
     const approvedAt = input.toState === "approved" ? new Date().toISOString() : current.approvedAt;
 
-    await this.db.query(
-      `update skill_versions
-       set lifecycle_state = $2, approved_at = $3, replacement_version_id = $4
-       where id = $1`,
-      [input.versionId, input.toState, approvedAt ?? null, input.replacementVersionId ?? current.replacementVersionId ?? null]
-    );
-    await this.db.query(
-      `insert into lifecycle_events (id, version_id, from_state, to_state, actor_id)
-       values ($1, $2, $3, $4, $5)`,
-      [randomUUID(), input.versionId, current.lifecycleState, input.toState, input.actorId ?? null]
-    );
+    await this.kysely
+      .updateTable("skill_versions")
+      .set({
+        lifecycle_state: input.toState,
+        approved_at: approvedAt ?? null,
+        replacement_version_id: input.replacementVersionId ?? current.replacementVersionId ?? null
+      })
+      .where("id", "=", input.versionId)
+      .execute();
+
+    await this.kysely
+      .insertInto("lifecycle_events")
+      .values({
+        id: randomUUID(),
+        version_id: input.versionId,
+        from_state: current.lifecycleState,
+        to_state: input.toState,
+        actor_id: input.actorId ?? null
+      })
+      .execute();
 
     return this.getVersion(input.versionId);
   }
@@ -350,33 +466,60 @@ export class SqlRegistryStore implements RegistryStore {
   }
 
   async getLatestApprovedVersion(packageId: string): Promise<SkillVersion | undefined> {
-    const result = await this.db.query<VersionRow>(
-      `select id, package_id, version, lifecycle_state, artifact_digest, validation, provenance, created_at, approved_at, replacement_version_id
-       from skill_versions
-       where package_id = $1 and lifecycle_state = 'approved'
-       order by approved_at desc nulls last, created_at desc
-       limit 1`,
-      [packageId]
-    );
+    const base = this.kysely
+      .selectFrom("skill_versions")
+      .selectAll()
+      .where("package_id", "=", packageId)
+      .where("lifecycle_state", "=", "approved");
 
-    return result.rows[0] ? fromVersionRow(result.rows[0]) : undefined;
+    // Row-limiting and null ordering both diverge: SQL Server uses TOP (not LIMIT) and has
+    // no NULLS LAST (emulated with a leading CASE); pg/pglite use LIMIT and NULLS LAST.
+    const query =
+      this.engine === "mssql"
+        ? base
+            .top(1)
+            .orderBy(sql`case when approved_at is null then 1 else 0 end`)
+            .orderBy("approved_at", "desc")
+            .orderBy("created_at", "desc")
+        : base.orderBy(sql`approved_at desc nulls last`).orderBy("created_at", "desc").limit(1);
+
+    const row = await query.executeTakeFirst();
+
+    return row ? fromVersionRow(row) : undefined;
   }
 
   async recordInstallReport(report: InstallReport): Promise<void> {
-    await this.db.query(
-      `insert into install_reports (install_id, package_id, version_id, state, reported_at, target_kind)
-       values ($1, $2, $3, $4, $5, $6)
-       on conflict (install_id, reported_at) do nothing`,
-      [report.installId, report.packageId, report.versionId, report.state, report.reportedAt, report.targetKind]
+    await this.insertIgnore(
+      "install_reports",
+      ["install_id", "reported_at"],
+      {
+        install_id: report.installId,
+        package_id: report.packageId,
+        version_id: report.versionId,
+        state: report.state,
+        reported_at: report.reportedAt,
+        target_kind: report.targetKind
+      },
+      [
+        ["install_id", report.installId],
+        ["reported_at", report.reportedAt]
+      ]
     );
   }
 
   async recordUsageEvent(event: UsageEvent): Promise<void> {
-    await this.db.query(
-      `insert into usage_events (id, workspace_id, package_id, version_id, event_type, created_at)
-       values ($1, $2, $3, $4, $5, $6)
-       on conflict (id) do nothing`,
-      [event.id, event.workspaceId, event.packageId ?? null, event.versionId ?? null, event.eventType, event.createdAt]
+    await this.insertIgnore(
+      "usage_events",
+      ["id"],
+      {
+        id: event.id,
+        workspace_id: event.workspaceId,
+        package_id: event.packageId ?? null,
+        version_id: event.versionId ?? null,
+        event_type: event.eventType,
+        created_at: event.createdAt
+      },
+      [["id", event.id]]
     );
   }
 

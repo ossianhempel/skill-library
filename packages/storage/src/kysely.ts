@@ -103,8 +103,12 @@ function createDialect(engine: DatabaseEngine, config: KyselyEngineConfig) {
 
 /**
  * Parse a `sqlserver://user:pass@host:port/database` URL into a tedious config.
- * Azure SQL requires encryption, so `encrypt` defaults on. Certificate-trust and
- * pool tuning are refined in the Azure-enablement unit.
+ *
+ * Azure SQL requires encryption, so `encrypt` defaults on and the server certificate
+ * is trusted (`trustServerCertificate=false`) — Azure presents a real CA cert. Two
+ * query params override these for other environments:
+ *   - `?encrypt=false` — disable TLS (non-Azure servers without TLS)
+ *   - `?trustServerCertificate=true` — accept self-signed certs (local containers)
  */
 export function buildTediousConfig(databaseUrl: string | undefined): Tedious.ConnectionConfiguration {
   if (!databaseUrl) {
@@ -118,8 +122,8 @@ export function buildTediousConfig(databaseUrl: string | undefined): Tedious.Con
     options: {
       port: url.port ? Number(url.port) : 1433,
       database: url.pathname.replace(/^\//, "") || undefined,
-      encrypt: true,
-      trustServerCertificate: false
+      encrypt: url.searchParams.get("encrypt") !== "false",
+      trustServerCertificate: url.searchParams.get("trustServerCertificate") === "true"
     },
     authentication: {
       type: "default",
