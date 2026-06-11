@@ -211,14 +211,13 @@ export class SqlRegistryStore implements RegistryStore {
   }
 
   async getArtifact(digest: string): Promise<StoredArtifact | undefined> {
-    const result = await this.db.query<ArtifactRow>(
-      `select digest, storage_path, size_bytes, created_at
-       from artifacts
-       where digest = $1`,
-      [digest]
-    );
+    const row = await this.kysely
+      .selectFrom("artifacts")
+      .select(["digest", "storage_path", "size_bytes", "created_at"])
+      .where("digest", "=", digest)
+      .executeTakeFirst();
 
-    return result.rows[0] ? fromArtifactRow(result.rows[0]) : undefined;
+    return row ? fromArtifactRow(row) : undefined;
   }
 
   async readArtifactContent(digest: string): Promise<Buffer | undefined> {
@@ -228,15 +227,13 @@ export class SqlRegistryStore implements RegistryStore {
   }
 
   async getWorkspace(workspaceId: string): Promise<Workspace | undefined> {
-    const result = await this.db.query<WorkspaceRow>(
-      `select id, slug, name, reporting_policy, visibility
-       from workspaces
-       where id = $1
-       limit 1`,
-      [workspaceId]
-    );
+    const row = await this.kysely
+      .selectFrom("workspaces")
+      .select(["id", "slug", "name", "reporting_policy", "visibility"])
+      .where("id", "=", workspaceId)
+      .executeTakeFirst();
 
-    return result.rows[0] ? fromWorkspaceRow(result.rows[0]) : undefined;
+    return row ? fromWorkspaceRow(row) : undefined;
   }
 
   async upsertWorkspace(workspace: Workspace): Promise<void> {
@@ -311,51 +308,45 @@ export class SqlRegistryStore implements RegistryStore {
   }
 
   async listPackages(workspaceId: string): Promise<SkillPackage[]> {
-    const result = await this.db.query<PackageRow>(
-      `select id, workspace_id, slug, name, description, categories, created_at, updated_at
-       from skill_packages
-       where workspace_id = $1
-       order by name asc`,
-      [workspaceId]
-    );
+    const rows = await this.kysely
+      .selectFrom("skill_packages")
+      .selectAll()
+      .where("workspace_id", "=", workspaceId)
+      .orderBy("name", "asc")
+      .execute();
 
-    return result.rows.map(fromPackageRow);
+    return rows.map(fromPackageRow);
   }
 
   async getPackage(packageId: string): Promise<SkillPackage | undefined> {
-    const result = await this.db.query<PackageRow>(
-      `select id, workspace_id, slug, name, description, categories, created_at, updated_at
-       from skill_packages
-       where id = $1
-       limit 1`,
-      [packageId]
-    );
+    const row = await this.kysely
+      .selectFrom("skill_packages")
+      .selectAll()
+      .where("id", "=", packageId)
+      .executeTakeFirst();
 
-    return result.rows[0] ? fromPackageRow(result.rows[0]) : undefined;
+    return row ? fromPackageRow(row) : undefined;
   }
 
   async listVersions(packageId: string): Promise<SkillVersion[]> {
-    const result = await this.db.query<VersionRow>(
-      `select id, package_id, version, lifecycle_state, artifact_digest, validation, provenance, created_at, approved_at, replacement_version_id
-       from skill_versions
-       where package_id = $1
-       order by created_at desc`,
-      [packageId]
-    );
+    const rows = await this.kysely
+      .selectFrom("skill_versions")
+      .selectAll()
+      .where("package_id", "=", packageId)
+      .orderBy("created_at", "desc")
+      .execute();
 
-    return result.rows.map(fromVersionRow);
+    return rows.map(fromVersionRow);
   }
 
   async getVersion(versionId: string): Promise<SkillVersion | undefined> {
-    const result = await this.db.query<VersionRow>(
-      `select id, package_id, version, lifecycle_state, artifact_digest, validation, provenance, created_at, approved_at, replacement_version_id
-       from skill_versions
-       where id = $1
-       limit 1`,
-      [versionId]
-    );
+    const row = await this.kysely
+      .selectFrom("skill_versions")
+      .selectAll()
+      .where("id", "=", versionId)
+      .executeTakeFirst();
 
-    return result.rows[0] ? fromVersionRow(result.rows[0]) : undefined;
+    return row ? fromVersionRow(row) : undefined;
   }
 
   async getLatestApprovedVersion(packageId: string): Promise<SkillVersion | undefined> {

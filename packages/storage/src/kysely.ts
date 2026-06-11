@@ -4,6 +4,7 @@ import { Pool } from "pg";
 import * as Tedious from "tedious";
 import * as Tarn from "tarn";
 import type { ColumnType, Generated } from "kysely";
+import type { SkillVersion, Workspace } from "@skill-library/domain";
 
 /**
  * Supported database engines. PGlite is the bundled zero-config default; Postgres
@@ -147,14 +148,16 @@ export interface DatabaseSchema {
 }
 
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
+// Timestamp columns with a DB default (now()/sysdatetimeoffset()): optional on insert.
+type GeneratedTimestamp = ColumnType<Date, Date | string | undefined, Date | string>;
 
 interface WorkspacesTable {
   id: string;
   slug: string;
   name: string;
-  reporting_policy: string;
-  visibility: string;
-  created_at: Generated<Timestamp>;
+  reporting_policy: Workspace["reportingPolicy"];
+  visibility: Workspace["visibility"];
+  created_at: GeneratedTimestamp;
 }
 
 interface SkillPackagesTable {
@@ -174,14 +177,14 @@ interface ArtifactsTable {
   digest: string;
   storage_path: string;
   size_bytes: ColumnType<number, number | bigint, number | bigint>;
-  created_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
 }
 
 interface SkillVersionsTable {
   id: string;
   package_id: string;
   version: string;
-  lifecycle_state: string;
+  lifecycle_state: SkillVersion["lifecycleState"];
   artifact_digest: string;
   validation: string;
   provenance: string;
@@ -196,7 +199,7 @@ interface LifecycleEventsTable {
   from_state: string | null;
   to_state: string;
   actor_id: string | null;
-  created_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
 }
 
 interface InstallReportsTable {
@@ -214,5 +217,5 @@ interface UsageEventsTable {
   package_id: string | null;
   version_id: string | null;
   event_type: string;
-  created_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
 }
