@@ -21,6 +21,13 @@ import type {
 
 export type DatabaseMode = "pglite" | "postgres";
 
+export {
+  resolveDatabaseEngine,
+  createKyselyInstance,
+  buildTediousConfig
+} from "./kysely.js";
+export type { DatabaseEngine, DatabaseSchema, KyselyEngineConfig } from "./kysely.js";
+
 export interface RegistryStore {
   mode: DatabaseMode;
   paths: RegistryStoragePaths;
