@@ -163,7 +163,9 @@ interface SkillPackagesTable {
   slug: string;
   name: string;
   description: string;
-  categories: string;
+  // jsonb on pg/pglite (returned pre-parsed), nvarchar(max) on mssql (raw string).
+  // Has a DB default, so optional on insert; the store boundary normalizes reads.
+  categories: Generated<string>;
   created_at: Timestamp;
   updated_at: Timestamp;
 }

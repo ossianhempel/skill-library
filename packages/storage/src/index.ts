@@ -8,6 +8,9 @@ import {
   formatPglitePersistenceWarning,
   type PgliteWriterLockOptions
 } from "./pglite-lock.js";
+import type { Kysely } from "kysely";
+import { createKyselyInstance, type DatabaseEngine, type DatabaseSchema } from "./kysely.js";
+import { runRegistryMigrations } from "./migrations.js";
 import type {
   InstallReport,
   InstalledSkillState,
@@ -123,7 +126,13 @@ export async function createRegistryStore(config: RegistryStoreConfig = {}): Pro
   if (mode === "postgres") {
     const client = new Client({ connectionString: config.databaseUrl });
     await client.connect();
-    return new SqlRegistryStore(mode, paths, client, async () => client.end());
+    // Kysely runs migrations over its own pool; the legacy client serves CRUD until
+    // those queries are ported. Both close on shutdown.
+    const { db: kysely } = createKyselyInstance({ databaseUrl: config.databaseUrl, databaseEngine: "postgres" });
+    return new SqlRegistryStore(mode, paths, client, "postgres", kysely, async () => {
+      await client.end();
+      await kysely.destroy();
+    });
   }
 
   console.warn(`[skill-library] ${formatPglitePersistenceWarning(paths.dataDir)}`);
@@ -132,9 +141,14 @@ export async function createRegistryStore(config: RegistryStoreConfig = {}): Pro
   const releasePgliteWriterLock = await acquirePgliteWriterLock(paths.dataDir, config.pgliteWriterLock);
   await mkdir(dirname(paths.pgliteDataDir), { recursive: true });
   const db = new PGlite(paths.pgliteDataDir);
+  // One PGlite instance backs both the legacy query path and Kysely. PGliteDriver.destroy()
+  // closes the instance, so we close it directly once here instead of via kysely.destroy().
+  const { db: kysely } = createKyselyInstance({ databaseEngine: "pglite", pgliteInstance: db });
 
-  return new SqlRegistryStore(mode, paths, db, async () => {
-    await db.close();
+  return new SqlRegistryStore(mode, paths, db, "pglite", kysely, async () => {
+    if (!db.closed) {
+      await db.close();
+    }
     await releasePgliteWriterLock();
   });
 }
@@ -144,12 +158,21 @@ export class SqlRegistryStore implements RegistryStore {
     readonly mode: DatabaseMode,
     readonly paths: RegistryStoragePaths,
     private readonly db: Queryable,
+    private readonly engine: DatabaseEngine,
+    private readonly kysely: Kysely<DatabaseSchema>,
     private readonly closeDb: () => Promise<void>
   ) {}
 
   async migrate(): Promise<void> {
-    for (const migration of migrations) {
-      await this.db.query(migration);
+    await runRegistryMigrations(this.kysely, this.engine);
+
+    // Auth tables are still created via legacy Postgres DDL until Better Auth's native
+    // Kysely adapter owns them (U5). These statements are Postgres-only; on mssql the
+    // auth schema comes from Better Auth, so skip them.
+    if (this.engine !== "mssql") {
+      for (const migration of legacyAuthMigrations) {
+        await this.db.query(migration);
+      }
     }
   }
 
@@ -646,71 +669,11 @@ const installStates: InstalledSkillState[] = [
   "modified-local-content"
 ];
 
-const migrations = [
-  `create table if not exists workspaces (
-    id text primary key,
-    slug text not null unique,
-    name text not null,
-    reporting_policy text not null check (reporting_policy in ('disabled', 'opt-in', 'required')),
-    visibility text not null default 'private' check (visibility in ('public', 'private')),
-    created_at timestamptz not null default now()
-  )`,
-  `alter table workspaces add column if not exists visibility text not null default 'private' check (visibility in ('public', 'private'))`,
-  `create table if not exists skill_packages (
-    id text primary key,
-    workspace_id text not null references workspaces(id) on delete cascade,
-    slug text not null,
-    name text not null,
-    description text not null,
-    categories jsonb not null default '[]'::jsonb,
-    created_at timestamptz not null,
-    updated_at timestamptz not null,
-    unique (workspace_id, slug)
-  )`,
-  `create table if not exists artifacts (
-    digest text primary key,
-    storage_path text not null,
-    size_bytes bigint not null,
-    created_at timestamptz not null default now()
-  )`,
-  `create table if not exists skill_versions (
-    id text primary key,
-    package_id text not null references skill_packages(id) on delete cascade,
-    version text not null,
-    lifecycle_state text not null check (lifecycle_state in ('draft', 'published', 'approved', 'hidden', 'deprecated')),
-    artifact_digest text not null,
-    validation jsonb not null,
-    provenance jsonb not null,
-    created_at timestamptz not null,
-    approved_at timestamptz,
-    replacement_version_id text references skill_versions(id),
-    unique (package_id, version)
-  )`,
-  `create table if not exists lifecycle_events (
-    id text primary key,
-    version_id text not null references skill_versions(id) on delete cascade,
-    from_state text,
-    to_state text not null,
-    actor_id text,
-    created_at timestamptz not null default now()
-  )`,
-  `create table if not exists install_reports (
-    install_id text not null,
-    package_id text not null references skill_packages(id) on delete cascade,
-    version_id text not null references skill_versions(id) on delete cascade,
-    state text not null,
-    reported_at timestamptz not null,
-    target_kind text not null,
-    primary key (install_id, reported_at)
-  )`,
-  `create table if not exists usage_events (
-    id text primary key,
-    workspace_id text not null references workspaces(id) on delete cascade,
-    package_id text references skill_packages(id) on delete cascade,
-    version_id text references skill_versions(id) on delete cascade,
-    event_type text not null,
-    created_at timestamptz not null default now()
-  )`,
+// Auth tables stay on the legacy raw-SQL path until the Better Auth native Kysely
+// adapter takes over schema ownership (see U5). Registry tables are created by
+// runRegistryMigrations (cross-dialect). These statements are Postgres-only and run
+// for the pglite/postgres engines; mssql auth schema is owned by Better Auth.
+const legacyAuthMigrations = [
   `create table if not exists "user" (
     id text primary key,
     name text not null,
