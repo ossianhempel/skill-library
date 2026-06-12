@@ -1,0 +1,4 @@
+pnpm exec lint-staged
+pnpm run lint:max-lines:staged
+pnpm run typecheck
+pnpm run test
