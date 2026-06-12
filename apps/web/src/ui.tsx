@@ -76,7 +76,7 @@ export interface UploadVersionInput {
   description: string;
   categories?: string[];
   version: string;
-  entries: { path: string; content: string }[];
+  entries: { path: string; content: string; encoding?: "utf8" | "base64" }[];
 }
 
 export interface GitImportInput {
@@ -1145,13 +1145,36 @@ export async function filesToPackageEntries(files: File[]): Promise<UploadVersio
   return Promise.all(
     files.map(async (file) => {
       const browserFile = file as File & { webkitRelativePath?: string };
+      const path = browserFile.webkitRelativePath || file.name;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const text = decodeUtf8Text(bytes);
 
-      return {
-        path: browserFile.webkitRelativePath || file.name,
-        content: await file.text()
-      };
+      // Text files keep the original {path, content} shape; binary assets (images,
+      // .pptx, fonts, ...) are base64-encoded so they round-trip byte-for-byte.
+      return text === null ? { path, content: base64FromBytes(bytes), encoding: "base64" as const } : { path, content: text };
     })
   );
+}
+
+/** Decode bytes as UTF-8 text, or return null when the file is binary. */
+function decodeUtf8Text(bytes: Uint8Array): string | null {
+  if (bytes.includes(0)) {
+    return null;
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
+function base64FromBytes(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
+  }
+  return btoa(binary);
 }
 
 export function summarizeReports(reports: PackageReport[]) {

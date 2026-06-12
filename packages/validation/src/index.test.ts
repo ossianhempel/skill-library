@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -195,6 +196,42 @@ describe("example skill packages", () => {
 async function validateDirectory(path: string) {
   return validatePackageTree(await readPackageDirectory(path));
 }
+
+describe("binary assets (base64 encoding)", () => {
+  // Bytes that are NOT valid UTF-8 and contain a NUL -- i.e. a real binary blob.
+  const binary = Buffer.from([0x00, 0xff, 0x89, 0x50, 0x4e, 0x47, 0x00, 0x1a, 0x0a, 0xc3, 0x28]);
+
+  it("hashes base64 content identically to the raw bytes (encoding-independent digest)", () => {
+    const asBytes = validatePackageTree([
+      { path: "deck/SKILL.md", content: skillMd("deck", "Deck skill.") },
+      { path: "deck/assets/logo.png", content: binary }
+    ]);
+    const asBase64 = validatePackageTree([
+      { path: "deck/SKILL.md", content: skillMd("deck", "Deck skill.") },
+      { path: "deck/assets/logo.png", content: binary.toString("base64"), encoding: "base64" }
+    ]);
+
+    expect(asBase64.ok).toBe(true);
+    expect(asBase64.digest).toBe(asBytes.digest);
+    const file = asBase64.files.find((entry) => entry.path === "deck/assets/logo.png");
+    expect(file?.size).toBe(binary.byteLength);
+    expect(file?.digest).toBe(createHash("sha256").update(binary).digest("hex"));
+  });
+
+  it("round-trips base64 binary content through pack -> unpack byte-for-byte", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sl-bin-"));
+    const zipBuffer = await packPackageZip([
+      { path: "deck/SKILL.md", content: skillMd("deck", "Deck skill.") },
+      { path: "deck/assets/logo.png", content: binary.toString("base64"), encoding: "base64" }
+    ]);
+    const archivePath = join(dir, "pkg.zip");
+    await writeFile(archivePath, zipBuffer);
+
+    const entries = await readPackageZip(archivePath);
+    const logo = entries.find((entry) => entry.path === "deck/assets/logo.png");
+    expect(Buffer.from(logo?.content as Uint8Array).equals(binary)).toBe(true);
+  });
+});
 
 async function writeZip(path: string, files: Record<string, string>) {
   const zip = new yazl.ZipFile();

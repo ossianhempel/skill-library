@@ -11,7 +11,21 @@ import { validateSkillMd } from "./skill-md.js";
 export interface PackageTreeEntry {
   path: string;
   content?: Uint8Array | string;
+  /**
+   * How to interpret string `content`. "utf8" (default) keeps the existing
+   * text behavior; "base64" decodes binary assets (images, .pptx, etc.) so they
+   * round-trip byte-for-byte over JSON. Ignored when content is already bytes.
+   */
+  encoding?: "utf8" | "base64";
   kind?: "file" | "directory";
+}
+
+/** Decode an entry's content to raw bytes, honoring its encoding. */
+function entryBuffer(entry: Pick<Required<PackageTreeEntry>, "content" | "encoding">): Buffer {
+  if (typeof entry.content !== "string") {
+    return Buffer.from(entry.content);
+  }
+  return Buffer.from(entry.content, entry.encoding === "base64" ? "base64" : "utf8");
 }
 
 export function validatePackageTree(entries: PackageTreeEntry[]): ValidationResult {
@@ -32,8 +46,7 @@ export function validatePackageTree(entries: PackageTreeEntry[]): ValidationResu
     const skillMdEntry = safeEntries.find((entry) => entry.path === skillMdPath && entry.kind === "file");
 
     if (skillMdEntry) {
-      const content =
-        typeof skillMdEntry.content === "string" ? skillMdEntry.content : Buffer.from(skillMdEntry.content).toString("utf8");
+      const content = entryBuffer(skillMdEntry).toString("utf8");
       issues.push(...validateSkillMd(content, skillRoot, skillMdPath));
     }
   }
@@ -116,8 +129,7 @@ export async function packPackageZip(entries: PackageTreeEntry[]): Promise<Buffe
       continue;
     }
 
-    const content = typeof entry.content === "string" ? Buffer.from(entry.content) : Buffer.from(entry.content);
-    zip.addBuffer(content, entry.path);
+    zip.addBuffer(entryBuffer(entry), entry.path);
   }
 
   zip.end();
@@ -134,6 +146,7 @@ function normalizeEntry(entry: PackageTreeEntry): Required<PackageTreeEntry> {
   return {
     path: entry.path.replaceAll("\\", "/").replace(/^\/+/, ""),
     content: entry.content ?? "",
+    encoding: entry.encoding ?? "utf8",
     kind: entry.kind ?? "file"
   };
 }
@@ -192,7 +205,7 @@ function findSkillRoot(paths: string[]): string | undefined {
 }
 
 function toArtifactFile(entry: Required<PackageTreeEntry>): ArtifactFile {
-  const content = typeof entry.content === "string" ? Buffer.from(entry.content) : Buffer.from(entry.content);
+  const content = entryBuffer(entry);
 
   return {
     path: entry.path,
