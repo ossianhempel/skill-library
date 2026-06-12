@@ -1,12 +1,38 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
-import { Archive, BarChart3, CheckCircle2, ChevronDown, ClipboardCheck, Copy, Download, FileCode2, GitBranch, Loader2, LogOut, RefreshCw, Search, Shield, ShieldCheck, TerminalSquare, UploadCloud, User, Users } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
+import {
+  Archive,
+  BarChart3,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardCheck,
+  Copy,
+  Download,
+  FileCode2,
+  GitBranch,
+  Loader2,
+  LogOut,
+  RefreshCw,
+  Search,
+  Shield,
+  ShieldCheck,
+  TerminalSquare,
+  UploadCloud,
+  User,
+  Users,
+} from "lucide-react";
 import {
   buildMcpSetupContext,
   buildMcpSetupPrompt,
   fetchMcpSetupAgentAuth,
   MCP_SETUP_TARGETS,
   withMcpSetupAgentAuth,
-  type McpSetupTarget
+  type McpSetupTarget,
 } from "./mcp-setup-prompts.js";
 import { ValidationPanel } from "./validation-panel.js";
 import { SkillStatsMeta } from "./skill-stats.js";
@@ -23,7 +49,7 @@ import {
   type SkillPackage,
   type SkillVersion,
   type ValidationResult,
-  type WorkspaceRole
+  type WorkspaceRole,
 } from "@skill-library/domain";
 
 export interface SessionUser {
@@ -64,17 +90,28 @@ export interface WebApiClient {
   packageVersions(packageId: string): Promise<SkillVersion[]>;
   workspaceCatalogStats(workspaceId: string): Promise<CatalogPackageStats[]>;
   workspaceReports(workspaceId: string): Promise<PackageReport[]>;
-  uploadVersion(workspaceId: string, input: UploadVersionInput): Promise<SkillVersion>;
-  importGitVersion(workspaceId: string, input: GitImportInput): Promise<SkillVersion>;
-  validatePackageTree(entries: UploadVersionInput["entries"]): Promise<ValidationResult>;
-  transitionVersion(versionId: string, toState: LifecycleState): Promise<SkillVersion>;
+  uploadVersion(
+    workspaceId: string,
+    input: UploadVersionInput
+  ): Promise<SkillVersion>;
+  importGitVersion(
+    workspaceId: string,
+    input: GitImportInput
+  ): Promise<SkillVersion>;
+  validatePackageTree(
+    entries: UploadVersionInput["entries"]
+  ): Promise<ValidationResult>;
+  transitionVersion(
+    versionId: string,
+    toState: LifecycleState
+  ): Promise<SkillVersion>;
 }
 
 export interface UploadVersionInput {
   packageSlug: string;
   packageName: string;
   description: string;
-  categories?: string[];
+  categories?: string[] | string;
   version: string;
   entries: { path: string; content: string; encoding?: "utf8" | "base64" }[];
 }
@@ -83,7 +120,7 @@ export interface GitImportInput {
   packageSlug: string;
   packageName: string;
   description: string;
-  categories?: string[];
+  categories?: string[] | string;
   version: string;
   repositoryPath: string;
   ref?: string;
@@ -102,48 +139,123 @@ export interface SkillLibraryAppProps {
 type AppTab = "overview" | "catalog" | "publish" | "reports" | "team";
 
 function isLocalDev(): boolean {
-  return typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  return (
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1")
+  );
 }
 
 // Local-dev demo catalog only. Production must never show placeholder skills.
 const devSampleSkills: CatalogSkill[] = [
   {
-    pkg: packageData("workspace-1-review-helper", "review-helper", "Review Helper", "Turns repository diffs into a focused code-review checklist for internal agents.", ["review", "quality"]),
-    latestApproved: version("version-review-2", "workspace-1-review-helper", "1.2.0", "approved"),
+    pkg: packageData(
+      "workspace-1-review-helper",
+      "review-helper",
+      "Review Helper",
+      "Turns repository diffs into a focused code-review checklist for internal agents.",
+      ["review", "quality"]
+    ),
+    latestApproved: version(
+      "version-review-2",
+      "workspace-1-review-helper",
+      "1.2.0",
+      "approved"
+    ),
     validation: { ok: true, files: [], issues: [] },
     files: ["SKILL.md", "scripts/review.ts", "references/checklist.md"],
     installs: 43,
     downloads: 118,
-    downloadHistory: demoDownloadHistory([4, 6, 8, 5, 9, 7, 11, 10, 12, 8, 14, 9, 13, 12]),
+    downloadHistory: demoDownloadHistory([
+      4, 6, 8, 5, 9, 7, 11, 10, 12, 8, 14, 9, 13, 12,
+    ]),
     lastModifiedAt: "2026-06-07T12:00:00.000Z",
     staleInstalls: 6,
-    report: packageReport("workspace-1-review-helper", 2, 43, 118, 37, 6)
+    report: packageReport("workspace-1-review-helper", 2, 43, 118, 37, 6),
   },
   {
-    pkg: packageData("workspace-1-release-notes", "release-notes", "Release Notes", "Builds release notes from merged commits, issue links, and deployment metadata.", ["release", "writing"]),
-    latestApproved: version("version-release-1", "workspace-1-release-notes", "1.0.0", "approved"),
+    pkg: packageData(
+      "workspace-1-release-notes",
+      "release-notes",
+      "Release Notes",
+      "Builds release notes from merged commits, issue links, and deployment metadata.",
+      ["release", "writing"]
+    ),
+    latestApproved: version(
+      "version-release-1",
+      "workspace-1-release-notes",
+      "1.0.0",
+      "approved"
+    ),
     validation: { ok: true, files: [], issues: [] },
     files: ["SKILL.md", "templates/release.md"],
     installs: 17,
     downloads: 52,
-    downloadHistory: demoDownloadHistory([2, 3, 4, 3, 5, 4, 6, 5, 4, 3, 5, 4, 6, 4]),
+    downloadHistory: demoDownloadHistory([
+      2, 3, 4, 3, 5, 4, 6, 5, 4, 3, 5, 4, 6, 4,
+    ]),
     lastModifiedAt: "2026-06-07T12:00:00.000Z",
     staleInstalls: 0,
-    report: packageReport("workspace-1-release-notes", 1, 17, 52, 17, 0)
+    report: packageReport("workspace-1-release-notes", 1, 17, 52, 17, 0),
   },
   {
-    pkg: packageData("workspace-1-git-importer", "git-importer", "Git Importer", "Imports accessible Git-hosted skill directories with ref and commit provenance.", ["publishing", "git"]),
-    latestApproved: version("version-git-1", "workspace-1-git-importer", "0.4.0", "published"),
+    pkg: packageData(
+      "workspace-1-git-importer",
+      "git-importer",
+      "Git Importer",
+      "Imports accessible Git-hosted skill directories with ref and commit provenance.",
+      ["publishing", "git"]
+    ),
+    latestApproved: version(
+      "version-git-1",
+      "workspace-1-git-importer",
+      "0.4.0",
+      "published"
+    ),
     validation: { ok: true, files: [], issues: [] },
     files: ["SKILL.md", "scripts/import.ts", "references/provenance.md"],
     installs: 8,
     downloads: 21,
-    downloadHistory: demoDownloadHistory([1, 1, 2, 1, 2, 2, 3, 1, 2, 1, 2, 1, 1, 1]),
+    downloadHistory: demoDownloadHistory([
+      1, 1, 2, 1, 2, 2, 3, 1, 2, 1, 2, 1, 1, 1,
+    ]),
     lastModifiedAt: "2026-06-07T12:00:00.000Z",
     staleInstalls: 3,
-    report: packageReport("workspace-1-git-importer", 1, 8, 21, 5, 3)
-  }
+    report: packageReport("workspace-1-git-importer", 1, 8, 21, 5, 3),
+  },
 ];
+
+function StatusStyles({ branding }: { branding: RegistryBrandingConfig }) {
+  return (
+    <style
+      dangerouslySetInnerHTML={{
+        __html: `
+      :root {
+        --status-draft: ${branding.statusDraftBg || "#52525b"};
+        --status-draft-text: ${branding.statusDraftText || "#f4f4f5"};
+        --status-draft-border: ${branding.statusDraftBorder || "#71717a"};
+
+        --status-approved: ${branding.statusApprovedBg || "#166534"};
+        --status-approved-text: ${branding.statusApprovedText || "#f0fdf4"};
+        --status-approved-border: ${branding.statusApprovedBorder || "#15803d"};
+
+        --status-published: ${branding.statusPublishedBg || "#854d0e"};
+        --status-published-text: ${branding.statusPublishedText || "#fef9c3"};
+        --status-published-border: ${branding.statusPublishedBorder || "#a16207"};
+
+        --status-hidden: ${branding.statusHiddenBg || "#3730a3"};
+        --status-hidden-text: ${branding.statusHiddenText || "#e0e7ff"};
+        --status-hidden-border: ${branding.statusHiddenBorder || "#4338ca"};
+
+        --status-deprecated: ${branding.statusDeprecatedBg || "#991b1b"};
+        --status-deprecated-text: ${branding.statusDeprecatedText || "#fee2e2"};
+        --status-deprecated-border: ${branding.statusDeprecatedBorder || "#b91c1c"};
+      }
+    `,
+      }}
+    />
+  );
+}
 
 export function SkillLibraryApp({
   skills,
@@ -151,19 +263,30 @@ export function SkillLibraryApp({
   registryUrl = "",
   authToken = browserToken(),
   api,
-  branding: brandingProp
+  branding: brandingProp,
 }: SkillLibraryAppProps) {
-  const [branding, setBranding] = useState<RegistryBrandingConfig>(brandingProp ?? DEFAULT_REGISTRY_BRANDING);
+  const [branding, setBranding] = useState<RegistryBrandingConfig>(
+    brandingProp ?? DEFAULT_REGISTRY_BRANDING
+  );
   const workspaceId = workspaceIdProp ?? branding.defaultWorkspaceId;
   const [catalog, setCatalog] = useState<CatalogSkill[]>(skills ?? []);
-  const [selectedId, setSelectedId] = useState<string | undefined>(catalog[0]?.pkg.id);
+  const [selectedId, setSelectedId] = useState<string | undefined>(
+    catalog[0]?.pkg.id
+  );
   const [query, setQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [publishForm, setPublishForm] = useState(emptyPublishForm);
   const [gitFields, setGitFields] = useState(emptyGitFields);
-  const [uploadEntries, setUploadEntries] = useState<UploadVersionInput["entries"]>([]);
-  const [preflightValidation, setPreflightValidation] = useState<ValidationResult | undefined>();
+  const [uploadEntries, setUploadEntries] = useState<
+    UploadVersionInput["entries"]
+  >([]);
+  const [preflightValidation, setPreflightValidation] = useState<
+    ValidationResult | undefined
+  >();
   const [notice, setNotice] = useState("Ready");
-  const [copiedMcpTarget, setCopiedMcpTarget] = useState<McpSetupTarget | null>(null);
+  const [copiedMcpTarget, setCopiedMcpTarget] = useState<McpSetupTarget | null>(
+    null
+  );
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("overview");
   const [activeToken, setActiveToken] = useState(() => authToken);
@@ -174,7 +297,10 @@ export function SkillLibraryApp({
     setFilesExpanded(false);
   }, [selectedId]);
 
-  const apiClient = useMemo(() => api ?? createWebApiClient({ registryUrl, token: activeToken }), [api, registryUrl, activeToken]);
+  const apiClient = useMemo(
+    () => api ?? createWebApiClient({ registryUrl, token: activeToken }),
+    [api, registryUrl, activeToken]
+  );
 
   // Session state for Better Auth SSO
   const [session, setSession] = useState<SessionUser | null>(null);
@@ -207,7 +333,9 @@ export function SkillLibraryApp({
       const response = await fetch(`${baseUrl}/api/config`);
 
       if (response.ok) {
-        const data = (await response.json()) as { branding: RegistryBrandingConfig };
+        const data = (await response.json()) as {
+          branding: RegistryBrandingConfig;
+        };
         setBranding(data.branding);
       }
     } catch {
@@ -219,9 +347,11 @@ export function SkillLibraryApp({
     setSessionLoading(true);
     try {
       const baseUrl = registryUrl.replace(/\/$/, "");
-      const response = await fetch(`${baseUrl}/api/auth/get-session`, { credentials: "include" });
+      const response = await fetch(`${baseUrl}/api/auth/get-session`, {
+        credentials: "include",
+      });
       if (response.ok) {
-        const data = await response.json() as { user?: SessionUser } | null;
+        const data = (await response.json()) as { user?: SessionUser } | null;
         setSession(data?.user ?? null);
       } else {
         setSession(null);
@@ -236,8 +366,13 @@ export function SkillLibraryApp({
   async function handleLogout() {
     try {
       const baseUrl = registryUrl.replace(/\/$/, "");
-      await fetch(`${baseUrl}/api/auth/sign-out`, { method: "POST", credentials: "include" });
-    } catch { /* ignore */ }
+      await fetch(`${baseUrl}/api/auth/sign-out`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      /* ignore */
+    }
     setSession(null);
     setActiveTab("overview");
   }
@@ -255,8 +390,8 @@ export function SkillLibraryApp({
         body: JSON.stringify({
           provider: "microsoft",
           callbackURL: window.location.href,
-          disableRedirect: true
-        })
+          disableRedirect: true,
+        }),
       });
 
       if (!response.ok) {
@@ -280,12 +415,16 @@ export function SkillLibraryApp({
     setTeamLoading(true);
     try {
       const baseUrl = registryUrl.replace(/\/$/, "");
-      const response = await fetch(`${baseUrl}/api/team/members`, { credentials: "include" });
+      const response = await fetch(`${baseUrl}/api/team/members`, {
+        credentials: "include",
+      });
       if (response.ok) {
         const data = (await response.json()) as { members: AdminUser[] };
         setTeamMembers(data.members);
       }
-    } catch { /* ignore */ } finally {
+    } catch {
+      /* ignore */
+    } finally {
       setTeamLoading(false);
     }
   }
@@ -293,12 +432,15 @@ export function SkillLibraryApp({
   async function handleRoleChange(userId: string, newRole: string) {
     const baseUrl = registryUrl.replace(/\/$/, "");
     try {
-      const response = await fetch(`${baseUrl}/api/admin/users/${encodeURIComponent(userId)}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ role: newRole })
-      });
+      const response = await fetch(
+        `${baseUrl}/api/admin/users/${encodeURIComponent(userId)}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ role: newRole }),
+        }
+      );
       if (response.ok) {
         setNotice(`Role updated to ${formatRoleLabel(newRole)}`);
         await loadTeamMembers();
@@ -311,15 +453,22 @@ export function SkillLibraryApp({
   }
 
   async function handleDeleteUser(userId: string, userName: string) {
-    if (!window.confirm(`Remove ${userName} from the registry? This action cannot be undone.`)) {
+    if (
+      !window.confirm(
+        `Remove ${userName} from the registry? This action cannot be undone.`
+      )
+    ) {
       return;
     }
     const baseUrl = registryUrl.replace(/\/$/, "");
     try {
-      const response = await fetch(`${baseUrl}/api/admin/users/${encodeURIComponent(userId)}`, {
-        method: "DELETE",
-        credentials: "include"
-      });
+      const response = await fetch(
+        `${baseUrl}/api/admin/users/${encodeURIComponent(userId)}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
       if (response.ok) {
         setNotice(`${userName} has been removed`);
         await loadTeamMembers();
@@ -348,12 +497,59 @@ export function SkillLibraryApp({
     void loadCatalog();
   }, [skills, workspaceId, query, apiClient]);
 
+  const availableCategories = useMemo(() => {
+    const categoriesSet = new Set<string>();
+    for (const skill of catalog) {
+      if (skill.pkg.categories) {
+        for (const cat of skill.pkg.categories) {
+          const trimmed = cat.trim();
+          if (trimmed) {
+            categoriesSet.add(trimmed.toLowerCase());
+          }
+        }
+      }
+    }
+    const defaults = ["sales", "marketing", "finance"];
+    for (const d of defaults) {
+      categoriesSet.add(d);
+    }
+    return Array.from(categoriesSet).sort();
+  }, [catalog]);
+
+  const filteredCatalog = useMemo(() => {
+    return catalog.filter((skill) => {
+      if (selectedCategory === "all") {
+        return true;
+      }
+      return skill.pkg.categories
+        ?.map((c) => c.toLowerCase())
+        .includes(selectedCategory);
+    });
+  }, [catalog, selectedCategory]);
+
+  useEffect(() => {
+    if (
+      selectedId &&
+      !filteredCatalog.some((skill) => skill.pkg.id === selectedId)
+    ) {
+      setSelectedId(filteredCatalog[0]?.pkg.id);
+    }
+  }, [selectedCategory, filteredCatalog, selectedId]);
+
   const selected = catalog.find((skill) => skill.pkg.id === selectedId);
   const totals = catalog.reduce(
-    (acc, skill) => ({ installs: acc.installs + skill.installs, downloads: acc.downloads + skill.downloads, stale: acc.stale + skill.staleInstalls }),
+    (acc, skill) => ({
+      installs: acc.installs + skill.installs,
+      downloads: acc.downloads + skill.downloads,
+      stale: acc.stale + skill.staleInstalls,
+    }),
     { installs: 0, downloads: 0, stale: 0 }
   );
-  const reportSummary = summarizeReports(catalog.map((skill) => skill.report).filter((report): report is PackageReport => Boolean(report)));
+  const reportSummary = summarizeReports(
+    catalog
+      .map((skill) => skill.report)
+      .filter((report): report is PackageReport => Boolean(report))
+  );
 
   async function loadCatalog() {
     setLoading(true);
@@ -361,8 +557,16 @@ export function SkillLibraryApp({
     try {
       const next = await loadCatalogSkills(apiClient, workspaceId, query);
       setCatalog(next);
-      setSelectedId((current) => current && next.some((skill) => skill.pkg.id === current) ? current : next[0]?.pkg.id);
-      setNotice(next.length > 0 ? "Catalog synced" : "Catalog is empty. Publish a skill to get started.");
+      setSelectedId((current) =>
+        current && next.some((skill) => skill.pkg.id === current)
+          ? current
+          : next[0]?.pkg.id
+      );
+      setNotice(
+        next.length > 0
+          ? "Catalog synced"
+          : "Catalog is empty. Publish a skill to get started."
+      );
     } catch (error) {
       const fallback = isLocalDev() ? devSampleSkills : [];
       setCatalog(fallback);
@@ -408,7 +612,9 @@ export function SkillLibraryApp({
 
   async function handleUpload() {
     if (uploadEntries.length === 0) {
-      setNotice("Choose a skill directory or JSON package tree before uploading.");
+      setNotice(
+        "Choose a skill directory or JSON package tree before uploading."
+      );
       return;
     }
 
@@ -416,7 +622,10 @@ export function SkillLibraryApp({
 
     try {
       const resolved = resolvePublishInput(publishForm);
-      const version = await apiClient.uploadVersion(workspaceId, { ...resolved, entries: uploadEntries });
+      const version = await apiClient.uploadVersion(workspaceId, {
+        ...resolved,
+        entries: uploadEntries,
+      });
       setPreflightValidation(version.validation);
       setNotice(
         version.validation.ok
@@ -456,7 +665,7 @@ export function SkillLibraryApp({
         ...resolved,
         repositoryPath,
         ref,
-        subdirectory
+        subdirectory,
       });
       setNotice(`Git import created: ${version.version}`);
       await loadCatalog();
@@ -479,13 +688,77 @@ export function SkillLibraryApp({
 
     try {
       const version = await apiClient.transitionVersion(versionId, toState);
-      setNotice(`Version ${version.version} moved to ${version.lifecycleState}`);
+      setNotice(
+        `Version ${version.version} moved to ${version.lifecycleState}`
+      );
       await loadCatalog();
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Lifecycle transition failed");
+      setNotice(
+        error instanceof Error ? error.message : "Lifecycle transition failed"
+      );
     } finally {
       setLoading(false);
     }
+  }
+
+  async function detectSkillMetadata(files: File[], defaultSlug: string) {
+    const skillMdFile = files.find((file) => {
+      const path = file.webkitRelativePath || file.name;
+      return path === "SKILL.md" || path.endsWith("/SKILL.md");
+    });
+
+    let nameFromFrontmatter = "";
+    let descFromFrontmatter = "";
+    let catsFromFrontmatter: string[] = [];
+
+    if (skillMdFile) {
+      try {
+        const content = await skillMdFile.text();
+        const frontmatter = parseSimpleFrontmatter(content);
+        if (frontmatter.name) {
+          nameFromFrontmatter = String(frontmatter.name);
+        }
+        if (frontmatter.description) {
+          descFromFrontmatter = String(frontmatter.description);
+        }
+        if (frontmatter.categories) {
+          if (Array.isArray(frontmatter.categories)) {
+            catsFromFrontmatter = frontmatter.categories.map(String);
+          } else if (typeof frontmatter.categories === "string") {
+            catsFromFrontmatter = frontmatter.categories
+              .split(",")
+              .map((c) => c.trim())
+              .filter(Boolean);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse simple frontmatter", e);
+      }
+    }
+
+    const slug = nameFromFrontmatter || defaultSlug;
+
+    setPublishForm((prev) => ({
+      ...prev,
+      packageSlug: prev.packageSlug.trim() ? prev.packageSlug : slug,
+      packageName: prev.packageName.trim()
+        ? prev.packageName
+        : nameFromFrontmatter
+          ? titleize(nameFromFrontmatter)
+          : titleize(defaultSlug),
+      description: prev.description.trim()
+        ? prev.description
+        : descFromFrontmatter,
+      categories:
+        prev.categories && String(prev.categories).trim()
+          ? prev.categories
+          : catsFromFrontmatter.join(", "),
+    }));
+
+    setGitFields((prev) => ({
+      ...prev,
+      subdirectory: prev.subdirectory.trim() ? prev.subdirectory : slug,
+    }));
   }
 
   async function handleFileSelection(event: ChangeEvent<HTMLInputElement>) {
@@ -505,7 +778,9 @@ export function SkillLibraryApp({
     if (!hasSkillMd) {
       setUploadEntries([]);
       setPreflightValidation(undefined);
-      setNotice("Validation error: The selected folder does not contain a SKILL.md file. Publishing requires a SKILL.md file.");
+      setNotice(
+        "Validation error: The selected folder does not contain a SKILL.md file. Publishing requires a SKILL.md file."
+      );
       return;
     }
 
@@ -514,28 +789,21 @@ export function SkillLibraryApp({
     setPreflightValidation(undefined);
 
     const firstRelativePath = files[0]?.webkitRelativePath;
-    let slug = publishForm.packageSlug;
+    let slug = "";
     if (firstRelativePath) {
       const parts = firstRelativePath.split("/");
       if (parts.length > 1 && parts[0]) {
-        slug = parts[0].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        slug = parts[0]
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
       }
     }
 
-    applyDetectedSkillSlug(slug);
-    setNotice(`${entries.length} files staged for upload from skill folder "${slug}". Ready to publish.`);
-  }
-
-  function applyDetectedSkillSlug(slug: string) {
-    setPublishForm((prev) => ({
-      ...prev,
-      packageSlug: prev.packageSlug.trim() ? prev.packageSlug : slug,
-      packageName: prev.packageName.trim() ? prev.packageName : titleize(slug)
-    }));
-    setGitFields((prev) => ({
-      ...prev,
-      subdirectory: prev.subdirectory.trim() ? prev.subdirectory : slug
-    }));
+    await detectSkillMetadata(files, slug);
+    setNotice(
+      `${entries.length} files staged for upload from skill folder "${slug || "selected"}". Ready to publish.`
+    );
   }
 
   function handleDragOver(event: React.DragEvent) {
@@ -556,12 +824,14 @@ export function SkillLibraryApp({
 
     async function traverseEntry(item: any, path: string = ""): Promise<void> {
       if (item.isFile) {
-        const file = await new Promise<File>((resolve, reject) => item.file(resolve, reject));
+        const file = await new Promise<File>((resolve, reject) =>
+          item.file(resolve, reject)
+        );
         const relativePath = path ? `${path}/${file.name}` : file.name;
         Object.defineProperty(file, "webkitRelativePath", {
           value: relativePath,
           writable: true,
-          configurable: true
+          configurable: true,
         });
         files.push(file);
       } else if (item.isDirectory) {
@@ -597,7 +867,9 @@ export function SkillLibraryApp({
     if (!hasSkillMd) {
       setUploadEntries([]);
       setPreflightValidation(undefined);
-      setNotice("Validation error: The selected folder does not contain a SKILL.md file. Publishing requires a SKILL.md file.");
+      setNotice(
+        "Validation error: The selected folder does not contain a SKILL.md file. Publishing requires a SKILL.md file."
+      );
       return;
     }
 
@@ -606,16 +878,21 @@ export function SkillLibraryApp({
     setPreflightValidation(undefined);
 
     const firstRelativePath = files[0]?.webkitRelativePath;
-    let slug = publishForm.packageSlug;
+    let slug = "";
     if (firstRelativePath) {
       const parts = firstRelativePath.split("/");
       if (parts.length > 1 && parts[0]) {
-        slug = parts[0].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        slug = parts[0]
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
       }
     }
 
-    applyDetectedSkillSlug(slug);
-    setNotice(`${entries.length} files staged for upload from dropped folder "${slug}". Ready to publish.`);
+    await detectSkillMetadata(files, slug);
+    setNotice(
+      `${entries.length} files staged for upload from dropped folder "${slug || "dropped"}". Ready to publish.`
+    );
   }
 
   async function copyInstallPrompt() {
@@ -623,7 +900,11 @@ export function SkillLibraryApp({
       return;
     }
 
-    await navigator.clipboard?.writeText(buildInstallPrompt(selected.pkg.slug, workspaceId, resolvedRegistryUrl)).catch(() => undefined);
+    await navigator.clipboard
+      ?.writeText(
+        buildInstallPrompt(selected.pkg.slug, workspaceId, resolvedRegistryUrl)
+      )
+      .catch(() => undefined);
     setNotice("Install prompt copied");
   }
 
@@ -638,23 +919,39 @@ export function SkillLibraryApp({
   }
 
   const isAdmin = session?.role === "admin";
-  const canManageLifecycle = activeToken !== undefined || session?.role === "maintainer" || session?.role === "admin";
+  const canManageLifecycle =
+    activeToken !== undefined ||
+    session?.role === "maintainer" ||
+    session?.role === "admin";
   const hasSession = session !== null;
   const useTokenAuth = activeToken !== undefined;
 
   // Show login screen when not authenticated (no SSO session and no API token)
   // In dev mode (localhost), always allow access via token fallback
   if (!hasSession && !useTokenAuth && !isLocalDev()) {
-    return <LoginScreen branding={branding} onSignIn={handleSignIn} signingIn={signingIn} checkingSession={sessionLoading} />;
+    return (
+      <>
+        <StatusStyles branding={branding} />
+        <LoginScreen
+          branding={branding}
+          onSignIn={handleSignIn}
+          signingIn={signingIn}
+          checkingSession={sessionLoading}
+        />
+      </>
+    );
   }
 
-  const resolvedRegistryUrl = registryUrl || branding.registryPublicUrl || (typeof window !== "undefined" ? window.location.origin : "");
+  const resolvedRegistryUrl =
+    registryUrl ||
+    branding.registryPublicUrl ||
+    (typeof window !== "undefined" ? window.location.origin : "");
 
   async function copyMcpSetupPrompt(target: McpSetupTarget) {
     const agentAuth = await fetchMcpSetupAgentAuth({
       registryUrl: resolvedRegistryUrl,
       hasSession: Boolean(session),
-      activeToken
+      activeToken,
     });
 
     if (!agentAuth) {
@@ -672,7 +969,8 @@ export function SkillLibraryApp({
     );
     const prompt = buildMcpSetupPrompt(target, context);
     await navigator.clipboard?.writeText(prompt).catch(() => undefined);
-    const label = MCP_SETUP_TARGETS.find((entry) => entry.id === target)?.label ?? "Agent";
+    const label =
+      MCP_SETUP_TARGETS.find((entry) => entry.id === target)?.label ?? "Agent";
     setCopiedMcpTarget(target);
     setNotice(`Copied ${label} agent setup prompt with your MCP token`);
     window.setTimeout(() => {
@@ -681,325 +979,704 @@ export function SkillLibraryApp({
   }
 
   return (
-    <main className={`shell ${activeTab === "catalog" ? "layout-catalog" : "layout-single"}`}>
-      <aside className="rail" aria-label="Workspace">
-        <div className="mark">{branding.appShortName}</div>
-        <NavButton icon={<Archive size={19} />} label="Overview" active={activeTab === "overview"} onClick={() => setActiveTab("overview")} />
-        <NavButton icon={<Search size={19} />} label="Catalog" active={activeTab === "catalog"} onClick={() => setActiveTab("catalog")} />
-        <NavButton icon={<UploadCloud size={19} />} label="Publish" active={activeTab === "publish"} onClick={() => setActiveTab("publish")} />
-        <NavButton icon={<BarChart3 size={19} />} label="Reports" active={activeTab === "reports"} onClick={() => setActiveTab("reports")} />
-        {hasSession && <NavButton icon={<Users size={19} />} label="Team" active={activeTab === "team"} onClick={() => setActiveTab("team")} />}
-
-        <div className="rail-spacer" />
-
-        {session ? (
-          <div className="session-profile">
-            <div className="session-avatar">
-              {session.image ? <img src={session.image} alt="" /> : <User size={16} />}
-            </div>
-            <div className="session-info">
-              <span className="session-name">{session.name}</span>
-              <span className={`session-role role-${session.role}`}>{formatRoleLabel(session.role)}</span>
-            </div>
-            <button className="session-logout" onClick={() => void handleLogout()} aria-label="Sign out" title="Sign out">
-              <LogOut size={14} />
-            </button>
-          </div>
-        ) : (
-          <div className="token-config">
-            <label>API Key
-              <input 
-                type="password" 
-                value={activeToken ?? ""} 
-                onChange={handleTokenChange} 
-                placeholder="Enter token..." 
-              />
-            </label>
-          </div>
-        )}
-      </aside>
-
-      <section className="catalog-pane" aria-label="Workspace overview">
-        <header className="topbar">
-          <div>
-            <p className="kicker">{branding.registryTagline}</p>
-            <h1>{branding.appName}</h1>
-          </div>
-          {(activeTab === "catalog" || activeTab === "overview") && <label className="searchbox"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={branding.searchPlaceholder} /></label>}
-        </header>
-
-        {activeTab === "overview" && (
-          <section className="overview-stack" aria-label="Start here">
-            <div className="decision-panel">
-              <p className="kicker">Start here</p>
-              <h2>{branding.overviewHeading}</h2>
-              <p>{branding.overviewDescription}</p>
-              <div className="actions">
-                <button onClick={() => setActiveTab("catalog")}><Search size={17} />Browse catalog</button>
-                <button className="secondary" onClick={() => setActiveTab("publish")}><UploadCloud size={17} />Publish draft</button>
-              </div>
-            </div>
-            <section className="mcp-connect-panel" aria-label="Connect your agent via MCP">
-              <div className="mcp-connect-copy">
-                <p className="kicker">Connect your agent</p>
-                <h3>Copy agent setup prompt</h3>
-                <p>
-                  {session || activeToken
-                    ? "Choose your agent below. The copied prompt embeds your personal MCP bearer token — paste it into Claude Code, Codex, Cursor, or another agent to configure local MCP and validate search."
-                    : "Sign in first. The copied prompt will embed your personal MCP bearer token so your agent can authenticate without Microsoft SSO."}{" "}
-                  Registry: <strong>{resolvedRegistryUrl}</strong>
-                </p>
-              </div>
-              <div className="mcp-connect-grid">
-                {MCP_SETUP_TARGETS.map((target) => (
-                  <button
-                    key={target.id}
-                    type="button"
-                    className={`mcp-connect-button ${copiedMcpTarget === target.id ? "copied" : ""}`}
-                    aria-label={`Copy ${target.label} MCP setup prompt`}
-                    onClick={() => void copyMcpSetupPrompt(target.id)}
-                  >
-                    <span className="mcp-connect-button-label">{target.label}</span>
-                    <span className="mcp-connect-button-hint">{target.hint}</span>
-                    <span className="mcp-connect-button-action">
-                      {copiedMcpTarget === target.id ? <ClipboardCheck size={16} /> : <Copy size={16} />}
-                      {copiedMcpTarget === target.id ? "Copied" : "Copy prompt"}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </section>
-            <div className="metrics compact" aria-label="Registry metrics">
-              <Metric label="Approved skills" value={catalog.length} />
-              <Metric label="Installs" value={totals.installs} />
-              <Metric label="Need update" value={totals.stale} tone="warn" />
-            </div>
-            {selected ? (
-              <FeaturedSkill skill={selected} onOpen={() => setActiveTab("catalog")} />
-            ) : (
-              <article className="featured-skill empty-catalog">
-                <div>
-                  <p className="kicker">No skills yet</p>
-                  <h2>{branding.emptyCatalogTitle}</h2>
-                  <p>{branding.emptyCatalogDescription}</p>
-                </div>
-                <button onClick={() => setActiveTab("publish")}>Publish first skill</button>
-              </article>
-            )}
-          </section>
-        )}
-
-        {activeTab === "catalog" && (
-          <SkillList
-            catalog={catalog}
-            selectedId={selected?.pkg.id}
-            onSelect={setSelectedId}
-            emptyMessage={catalog.length === 0 ? branding.emptyCatalogListMessage : undefined}
+    <>
+      <StatusStyles branding={branding} />
+      <main
+        className={`shell ${activeTab === "catalog" ? "layout-catalog" : "layout-single"}`}
+      >
+        <aside className="rail" aria-label="Workspace">
+          <div className="mark">{branding.appShortName}</div>
+          <NavButton
+            icon={<Archive size={19} />}
+            label="Overview"
+            active={activeTab === "overview"}
+            onClick={() => setActiveTab("overview")}
           />
-        )}
-
-        {activeTab === "publish" && (
-          <div className="publish-console-container" style={{ display: "flex", flexDirection: "column", gap: "24px", width: "100%", maxWidth: "800px" }}>
-            <section className="publish-console" aria-label="Publish local draft">
-              <div className="panel-title"><UploadCloud size={17} />Publish local folder</div>
-              <p style={{ margin: "-8px 0 16px", color: "var(--muted)", fontSize: "0.92rem" }}>
-                {branding.uploadDescription}
-              </p>
-              <div className="form-grid">
-                <label>Workspace<input value={workspaceId} readOnly /></label>
-                <label>Slug<input value={publishForm.packageSlug} placeholder={PUBLISH_FIELD_PLACEHOLDERS.packageSlug} onChange={(event) => setPublishForm({ ...publishForm, packageSlug: event.target.value })} /></label>
-                <label>Version<input value={publishForm.version} placeholder={PUBLISH_FIELD_PLACEHOLDERS.version} onChange={(event) => setPublishForm({ ...publishForm, version: event.target.value })} /></label>
-              </div>
-              <label 
-                className={`drop-target ${dragOver ? "drag-over" : ""} ${uploadEntries.length > 0 ? "has-files" : "empty"}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                style={{ marginTop: "16px", minHeight: "120px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px" }}
-              >
-                {uploadEntries.length > 0 ? (
-                  <>
-                    <CheckCircle2 size={24} style={{ color: "var(--accent)" }} />
-                    <div style={{ margin: "4px 0" }}>
-                      <strong>{uploadEntries.length} files staged</strong>
-                      <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "var(--muted)" }}>Folder: <code>{publishForm.packageSlug || PUBLISH_FIELD_PLACEHOLDERS.packageSlug}</code></p>
-                    </div>
-                    <span className="button secondary choose-btn" style={{ pointerEvents: "none", height: "34px" }}>Choose different folder</span>
-                  </>
-                ) : (
-                  <>
-                    <UploadCloud size={24} />
-                    <div style={{ margin: "4px 0" }}>
-                      <strong>Drag & drop a skill folder here</strong>
-                      <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "var(--muted)" }}>or click to browse your folders</p>
-                    </div>
-                    <span className="button secondary choose-btn" style={{ pointerEvents: "none", height: "34px" }}>Choose Folder</span>
-                  </>
-                )}
-                <input type="file" {...{ webkitdirectory: "", directory: "" }} multiple onChange={handleFileSelection} style={{ display: "none" }} />
-              </label>
-              <div className="actions" style={{ marginTop: "16px" }}>
-                <button
-                  className="secondary"
-                  onClick={() => void handlePreflightValidate()}
-                  disabled={loading || uploadEntries.length === 0}
-                >
-                  <ClipboardCheck size={17} />
-                  Validate
-                </button>
-                <button 
-                  onClick={handleUpload} 
-                  disabled={loading || uploadEntries.length === 0}
-                  className={uploadEntries.length > 0 ? "primary" : undefined}
-                >
-                  <UploadCloud size={17} />
-                  Upload skill
-                </button>
-              </div>
-              {preflightValidation ? (
-                <div className="panel" style={{ marginTop: "16px" }}>
-                  <div className="panel-title"><ClipboardCheck size={17} />Preflight validation</div>
-                  <ValidationPanel validation={preflightValidation} />
-                </div>
-              ) : null}
-            </section>
-
-            <section className="publish-console" aria-label="Import from Git">
-              <div className="panel-title"><GitBranch size={17} />Import from Git</div>
-              <p style={{ margin: "-8px 0 16px", color: "var(--muted)", fontSize: "0.92rem" }}>
-                Import a skill package version directly from a remote Git repository.
-              </p>
-              <div className="form-grid git-fields">
-                <label>Repository<input value={gitFields.repositoryPath} placeholder={PUBLISH_FIELD_PLACEHOLDERS.repositoryPath} onChange={(event) => setGitFields({ ...gitFields, repositoryPath: event.target.value })} /></label>
-                <label>Ref<input value={gitFields.ref} placeholder={PUBLISH_FIELD_PLACEHOLDERS.ref} onChange={(event) => setGitFields({ ...gitFields, ref: event.target.value })} /></label>
-                <label>Subdir<input value={gitFields.subdirectory} placeholder={PUBLISH_FIELD_PLACEHOLDERS.subdirectory} onChange={(event) => setGitFields({ ...gitFields, subdirectory: event.target.value })} /></label>
-              </div>
-              <div className="git-import" style={{ marginTop: "16px" }}>
-                <GitBranch size={18} />
-                <code>{buildGitImportCurl(workspaceId, publishForm.packageSlug || PUBLISH_FIELD_PLACEHOLDERS.packageSlug)}</code>
-                <button onClick={handleGitImport} disabled={loading}>Import</button>
-              </div>
-            </section>
-            
-            <p className="notice" role="status" style={{ margin: "0 8px" }}>{notice}</p>
-          </div>
-        )}
-
-        {activeTab === "reports" && <ReportPanel catalog={catalog} summary={reportSummary} />}
-
-        {activeTab === "team" && session && (
-          <TeamPanel
-            members={teamMembers}
-            loading={teamLoading}
-            currentUser={session}
-            canManageRoles={isAdmin}
-            onRoleChange={handleRoleChange}
-            onDeleteUser={handleDeleteUser}
-            onRefresh={loadTeamMembers}
-            notice={notice}
+          <NavButton
+            icon={<Search size={19} />}
+            label="Catalog"
+            active={activeTab === "catalog"}
+            onClick={() => setActiveTab("catalog")}
           />
-        )}
-      </section>
-
-      {activeTab === "catalog" && selected && (
-        <section className="detail-pane" aria-label="Skill detail">
-          <div className="detail-head">
-            <div>
-              <p className="kicker">Selected package</p>
-              <h2>{selected.pkg.name}</h2>
-              <p>{selected.pkg.description}</p>
-            </div>
-            <LifecycleBadge state={selected.activeVersion?.lifecycleState ?? "draft"} />
-          </div>
-
-          <div className="install-section">
-            <div className="panel-title"><TerminalSquare size={17} />How to use</div>
-            {selected.latestApproved ? (
-              <div className="install-actions-stack">
-                <code>{buildInstallPrompt(selected.pkg.slug, workspaceId, resolvedRegistryUrl)}</code>
-                <div className="actions">
-                  <button onClick={() => void copyInstallPrompt()}><TerminalSquare size={17} />Copy command</button>
-                  <a className="button secondary" href={artifactDownloadUrl(registryUrl, selected)}>
-                    <Download size={17} />Download ZIP
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <p className="install-warning">No approved version is available for installation.</p>
-            )}
-          </div>
-
-          <div className="panel">
-            <div className="panel-title"><BarChart3 size={17} />Usage</div>
-            <SkillStatsMeta
-              version={selected.latestApproved?.version ?? selected.activeVersion?.version}
-              downloads={selected.downloads}
-              downloadHistory={selected.downloadHistory}
-              updatedAt={selected.pkg.updatedAt}
-              lastModifiedAt={selected.lastModifiedAt}
+          <NavButton
+            icon={<UploadCloud size={19} />}
+            label="Publish"
+            active={activeTab === "publish"}
+            onClick={() => setActiveTab("publish")}
+          />
+          <NavButton
+            icon={<BarChart3 size={19} />}
+            label="Reports"
+            active={activeTab === "reports"}
+            onClick={() => setActiveTab("reports")}
+          />
+          {hasSession && (
+            <NavButton
+              icon={<Users size={19} />}
+              label="Team"
+              active={activeTab === "team"}
+              onClick={() => setActiveTab("team")}
             />
-          </div>
+          )}
 
-          <div className="split">
-            <div className="panel">
-              <div className="panel-title"><FileCode2 size={17} />Contents</div>
-              <ul className="file-tree">
-                {selected.files.slice(0, 5).map((file) => (
-                  <li key={file}>{file}</li>
-                ))}
-                {filesExpanded && selected.files.slice(5).map((file) => (
-                  <li key={file}>{file}</li>
-                ))}
-              </ul>
-              {selected.files.length > 5 && (
-                <button
-                  type="button"
-                  className="toggle-files-button"
-                  onClick={() => setFilesExpanded(!filesExpanded)}
-                  aria-label={filesExpanded ? "Show less files" : "Show more files"}
+          <div className="rail-spacer" />
+
+          {session ? (
+            <div className="session-profile">
+              <div className="session-avatar">
+                {session.image ? (
+                  <img src={session.image} alt="" />
+                ) : (
+                  <User size={16} />
+                )}
+              </div>
+              <div className="session-info">
+                <span className="session-name">{session.name}</span>
+                <span className={`session-role role-${session.role}`}>
+                  {formatRoleLabel(session.role)}
+                </span>
+              </div>
+              <button
+                className="session-logout"
+                onClick={() => void handleLogout()}
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          ) : (
+            <div className="token-config">
+              <label>
+                API Key
+                <input
+                  type="password"
+                  value={activeToken ?? ""}
+                  onChange={handleTokenChange}
+                  placeholder="Enter token..."
+                />
+              </label>
+            </div>
+          )}
+        </aside>
+
+        <section className="catalog-pane" aria-label="Workspace overview">
+          <header className="topbar">
+            <div>
+              <p className="kicker">{branding.registryTagline}</p>
+              <h1>{branding.appName}</h1>
+            </div>
+            {(activeTab === "catalog" || activeTab === "overview") && (
+              <label className="searchbox">
+                <Search size={17} />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={branding.searchPlaceholder}
+                />
+              </label>
+            )}
+          </header>
+
+          {activeTab === "overview" && (
+            <section className="overview-stack" aria-label="Start here">
+              <div className="decision-panel">
+                <p className="kicker">Start here</p>
+                <h2>{branding.overviewHeading}</h2>
+                <p>{branding.overviewDescription}</p>
+                <div className="actions">
+                  <button onClick={() => setActiveTab("catalog")}>
+                    <Search size={17} />
+                    Browse catalog
+                  </button>
+                  <button
+                    className="secondary"
+                    onClick={() => setActiveTab("publish")}
+                  >
+                    <UploadCloud size={17} />
+                    Publish draft
+                  </button>
+                </div>
+              </div>
+              <section
+                className="mcp-connect-panel"
+                aria-label="Connect your agent via MCP"
+              >
+                <div className="mcp-connect-copy">
+                  <p className="kicker">Connect your agent</p>
+                  <h3>Copy agent setup prompt</h3>
+                  <p>
+                    {session || activeToken
+                      ? "Choose your agent below. The copied prompt embeds your personal MCP bearer token — paste it into Claude Code, Codex, Cursor, or another agent to configure local MCP and validate search."
+                      : "Sign in first. The copied prompt will embed your personal MCP bearer token so your agent can authenticate without Microsoft SSO."}{" "}
+                    Registry: <strong>{resolvedRegistryUrl}</strong>
+                  </p>
+                </div>
+                <div className="mcp-connect-grid">
+                  {MCP_SETUP_TARGETS.map((target) => (
+                    <button
+                      key={target.id}
+                      type="button"
+                      className={`mcp-connect-button ${copiedMcpTarget === target.id ? "copied" : ""}`}
+                      aria-label={`Copy ${target.label} MCP setup prompt`}
+                      onClick={() => void copyMcpSetupPrompt(target.id)}
+                    >
+                      <span className="mcp-connect-button-label">
+                        {target.label}
+                      </span>
+                      <span className="mcp-connect-button-hint">
+                        {target.hint}
+                      </span>
+                      <span className="mcp-connect-button-action">
+                        {copiedMcpTarget === target.id ? (
+                          <ClipboardCheck size={16} />
+                        ) : (
+                          <Copy size={16} />
+                        )}
+                        {copiedMcpTarget === target.id
+                          ? "Copied"
+                          : "Copy prompt"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+              <div className="metrics compact" aria-label="Registry metrics">
+                <Metric label="Approved skills" value={catalog.length} />
+                <Metric label="Installs" value={totals.installs} />
+                <Metric label="Need update" value={totals.stale} tone="warn" />
+              </div>
+              {selected ? (
+                <FeaturedSkill
+                  skill={selected}
+                  onOpen={() => setActiveTab("catalog")}
+                />
+              ) : (
+                <article className="featured-skill empty-catalog">
+                  <div>
+                    <p className="kicker">No skills yet</p>
+                    <h2>{branding.emptyCatalogTitle}</h2>
+                    <p>{branding.emptyCatalogDescription}</p>
+                  </div>
+                  <button onClick={() => setActiveTab("publish")}>
+                    Publish first skill
+                  </button>
+                </article>
+              )}
+            </section>
+          )}
+
+          {activeTab === "catalog" && (
+            <>
+              <CategoryFilter
+                categories={availableCategories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                catalog={catalog}
+              />
+              <SkillList
+                catalog={filteredCatalog}
+                selectedId={selected?.pkg.id}
+                onSelect={setSelectedId}
+                emptyMessage={
+                  filteredCatalog.length === 0
+                    ? "No skills in this category match your search."
+                    : undefined
+                }
+              />
+            </>
+          )}
+
+          {activeTab === "publish" && (
+            <div
+              className="publish-console-container"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "24px",
+                width: "100%",
+                maxWidth: "800px",
+              }}
+            >
+              <section
+                className="publish-console"
+                aria-label="Publish local draft"
+              >
+                <div className="panel-title">
+                  <UploadCloud size={17} />
+                  Publish local folder
+                </div>
+                <p
+                  style={{
+                    margin: "-8px 0 16px",
+                    color: "var(--muted)",
+                    fontSize: "0.92rem",
+                  }}
                 >
-                  <span>{filesExpanded ? "Show less" : `Show ${selected.files.length - 5} more files`}</span>
-                  <ChevronDown
-                    size={15}
-                    style={{
-                      transform: filesExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform 0.2s ease"
-                    }}
+                  {branding.uploadDescription}
+                </p>
+                <div className="form-grid">
+                  <label>
+                    Workspace
+                    <input value={workspaceId} readOnly />
+                  </label>
+                  <label>
+                    Slug
+                    <input
+                      value={publishForm.packageSlug}
+                      placeholder={PUBLISH_FIELD_PLACEHOLDERS.packageSlug}
+                      onChange={(event) =>
+                        setPublishForm({
+                          ...publishForm,
+                          packageSlug: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Version
+                    <input
+                      value={publishForm.version}
+                      placeholder={PUBLISH_FIELD_PLACEHOLDERS.version}
+                      onChange={(event) =>
+                        setPublishForm({
+                          ...publishForm,
+                          version: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Categories (comma-separated)
+                    <input
+                      value={publishForm.categories ?? ""}
+                      placeholder="sales, marketing, finance"
+                      onChange={(event) =>
+                        setPublishForm({
+                          ...publishForm,
+                          categories: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Name (optional)
+                    <input
+                      value={publishForm.packageName}
+                      placeholder="e.g. My Great Skill"
+                      onChange={(event) =>
+                        setPublishForm({
+                          ...publishForm,
+                          packageName: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Description (optional)
+                    <input
+                      value={publishForm.description}
+                      placeholder="e.g. A skill that does X"
+                      onChange={(event) =>
+                        setPublishForm({
+                          ...publishForm,
+                          description: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+                <label
+                  className={`drop-target ${dragOver ? "drag-over" : ""} ${uploadEntries.length > 0 ? "has-files" : "empty"}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  style={{
+                    marginTop: "16px",
+                    minHeight: "120px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px",
+                  }}
+                >
+                  {uploadEntries.length > 0 ? (
+                    <>
+                      <CheckCircle2
+                        size={24}
+                        style={{ color: "var(--accent)" }}
+                      />
+                      <div style={{ margin: "4px 0" }}>
+                        <strong>{uploadEntries.length} files staged</strong>
+                        <p
+                          style={{
+                            margin: "4px 0 0",
+                            fontSize: "0.82rem",
+                            color: "var(--muted)",
+                          }}
+                        >
+                          Folder:{" "}
+                          <code>
+                            {publishForm.packageSlug ||
+                              PUBLISH_FIELD_PLACEHOLDERS.packageSlug}
+                          </code>
+                        </p>
+                      </div>
+                      <span
+                        className="button secondary choose-btn"
+                        style={{ pointerEvents: "none", height: "34px" }}
+                      >
+                        Choose different folder
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud size={24} />
+                      <div style={{ margin: "4px 0" }}>
+                        <strong>Drag & drop a skill folder here</strong>
+                        <p
+                          style={{
+                            margin: "4px 0 0",
+                            fontSize: "0.82rem",
+                            color: "var(--muted)",
+                          }}
+                        >
+                          or click to browse your folders
+                        </p>
+                      </div>
+                      <span
+                        className="button secondary choose-btn"
+                        style={{ pointerEvents: "none", height: "34px" }}
+                      >
+                        Choose Folder
+                      </span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    {...{ webkitdirectory: "", directory: "" }}
+                    multiple
+                    onChange={handleFileSelection}
+                    style={{ display: "none" }}
                   />
-                </button>
+                </label>
+                <div className="actions" style={{ marginTop: "16px" }}>
+                  <button
+                    className="secondary"
+                    onClick={() => void handlePreflightValidate()}
+                    disabled={loading || uploadEntries.length === 0}
+                  >
+                    <ClipboardCheck size={17} />
+                    Validate
+                  </button>
+                  <button
+                    onClick={handleUpload}
+                    disabled={loading || uploadEntries.length === 0}
+                    className={uploadEntries.length > 0 ? "primary" : undefined}
+                  >
+                    <UploadCloud size={17} />
+                    Upload skill
+                  </button>
+                </div>
+                {preflightValidation ? (
+                  <div className="panel" style={{ marginTop: "16px" }}>
+                    <div className="panel-title">
+                      <ClipboardCheck size={17} />
+                      Preflight validation
+                    </div>
+                    <ValidationPanel validation={preflightValidation} />
+                  </div>
+                ) : null}
+              </section>
+
+              <section className="publish-console" aria-label="Import from Git">
+                <div className="panel-title">
+                  <GitBranch size={17} />
+                  Import from Git
+                </div>
+                <p
+                  style={{
+                    margin: "-8px 0 16px",
+                    color: "var(--muted)",
+                    fontSize: "0.92rem",
+                  }}
+                >
+                  Import a skill package version directly from a remote Git
+                  repository.
+                </p>
+                <div className="form-grid git-fields">
+                  <label>
+                    Repository
+                    <input
+                      value={gitFields.repositoryPath}
+                      placeholder={PUBLISH_FIELD_PLACEHOLDERS.repositoryPath}
+                      onChange={(event) =>
+                        setGitFields({
+                          ...gitFields,
+                          repositoryPath: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Ref
+                    <input
+                      value={gitFields.ref}
+                      placeholder={PUBLISH_FIELD_PLACEHOLDERS.ref}
+                      onChange={(event) =>
+                        setGitFields({ ...gitFields, ref: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Subdir
+                    <input
+                      value={gitFields.subdirectory}
+                      placeholder={PUBLISH_FIELD_PLACEHOLDERS.subdirectory}
+                      onChange={(event) =>
+                        setGitFields({
+                          ...gitFields,
+                          subdirectory: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+                <div className="git-import" style={{ marginTop: "16px" }}>
+                  <GitBranch size={18} />
+                  <code>
+                    {buildGitImportCurl(
+                      workspaceId,
+                      publishForm.packageSlug ||
+                        PUBLISH_FIELD_PLACEHOLDERS.packageSlug
+                    )}
+                  </code>
+                  <button onClick={handleGitImport} disabled={loading}>
+                    Import
+                  </button>
+                </div>
+              </section>
+
+              <p className="notice" role="status" style={{ margin: "0 8px" }}>
+                {notice}
+              </p>
+            </div>
+          )}
+
+          {activeTab === "reports" && (
+            <ReportPanel catalog={catalog} summary={reportSummary} />
+          )}
+
+          {activeTab === "team" && session && (
+            <TeamPanel
+              members={teamMembers}
+              loading={teamLoading}
+              currentUser={session}
+              canManageRoles={isAdmin}
+              onRoleChange={handleRoleChange}
+              onDeleteUser={handleDeleteUser}
+              onRefresh={loadTeamMembers}
+              notice={notice}
+            />
+          )}
+        </section>
+
+        {activeTab === "catalog" && selected && (
+          <section className="detail-pane" aria-label="Skill detail">
+            <div className="detail-head">
+              <div>
+                <p className="kicker">Selected package</p>
+                <h2>{selected.pkg.name}</h2>
+                <p>{selected.pkg.description}</p>
+                {selected.pkg.categories &&
+                  selected.pkg.categories.length > 0 && (
+                    <div className="tags" style={{ marginTop: "8px" }}>
+                      {selected.pkg.categories.map((category) => (
+                        <span key={category}>{category}</span>
+                      ))}
+                    </div>
+                  )}
+              </div>
+              <LifecycleBadge
+                state={selected.activeVersion?.lifecycleState ?? "draft"}
+              />
+            </div>
+
+            <div className="install-section">
+              <div className="panel-title">
+                <TerminalSquare size={17} />
+                How to use
+              </div>
+              {selected.latestApproved ? (
+                <div className="install-actions-stack">
+                  <code>
+                    {buildInstallPrompt(
+                      selected.pkg.slug,
+                      workspaceId,
+                      resolvedRegistryUrl
+                    )}
+                  </code>
+                  <div className="actions">
+                    <button onClick={() => void copyInstallPrompt()}>
+                      <TerminalSquare size={17} />
+                      Copy command
+                    </button>
+                    <a
+                      className="button secondary"
+                      href={artifactDownloadUrl(registryUrl, selected)}
+                    >
+                      <Download size={17} />
+                      Download ZIP
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <p className="install-warning">
+                  No approved version is available for installation.
+                </p>
               )}
             </div>
 
             <div className="panel">
-              <div className="panel-title"><CheckCircle2 size={17} />Validation</div>
-              <ValidationPanel validation={selected.activeVersion?.validation} />
-              <div className="version-line"><span>Active version</span><strong>{selected.activeVersion?.version ?? "No version selected"}</strong></div>
-              {selected.latestApproved && selected.activeVersion?.id !== selected.latestApproved.id ? (
-                <div className="version-line"><span>Approved install</span><strong>{selected.latestApproved.version}</strong></div>
-              ) : null}
+              <div className="panel-title">
+                <BarChart3 size={17} />
+                Usage
+              </div>
+              <SkillStatsMeta
+                version={
+                  selected.latestApproved?.version ??
+                  selected.activeVersion?.version
+                }
+                downloads={selected.downloads}
+                downloadHistory={selected.downloadHistory}
+                updatedAt={selected.pkg.updatedAt}
+                lastModifiedAt={selected.lastModifiedAt}
+              />
             </div>
-          </div>
 
-          {canManageLifecycle && (
-            <div className="lifecycle-panel">
-              <div className="panel-title"><RefreshCw size={17} />Lifecycle controls</div>
-              <p className="lifecycle-copy">Editors and Admins review drafts here. Approval makes a skill installable from the catalog.</p>
-              <div className="actions">
-                <button onClick={() => void handleLifecycle("approved")} disabled={loading}><CheckCircle2 size={17} />Approve</button>
-                <button className="secondary" onClick={() => void handleLifecycle("hidden")} disabled={loading}><ShieldCheck size={17} />Hide</button>
-                <button className="secondary" onClick={() => void handleLifecycle("deprecated")} disabled={loading}><Archive size={17} />Deprecate</button>
+            <div className="split">
+              <div className="panel">
+                <div className="panel-title">
+                  <FileCode2 size={17} />
+                  Contents
+                </div>
+                <ul className="file-tree">
+                  {selected.files.slice(0, 5).map((file) => (
+                    <li key={file}>{file}</li>
+                  ))}
+                  {filesExpanded &&
+                    selected.files
+                      .slice(5)
+                      .map((file) => <li key={file}>{file}</li>)}
+                </ul>
+                {selected.files.length > 5 && (
+                  <button
+                    type="button"
+                    className="toggle-files-button"
+                    onClick={() => setFilesExpanded(!filesExpanded)}
+                    aria-label={
+                      filesExpanded ? "Show less files" : "Show more files"
+                    }
+                  >
+                    <span>
+                      {filesExpanded
+                        ? "Show less"
+                        : `Show ${selected.files.length - 5} more files`}
+                    </span>
+                    <ChevronDown
+                      size={15}
+                      style={{
+                        transform: filesExpanded
+                          ? "rotate(180deg)"
+                          : "rotate(0deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    />
+                  </button>
+                )}
+              </div>
+
+              <div className="panel">
+                <div className="panel-title">
+                  <CheckCircle2 size={17} />
+                  Validation
+                </div>
+                <ValidationPanel
+                  validation={selected.activeVersion?.validation}
+                />
+                <div className="version-line">
+                  <span>Active version</span>
+                  <strong>
+                    {selected.activeVersion?.version ?? "No version selected"}
+                  </strong>
+                </div>
+                {selected.latestApproved &&
+                selected.activeVersion?.id !== selected.latestApproved.id ? (
+                  <div className="version-line">
+                    <span>Approved install</span>
+                    <strong>{selected.latestApproved.version}</strong>
+                  </div>
+                ) : null}
               </div>
             </div>
-          )}
 
-          <div className="activity-strip"><GitBranch size={18} /><span>Download counts and sparklines reflect the last {DOWNLOAD_HISTORY_DAYS} days of artifact downloads.</span></div>
-        </section>
-      )}
-    </main>
+            {canManageLifecycle && (
+              <div className="lifecycle-panel">
+                <div className="panel-title">
+                  <RefreshCw size={17} />
+                  Lifecycle controls
+                </div>
+                <p className="lifecycle-copy">
+                  Editors and Admins review drafts here. Approval makes a skill
+                  installable from the catalog.
+                </p>
+                <div className="actions">
+                  <button
+                    onClick={() => void handleLifecycle("approved")}
+                    disabled={loading}
+                  >
+                    <CheckCircle2 size={17} />
+                    Approve
+                  </button>
+                  <button
+                    className="secondary"
+                    onClick={() => void handleLifecycle("hidden")}
+                    disabled={loading}
+                  >
+                    <ShieldCheck size={17} />
+                    Hide
+                  </button>
+                  <button
+                    className="secondary"
+                    onClick={() => void handleLifecycle("deprecated")}
+                    disabled={loading}
+                  >
+                    <Archive size={17} />
+                    Deprecate
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="activity-strip">
+              <GitBranch size={18} />
+              <span>
+                Download counts and sparklines reflect the last{" "}
+                {DOWNLOAD_HISTORY_DAYS} days of artifact downloads.
+              </span>
+            </div>
+          </section>
+        )}
+      </main>
+    </>
   );
 }
 
-export function renderCatalogTitle(packages: SkillPackage[], appName = DEFAULT_REGISTRY_BRANDING.appName) {
+export function renderCatalogTitle(
+  packages: SkillPackage[],
+  appName = DEFAULT_REGISTRY_BRANDING.appName
+) {
   return `${appName} (${packages.length})`;
 }
 
@@ -1021,7 +1698,7 @@ export const PUBLISH_FIELD_PLACEHOLDERS = {
   version: "1.0.0",
   repositoryPath: "https://github.com/org/skills.git",
   ref: "main",
-  subdirectory: "my-skill"
+  subdirectory: "my-skill",
 } as const;
 
 export function emptyPublishForm(): UploadVersionInput {
@@ -1029,8 +1706,9 @@ export function emptyPublishForm(): UploadVersionInput {
     packageSlug: "",
     packageName: "",
     description: "",
+    categories: "",
     version: "",
-    entries: []
+    entries: [],
   };
 }
 
@@ -1038,11 +1716,16 @@ export function emptyGitFields() {
   return {
     repositoryPath: "",
     ref: "",
-    subdirectory: ""
+    subdirectory: "",
   };
 }
 
-export function resolvePublishInput(form: Pick<UploadVersionInput, "packageSlug" | "packageName" | "description" | "version">) {
+export function resolvePublishInput(
+  form: Pick<
+    UploadVersionInput,
+    "packageSlug" | "packageName" | "description" | "categories" | "version"
+  >
+) {
   const packageSlug = form.packageSlug.trim();
 
   if (!packageSlug) {
@@ -1055,11 +1738,23 @@ export function resolvePublishInput(form: Pick<UploadVersionInput, "packageSlug"
     throw new Error("Version is required.");
   }
 
+  let categories: string[] = [];
+  if (Array.isArray(form.categories)) {
+    categories = form.categories;
+  } else if (typeof form.categories === "string") {
+    categories = (form.categories as string)
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+  }
+
   return {
     packageSlug,
     packageName: form.packageName.trim() || titleize(packageSlug),
-    description: form.description.trim() || `Internal ${packageSlug} skill package.`,
-    version
+    description:
+      form.description.trim() || `Internal ${packageSlug} skill package.`,
+    categories,
+    version,
   };
 }
 
@@ -1069,16 +1764,21 @@ export function buildUploadRequest(packageSlug: string, version: string) {
     packageName: titleize(packageSlug),
     description: `Internal ${packageSlug} skill package.`,
     version,
-    entries: [] as UploadVersionInput["entries"]
+    entries: [] as UploadVersionInput["entries"],
   };
 }
 
-export function pickActiveVersion(latestApproved: SkillVersion | undefined, versions: SkillVersion[]): SkillVersion | undefined {
+export function pickActiveVersion(
+  latestApproved: SkillVersion | undefined,
+  versions: SkillVersion[]
+): SkillVersion | undefined {
   if (versions.length === 0) {
     return latestApproved;
   }
 
-  const sorted = [...versions].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+  const sorted = [...versions].sort(
+    (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)
+  );
   const newest = sorted[0];
 
   if (!newest) {
@@ -1096,18 +1796,28 @@ export function pickActiveVersion(latestApproved: SkillVersion | undefined, vers
   return latestApproved;
 }
 
-export async function loadCatalogSkills(api: WebApiClient, workspaceId: string, query?: string): Promise<CatalogSkill[]> {
+export async function loadCatalogSkills(
+  api: WebApiClient,
+  workspaceId: string,
+  query?: string
+): Promise<CatalogSkill[]> {
   const [packages, reports, catalogStats] = await Promise.all([
     api.search(workspaceId, query),
     api.workspaceReports(workspaceId).catch(() => []),
-    api.workspaceCatalogStats(workspaceId).catch(() => [])
+    api.workspaceCatalogStats(workspaceId).catch(() => []),
   ]);
-  const reportsByPackage = new Map(reports.map((report) => [report.packageId, report]));
-  const statsByPackage = new Map(catalogStats.map((stats) => [stats.packageId, stats]));
+  const reportsByPackage = new Map(
+    reports.map((report) => [report.packageId, report])
+  );
+  const statsByPackage = new Map(
+    catalogStats.map((stats) => [stats.packageId, stats])
+  );
 
   return Promise.all(
     packages.map(async (pkg) => {
-      const latestApproved = await api.latestApprovedVersion(pkg.id).catch(() => undefined);
+      const latestApproved = await api
+        .latestApprovedVersion(pkg.id)
+        .catch(() => undefined);
       const versions = await api.packageVersions(pkg.id).catch(() => []);
       const activeVersion = pickActiveVersion(latestApproved, versions);
       const report = reportsByPackage.get(pkg.id);
@@ -1122,56 +1832,131 @@ export async function loadCatalogSkills(api: WebApiClient, workspaceId: string, 
         files: validation?.files.map((file) => file.path) ?? [],
         installs: report?.installs.total ?? 0,
         downloads: stats?.downloads ?? report?.downloads ?? 0,
-        downloadHistory: stats?.downloadHistory ?? report?.downloadHistory ?? emptyDownloadHistory(),
-        lastModifiedAt: stats?.lastModifiedAt ?? report?.lastModifiedAt ?? resolveLastModifiedAt(versions),
-        staleInstalls: (report?.installs.byState.stale ?? 0) + (report?.installs.byState["modified-local-content"] ?? 0),
-        report
+        downloadHistory:
+          stats?.downloadHistory ??
+          report?.downloadHistory ??
+          emptyDownloadHistory(),
+        lastModifiedAt:
+          stats?.lastModifiedAt ??
+          report?.lastModifiedAt ??
+          resolveLastModifiedAt(versions),
+        staleInstalls:
+          (report?.installs.byState.stale ?? 0) +
+          (report?.installs.byState["modified-local-content"] ?? 0),
+        report,
       };
     })
   );
 }
 
-export function createWebApiClient({ registryUrl = "", token, request = fetch }: { registryUrl?: string; token?: string; request?: typeof fetch } = {}): WebApiClient {
+export function createWebApiClient({
+  registryUrl = "",
+  token,
+  request = fetch,
+}: {
+  registryUrl?: string;
+  token?: string;
+  request?: typeof fetch;
+} = {}): WebApiClient {
   const baseUrl = registryUrl.replace(/\/$/, "");
 
   return {
     async search(workspaceId, query) {
-      const url = new URL(`${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/packages`, window.location.origin);
+      const url = new URL(
+        `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/packages`,
+        window.location.origin
+      );
 
       if (query) {
         url.searchParams.set("q", query);
       }
 
-      return (await jsonRequest<{ packages: SkillPackage[] }>(request, url, authHeaders(token))).packages;
+      return (
+        await jsonRequest<{ packages: SkillPackage[] }>(
+          request,
+          url,
+          authHeaders(token)
+        )
+      ).packages;
     },
     async latestApprovedVersion(packageId) {
-      return (await jsonRequest<{ version: SkillVersion }>(request, `${baseUrl}/api/packages/${encodeURIComponent(packageId)}/latest-approved`, authHeaders(token))).version;
+      return (
+        await jsonRequest<{ version: SkillVersion }>(
+          request,
+          `${baseUrl}/api/packages/${encodeURIComponent(packageId)}/latest-approved`,
+          authHeaders(token)
+        )
+      ).version;
     },
     async packageVersions(packageId) {
-      return (await jsonRequest<{ versions: SkillVersion[] }>(request, `${baseUrl}/api/packages/${encodeURIComponent(packageId)}/versions`, authHeaders(token))).versions;
+      return (
+        await jsonRequest<{ versions: SkillVersion[] }>(
+          request,
+          `${baseUrl}/api/packages/${encodeURIComponent(packageId)}/versions`,
+          authHeaders(token)
+        )
+      ).versions;
     },
     async workspaceCatalogStats(workspaceId) {
-      return (await jsonRequest<{ stats: CatalogPackageStats[] }>(request, `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/catalog-stats`, authHeaders(token))).stats;
+      return (
+        await jsonRequest<{ stats: CatalogPackageStats[] }>(
+          request,
+          `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/catalog-stats`,
+          authHeaders(token)
+        )
+      ).stats;
     },
     async workspaceReports(workspaceId) {
-      return (await jsonRequest<{ reports: PackageReport[] }>(request, `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/reports`, authHeaders(token))).reports;
+      return (
+        await jsonRequest<{ reports: PackageReport[] }>(
+          request,
+          `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/reports`,
+          authHeaders(token)
+        )
+      ).reports;
     },
     async uploadVersion(workspaceId, input) {
-      return (await jsonRequest<{ version: SkillVersion }>(request, `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/packages/upload`, jsonInit(input, token))).version;
+      return (
+        await jsonRequest<{ version: SkillVersion }>(
+          request,
+          `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/packages/upload`,
+          jsonInit(input, token)
+        )
+      ).version;
     },
     async importGitVersion(workspaceId, input) {
-      return (await jsonRequest<{ version: SkillVersion }>(request, `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/packages/import-git`, jsonInit(input, token))).version;
+      return (
+        await jsonRequest<{ version: SkillVersion }>(
+          request,
+          `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/packages/import-git`,
+          jsonInit(input, token)
+        )
+      ).version;
     },
     async validatePackageTree(entries) {
-      return (await jsonRequest<{ validation: ValidationResult }>(request, `${baseUrl}/api/validation/package-tree`, jsonInit({ entries }, token))).validation;
+      return (
+        await jsonRequest<{ validation: ValidationResult }>(
+          request,
+          `${baseUrl}/api/validation/package-tree`,
+          jsonInit({ entries }, token)
+        )
+      ).validation;
     },
     async transitionVersion(versionId, toState) {
-      return (await jsonRequest<{ version: SkillVersion }>(request, `${baseUrl}/api/versions/${encodeURIComponent(versionId)}/lifecycle`, jsonInit({ toState }, token))).version;
-    }
+      return (
+        await jsonRequest<{ version: SkillVersion }>(
+          request,
+          `${baseUrl}/api/versions/${encodeURIComponent(versionId)}/lifecycle`,
+          jsonInit({ toState }, token)
+        )
+      ).version;
+    },
   };
 }
 
-export async function filesToPackageEntries(files: File[]): Promise<UploadVersionInput["entries"]> {
+export async function filesToPackageEntries(
+  files: File[]
+): Promise<UploadVersionInput["entries"]> {
   return Promise.all(
     files.map(async (file) => {
       const browserFile = file as File & { webkitRelativePath?: string };
@@ -1181,7 +1966,9 @@ export async function filesToPackageEntries(files: File[]): Promise<UploadVersio
 
       // Text files keep the original {path, content} shape; binary assets (images,
       // .pptx, fonts, ...) are base64-encoded so they round-trip byte-for-byte.
-      return text === null ? { path, content: base64FromBytes(bytes), encoding: "base64" as const } : { path, content: text };
+      return text === null
+        ? { path, content: base64FromBytes(bytes), encoding: "base64" as const }
+        : { path, content: text };
     })
   );
 }
@@ -1212,8 +1999,12 @@ export function summarizeReports(reports: PackageReport[]) {
     (summary, report) => ({
       packages: summary.packages + 1,
       installs: summary.installs + report.installs.total,
-      currentInstalls: summary.currentInstalls + report.installs.byState.current,
-      staleInstalls: summary.staleInstalls + report.installs.byState.stale + report.installs.byState["modified-local-content"]
+      currentInstalls:
+        summary.currentInstalls + report.installs.byState.current,
+      staleInstalls:
+        summary.staleInstalls +
+        report.installs.byState.stale +
+        report.installs.byState["modified-local-content"],
     }),
     { packages: 0, installs: 0, currentInstalls: 0, staleInstalls: 0 }
   );
@@ -1227,7 +2018,10 @@ function artifactDownloadUrl(registryUrl: string, skill: CatalogSkill) {
   }
 
   const baseUrl = registryUrl.replace(/\/$/, "");
-  const url = new URL(`${baseUrl}/api/artifacts/${encodeURIComponent(version.artifactDigest)}/download`, window.location.origin);
+  const url = new URL(
+    `${baseUrl}/api/artifacts/${encodeURIComponent(version.artifactDigest)}/download`,
+    window.location.origin
+  );
   url.searchParams.set("packageId", skill.pkg.id);
   url.searchParams.set("versionId", version.id);
   return url.toString();
@@ -1237,11 +2031,37 @@ function buildGitImportCurl(workspaceId: string, packageSlug: string) {
   return `POST /api/workspaces/${workspaceId}/packages/import-git  ${packageSlug}@main`;
 }
 
-function NavButton({ icon, label, active, onClick }: { icon: ReactNode; label: string; active: boolean; onClick: () => void }) {
-  return <button className={active ? "active" : undefined} aria-label={label} aria-current={active ? "page" : undefined} onClick={onClick}>{icon}<span>{label}</span></button>;
+function NavButton({
+  icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={active ? "active" : undefined}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      onClick={onClick}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
 }
 
-function FeaturedSkill({ skill, onOpen }: { skill: CatalogSkill; onOpen: () => void }) {
+function FeaturedSkill({
+  skill,
+  onOpen,
+}: {
+  skill: CatalogSkill;
+  onOpen: () => void;
+}) {
   return (
     <article className="featured-skill">
       <div>
@@ -1250,7 +2070,9 @@ function FeaturedSkill({ skill, onOpen }: { skill: CatalogSkill; onOpen: () => v
         <p>{skill.pkg.description}</p>
         <SkillStatsMeta
           compact
-          version={skill.latestApproved?.version ?? skill.activeVersion?.version}
+          version={
+            skill.latestApproved?.version ?? skill.activeVersion?.version
+          }
           downloads={skill.downloads}
           downloadHistory={skill.downloadHistory}
           updatedAt={skill.pkg.updatedAt}
@@ -1262,11 +2084,52 @@ function FeaturedSkill({ skill, onOpen }: { skill: CatalogSkill; onOpen: () => v
   );
 }
 
+function CategoryFilter({
+  categories,
+  selectedCategory,
+  onSelectCategory,
+  catalog,
+}: {
+  categories: string[];
+  selectedCategory: string;
+  onSelectCategory: (cat: string) => void;
+  catalog: CatalogSkill[];
+}) {
+  return (
+    <div className="category-filter-bar">
+      <button
+        type="button"
+        className={`category-pill ${selectedCategory === "all" ? "active" : ""}`}
+        onClick={() => onSelectCategory("all")}
+      >
+        All <span className="count">({catalog.length})</span>
+      </button>
+      {categories.map((cat) => {
+        const count = catalog.filter((skill) =>
+          skill.pkg.categories
+            ?.map((c) => c.toLowerCase())
+            .includes(cat.toLowerCase())
+        ).length;
+        return (
+          <button
+            key={cat}
+            type="button"
+            className={`category-pill ${selectedCategory === cat.toLowerCase() ? "active" : ""}`}
+            onClick={() => onSelectCategory(cat.toLowerCase())}
+          >
+            {titleize(cat)} <span className="count">({count})</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function SkillList({
   catalog,
   selectedId,
   onSelect,
-  emptyMessage
+  emptyMessage,
 }: {
   catalog: CatalogSkill[];
   selectedId?: string;
@@ -1274,24 +2137,48 @@ function SkillList({
   emptyMessage?: string;
 }) {
   if (catalog.length === 0) {
-    return <p className="empty-catalog-copy">{emptyMessage ?? "No skills in the catalog yet."}</p>;
+    return (
+      <p className="empty-catalog-copy">
+        {emptyMessage ?? "No skills in the catalog yet."}
+      </p>
+    );
   }
 
   return (
     <div className="list">
-      {catalog.map((skill) => <SkillRow key={skill.pkg.id} skill={skill} active={skill.pkg.id === selectedId} onSelect={() => onSelect(skill.pkg.id)} />)}
+      {catalog.map((skill) => (
+        <SkillRow
+          key={skill.pkg.id}
+          skill={skill}
+          active={skill.pkg.id === selectedId}
+          onSelect={() => onSelect(skill.pkg.id)}
+        />
+      ))}
     </div>
   );
 }
 
-function ReportPanel({ catalog, summary }: { catalog: CatalogSkill[]; summary: ReturnType<typeof summarizeReports> }) {
+function ReportPanel({
+  catalog,
+  summary,
+}: {
+  catalog: CatalogSkill[];
+  summary: ReturnType<typeof summarizeReports>;
+}) {
   return (
     <section className="report-panel">
-      <div className="panel-title"><BarChart3 size={17} />Adoption report</div>
+      <div className="panel-title">
+        <BarChart3 size={17} />
+        Adoption report
+      </div>
       <div className="report-grid">
         <Metric label="Packages" value={summary.packages} />
         <Metric label="Current" value={summary.currentInstalls} />
-        <Metric label="Needs update" value={summary.staleInstalls} tone="warn" />
+        <Metric
+          label="Needs update"
+          value={summary.staleInstalls}
+          tone="warn"
+        />
       </div>
       <div className="report-table" role="table" aria-label="Package reports">
         {catalog.map((skill) => (
@@ -1310,7 +2197,7 @@ function LoginScreen({
   branding,
   onSignIn,
   signingIn = false,
-  checkingSession = false
+  checkingSession = false,
 }: {
   branding: RegistryBrandingConfig;
   onSignIn: () => void;
@@ -1325,12 +2212,36 @@ function LoginScreen({
   return (
     <main className="login-shell">
       <div className="login-card">
-        <div className="mark" style={{ margin: "0 auto 20px" }}>{branding.appShortName}</div>
-        <h1 style={{ fontSize: "2.2rem", textAlign: "center", marginBottom: "8px" }}>{branding.appName}</h1>
-        <p style={{ textAlign: "center", maxWidth: "360px", margin: "0 auto 8px", color: "var(--muted)", fontSize: "0.92rem" }}>
+        <div className="mark" style={{ margin: "0 auto 20px" }}>
+          {branding.appShortName}
+        </div>
+        <h1
+          style={{
+            fontSize: "2.2rem",
+            textAlign: "center",
+            marginBottom: "8px",
+          }}
+        >
+          {branding.appName}
+        </h1>
+        <p
+          style={{
+            textAlign: "center",
+            maxWidth: "360px",
+            margin: "0 auto 8px",
+            color: "var(--muted)",
+            fontSize: "0.92rem",
+          }}
+        >
           {branding.registryTagline}
         </p>
-        <p style={{ textAlign: "center", maxWidth: "360px", margin: "0 auto 32px" }}>
+        <p
+          style={{
+            textAlign: "center",
+            maxWidth: "360px",
+            margin: "0 auto 32px",
+          }}
+        >
           {branding.loginSubtitle}
         </p>
         {busy ? (
@@ -1357,7 +2268,7 @@ function TeamPanel({
   onRoleChange,
   onDeleteUser,
   onRefresh,
-  notice
+  notice,
 }: {
   members: AdminUser[];
   loading: boolean;
@@ -1375,8 +2286,13 @@ function TeamPanel({
     <section className="admin-panel" aria-label="Team roster">
       <div className="admin-header">
         <div>
-          <div className="panel-title"><Users size={17} />Team</div>
-          <p style={{ margin: "0", color: "var(--muted)", fontSize: "0.88rem" }}>
+          <div className="panel-title">
+            <Users size={17} />
+            Team
+          </div>
+          <p
+            style={{ margin: "0", color: "var(--muted)", fontSize: "0.88rem" }}
+          >
             {teammates.length === 0
               ? "Only you have signed in so far"
               : `You and ${teammates.length} other ${teammates.length === 1 ? "teammate" : "teammates"}`}
@@ -1393,7 +2309,11 @@ function TeamPanel({
         <article className="admin-self-card">
           <div className="admin-user-cell">
             <div className="admin-user-avatar">
-              {currentUser.image ? <img src={currentUser.image} alt="" /> : <User size={16} />}
+              {currentUser.image ? (
+                <img src={currentUser.image} alt="" />
+              ) : (
+                <User size={16} />
+              )}
             </div>
             <div>
               <strong>{currentUser.name}</strong>
@@ -1401,13 +2321,23 @@ function TeamPanel({
             </div>
           </div>
           <div className="admin-self-meta">
-            <span className={`session-role role-${currentUser.role}`}>{formatRoleLabel(currentUser.role)}</span>
+            <span className={`session-role role-${currentUser.role}`}>
+              {formatRoleLabel(currentUser.role)}
+            </span>
             {selfRecord ? (
               <>
                 <span className="admin-self-joined">
-                  Joined {new Date(selfRecord.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  Joined{" "}
+                  {new Date(selfRecord.created_at).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
                 </span>
-                <span className="admin-self-submissions">{selfRecord.skillsSubmitted} skill{selfRecord.skillsSubmitted === 1 ? "" : "s"} submitted</span>
+                <span className="admin-self-submissions">
+                  {selfRecord.skillsSubmitted} skill
+                  {selfRecord.skillsSubmitted === 1 ? "" : "s"} submitted
+                </span>
               </>
             ) : null}
           </div>
@@ -1417,12 +2347,16 @@ function TeamPanel({
       <section className="admin-section" aria-label="Roles">
         <h3 className="admin-section-title">Roles</h3>
         <div className="admin-role-legend">
-          {(Object.keys(WORKSPACE_ROLE_LABELS) as WorkspaceRole[]).map((role) => (
-            <div className="admin-role-legend-item" key={role}>
-              <span className={`session-role role-${role}`}>{WORKSPACE_ROLE_LABELS[role]}</span>
-              <p>{WORKSPACE_ROLE_DESCRIPTIONS[role]}</p>
-            </div>
-          ))}
+          {(Object.keys(WORKSPACE_ROLE_LABELS) as WorkspaceRole[]).map(
+            (role) => (
+              <div className="admin-role-legend-item" key={role}>
+                <span className={`session-role role-${role}`}>
+                  {WORKSPACE_ROLE_LABELS[role]}
+                </span>
+                <p>{WORKSPACE_ROLE_DESCRIPTIONS[role]}</p>
+              </div>
+            )
+          )}
         </div>
       </section>
 
@@ -1437,7 +2371,11 @@ function TeamPanel({
         ) : members.length === 0 ? (
           <div className="admin-empty">No teammates have signed in yet.</div>
         ) : (
-          <div className={`admin-table ${canManageRoles ? "admin-table--manageable" : "admin-table--readonly"}`} role="table" aria-label="Team members">
+          <div
+            className={`admin-table ${canManageRoles ? "admin-table--manageable" : "admin-table--readonly"}`}
+            role="table"
+            aria-label="Team members"
+          >
             <div className="admin-table-head" role="row">
               <span>User</span>
               <span>Role</span>
@@ -1459,7 +2397,11 @@ function TeamPanel({
         )}
       </section>
 
-      {notice && <p className="notice" role="status" style={{ margin: "16px 0 0" }}>{notice}</p>}
+      {notice && (
+        <p className="notice" role="status" style={{ margin: "16px 0 0" }}>
+          {notice}
+        </p>
+      )}
     </section>
   );
 }
@@ -1469,7 +2411,7 @@ function TeamMemberRow({
   isSelf,
   canManageRoles,
   onRoleChange,
-  onDeleteUser
+  onDeleteUser,
 }: {
   user: AdminUser;
   isSelf: boolean;
@@ -1484,7 +2426,10 @@ function TeamMemberRow({
           {user.image ? <img src={user.image} alt="" /> : <User size={14} />}
         </div>
         <div>
-          <strong>{user.name}{isSelf ? " (you)" : ""}</strong>
+          <strong>
+            {user.name}
+            {isSelf ? " (you)" : ""}
+          </strong>
           <span className="admin-user-email">{user.email}</span>
         </div>
       </div>
@@ -1493,22 +2438,32 @@ function TeamMemberRow({
           <div className="role-select-wrapper">
             <select
               value={user.role}
-              onChange={(event) => void onRoleChange(user.id, event.target.value)}
+              onChange={(event) =>
+                void onRoleChange(user.id, event.target.value)
+              }
               className={`role-select role-${user.role}`}
             >
               <option value="user">{WORKSPACE_ROLE_LABELS.user}</option>
-              <option value="maintainer">{WORKSPACE_ROLE_LABELS.maintainer}</option>
+              <option value="maintainer">
+                {WORKSPACE_ROLE_LABELS.maintainer}
+              </option>
               <option value="admin">{WORKSPACE_ROLE_LABELS.admin}</option>
             </select>
             <ChevronDown size={12} className="role-select-chevron" />
           </div>
         ) : (
-          <span className={`session-role role-${user.role}`}>{formatRoleLabel(user.role)}</span>
+          <span className={`session-role role-${user.role}`}>
+            {formatRoleLabel(user.role)}
+          </span>
         )}
       </div>
       <span className="admin-submissions-cell">{user.skillsSubmitted}</span>
       <span className="admin-date-cell">
-        {new Date(user.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+        {new Date(user.created_at).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })}
       </span>
       {canManageRoles ? (
         <div className="admin-actions-cell">
@@ -1527,39 +2482,69 @@ function TeamMemberRow({
   );
 }
 
-function SkillRow({ skill, active, onSelect }: { skill: CatalogSkill; active: boolean; onSelect: () => void }) {
+function SkillRow({
+  skill,
+  active,
+  onSelect,
+}: {
+  skill: CatalogSkill;
+  active: boolean;
+  onSelect: () => void;
+}) {
   return (
-    <article className={active ? "skill-row active" : "skill-row"} onClick={onSelect}>
+    <article
+      className={active ? "skill-row active" : "skill-row"}
+      onClick={onSelect}
+    >
       <div className="skill-row-main">
         <div className="skill-row-copy">
           <h2>{skill.pkg.name}</h2>
           <p>{skill.pkg.description}</p>
-          <div className="tags">{skill.pkg.categories.map((category) => <span key={category}>{category}</span>)}</div>
+          <div className="tags">
+            {skill.pkg.categories.map((category) => (
+              <span key={category}>{category}</span>
+            ))}
+          </div>
         </div>
         <SkillStatsMeta
           compact
-          version={skill.latestApproved?.version ?? skill.activeVersion?.version}
+          version={
+            skill.latestApproved?.version ?? skill.activeVersion?.version
+          }
           downloads={skill.downloads}
           downloadHistory={skill.downloadHistory}
           updatedAt={skill.pkg.updatedAt}
           lastModifiedAt={skill.lastModifiedAt}
         />
       </div>
-      <LifecycleBadge state={skill.activeVersion?.lifecycleState ?? skill.latestApproved?.lifecycleState ?? "draft"} />
+      <LifecycleBadge
+        state={
+          skill.activeVersion?.lifecycleState ??
+          skill.latestApproved?.lifecycleState ??
+          "draft"
+        }
+      />
     </article>
   );
 }
 
-async function jsonRequest<T>(request: typeof fetch, input: string | URL, init?: RequestInit | HeadersInit): Promise<T> {
+async function jsonRequest<T>(
+  request: typeof fetch,
+  input: string | URL,
+  init?: RequestInit | HeadersInit
+): Promise<T> {
   const requestInit = toRequestInit(init);
   const response = await request(input, {
     ...requestInit,
-    credentials: "include"
+    credentials: "include",
   });
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(body || `Registry request failed: ${response.status} ${response.statusText}`);
+    throw new Error(
+      body ||
+        `Registry request failed: ${response.status} ${response.statusText}`
+    );
   }
 
   return (await response.json()) as T;
@@ -1569,12 +2554,18 @@ function authHeaders(token: string | undefined): HeadersInit {
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 
-function toRequestInit(init: RequestInit | HeadersInit | undefined): RequestInit | undefined {
+function toRequestInit(
+  init: RequestInit | HeadersInit | undefined
+): RequestInit | undefined {
   if (!init) {
     return undefined;
   }
 
-  if (init instanceof Headers || Array.isArray(init) || !("headers" in init || "method" in init || "body" in init)) {
+  if (
+    init instanceof Headers ||
+    Array.isArray(init) ||
+    !("headers" in init || "method" in init || "body" in init)
+  ) {
     return { headers: init as HeadersInit };
   }
 
@@ -1587,9 +2578,9 @@ function jsonInit(body: unknown, token: string | undefined): RequestInit {
     credentials: "include",
     headers: {
       "content-type": "application/json",
-      ...authHeaders(token)
+      ...authHeaders(token),
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   };
 }
 
@@ -1617,8 +2608,21 @@ function LifecycleBadge({ state }: { state: LifecycleState }) {
   return <span className={`badge ${state}`}>{state}</span>;
 }
 
-function Metric({ label, value, tone }: { label: string; value: number; tone?: "warn" }) {
-  return <div className={tone === "warn" ? "metric warn" : "metric"}><span>{label}</span><strong>{value}</strong></div>;
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "warn";
+}) {
+  return (
+    <div className={tone === "warn" ? "metric warn" : "metric"}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
 }
 
 function titleize(slug: string) {
@@ -1628,11 +2632,79 @@ function titleize(slug: string) {
     .join(" ");
 }
 
-function packageData(id: string, slug: string, name: string, description: string, categories: string[]): SkillPackage {
-  return { id, workspaceId: "workspace-1", slug, name, description, categories, createdAt: "2026-06-07T10:00:00.000Z", updatedAt: "2026-06-07T12:00:00.000Z" };
+function parseSimpleFrontmatter(content: string): Record<string, any> {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return {};
+  const yamlText = match[1] || "";
+  const result: Record<string, any> = {};
+  const lines = yamlText.split(/\r?\n/);
+  let currentKey: string | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    if (trimmed.startsWith("-") && currentKey) {
+      const val = trimmed
+        .slice(1)
+        .trim()
+        .replace(/^["']|["']$/g, "");
+      if (val) {
+        if (!Array.isArray(result[currentKey])) {
+          result[currentKey] = [];
+        }
+        result[currentKey].push(val);
+      }
+      continue;
+    }
+
+    const colonIndex = line.indexOf(":");
+    if (colonIndex !== -1) {
+      const key = line.slice(0, colonIndex).trim();
+      const val = line.slice(colonIndex + 1).trim();
+      currentKey = key;
+
+      if (val.startsWith("[") && val.endsWith("]")) {
+        result[key] = val
+          .slice(1, -1)
+          .split(",")
+          .map((s) => s.trim().replace(/^["']|["']$/g, ""))
+          .filter(Boolean);
+      } else if (val) {
+        result[key] = val.replace(/^["']|["']$/g, "");
+      }
+    } else {
+      currentKey = null;
+    }
+  }
+  return result;
 }
 
-function version(id: string, packageId: string, semver: string, lifecycleState: LifecycleState): SkillVersion {
+function packageData(
+  id: string,
+  slug: string,
+  name: string,
+  description: string,
+  categories: string[]
+): SkillPackage {
+  return {
+    id,
+    workspaceId: "workspace-1",
+    slug,
+    name,
+    description,
+    categories,
+    createdAt: "2026-06-07T10:00:00.000Z",
+    updatedAt: "2026-06-07T12:00:00.000Z",
+  };
+}
+
+function version(
+  id: string,
+  packageId: string,
+  semver: string,
+  lifecycleState: LifecycleState
+): SkillVersion {
   return {
     id,
     packageId,
@@ -1642,7 +2714,8 @@ function version(id: string, packageId: string, semver: string, lifecycleState: 
     validation: { ok: true, files: [], issues: [] },
     provenance: { kind: "upload", importedAt: "2026-06-07T12:00:00.000Z" },
     createdAt: "2026-06-07T12:00:00.000Z",
-    approvedAt: lifecycleState === "approved" ? "2026-06-07T12:05:00.000Z" : undefined
+    approvedAt:
+      lifecycleState === "approved" ? "2026-06-07T12:05:00.000Z" : undefined,
   };
 }
 
@@ -1654,7 +2727,7 @@ function emptyDownloadHistory(): DownloadHistoryPoint[] {
 
     return {
       date: day.toISOString().slice(0, 10),
-      count: 0
+      count: 0,
     };
   });
 }
@@ -1664,17 +2737,26 @@ function demoDownloadHistory(counts: number[]): DownloadHistoryPoint[] {
 
   return history.map((point, index) => ({
     ...point,
-    count: counts[index] ?? 0
+    count: counts[index] ?? 0,
   }));
 }
 
 function resolveLastModifiedAt(versions: SkillVersion[]): string {
-  const sorted = [...versions].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+  const sorted = [...versions].sort(
+    (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)
+  );
 
   return sorted[0]?.createdAt ?? new Date(0).toISOString();
 }
 
-function packageReport(packageId: string, versionCount: number, installs: number, downloads: number, current: number, stale: number): PackageReport {
+function packageReport(
+  packageId: string,
+  versionCount: number,
+  installs: number,
+  downloads: number,
+  current: number,
+  stale: number
+): PackageReport {
   return {
     packageId,
     workspaceId: "workspace-1",
@@ -1682,7 +2764,9 @@ function packageReport(packageId: string, versionCount: number, installs: number
     latestApprovedVersionId: `version-${packageId}`,
     views: downloads * 2,
     downloads,
-    downloadHistory: demoDownloadHistory([1, 2, 3, 2, 4, 3, 5, 4, 6, 5, 4, 3, 5, 4]),
+    downloadHistory: demoDownloadHistory([
+      1, 2, 3, 2, 4, 3, 5, 4, 6, 5, 4, 3, 5, 4,
+    ]),
     lastModifiedAt: "2026-06-07T12:00:00.000Z",
     installs: {
       total: installs,
@@ -1693,8 +2777,8 @@ function packageReport(packageId: string, versionCount: number, installs: number
         hidden: 0,
         "unknown-registry": 0,
         "missing-metadata": 0,
-        "modified-local-content": 0
-      }
-    }
+        "modified-local-content": 0,
+      },
+    },
   };
 }

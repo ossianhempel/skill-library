@@ -13,5 +13,20 @@
   "emptyCatalogTitle": "Your registry is empty.",
   "emptyCatalogDescription": "Upload a skill package or import one from Git to populate the catalog.",
   "emptyCatalogListMessage": "No approved skills yet. Publish a draft and approve it to list it here.",
-  "uploadDescription": "Upload a skill package folder from your machine. The folder must contain a SKILL.md file at its root."
+  "uploadDescription": "Upload a skill package folder from your machine. The folder must contain a SKILL.md file at its root.",
+  "statusDraftBg": "#52525b",
+  "statusDraftText": "#f4f4f5",
+  "statusDraftBorder": "#71717a",
+  "statusApprovedBg": "#166534",
+  "statusApprovedText": "#f0fdf4",
+  "statusApprovedBorder": "#15803d",
+  "statusPublishedBg": "#854d0e",
+  "statusPublishedText": "#fef9c3",
+  "statusPublishedBorder": "#a16207",
+  "statusHiddenBg": "#3730a3",
+  "statusHiddenText": "#e0e7ff",
+  "statusHiddenBorder": "#4338ca",
+  "statusDeprecatedBg": "#991b1b",
+  "statusDeprecatedText": "#fee2e2",
+  "statusDeprecatedBorder": "#b91c1c"
 }

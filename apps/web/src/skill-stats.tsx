@@ -8,7 +8,7 @@ export function formatSkillDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    year: "numeric"
+    year: "numeric",
   });
 }
 
@@ -16,7 +16,7 @@ export function DownloadSparkline({
   history,
   width = 72,
   height = 24,
-  label = "Download trend"
+  label = "Download trend",
 }: {
   history: DownloadHistoryPoint[];
   width?: number;
@@ -61,7 +61,7 @@ export function SkillStatsMeta({
   downloadHistory,
   updatedAt,
   lastModifiedAt,
-  compact = false
+  compact = false,
 }: {
   version?: string;
   downloads: number;
@@ -71,7 +71,9 @@ export function SkillStatsMeta({
   compact?: boolean;
 }) {
   return (
-    <div className={compact ? "skill-stats skill-stats--compact" : "skill-stats"}>
+    <div
+      className={compact ? "skill-stats skill-stats--compact" : "skill-stats"}
+    >
       <span className="skill-stat">
         <em>Version</em>
         <strong>{version ?? "—"}</strong>
@@ -80,9 +82,6 @@ export function SkillStatsMeta({
         <em>Downloads</em>
         <strong>{downloads}</strong>
       </span>
-      <span className="skill-stat skill-stat--sparkline" aria-hidden={downloadHistory.every((point) => point.count === 0)}>
-        <DownloadSparkline history={downloadHistory} />
-      </span>
       <span className="skill-stat">
         <em>Updated</em>
         <strong>{formatSkillDate(updatedAt)}</strong>
@@ -90,6 +89,12 @@ export function SkillStatsMeta({
       <span className="skill-stat">
         <em>Last modified</em>
         <strong>{formatSkillDate(lastModifiedAt)}</strong>
+      </span>
+      <span
+        className="skill-stat skill-stat--sparkline"
+        aria-hidden={downloadHistory.every((point) => point.count === 0)}
+      >
+        <DownloadSparkline history={downloadHistory} />
       </span>
     </div>
   );
