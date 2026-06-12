@@ -168,6 +168,12 @@ export function SkillLibraryApp({
   const [activeTab, setActiveTab] = useState<AppTab>("overview");
   const [activeToken, setActiveToken] = useState(() => authToken);
   const [dragOver, setDragOver] = useState(false);
+  const [filesExpanded, setFilesExpanded] = useState(false);
+
+  useEffect(() => {
+    setFilesExpanded(false);
+  }, [selectedId]);
+
   const apiClient = useMemo(() => api ?? createWebApiClient({ registryUrl, token: activeToken }), [api, registryUrl, activeToken]);
 
   // Session state for Better Auth SSO
@@ -937,7 +943,31 @@ export function SkillLibraryApp({
           <div className="split">
             <div className="panel">
               <div className="panel-title"><FileCode2 size={17} />Contents</div>
-              <ul className="file-tree">{selected.files.map((file) => <li key={file}>{file}</li>)}</ul>
+              <ul className="file-tree">
+                {selected.files.slice(0, 5).map((file) => (
+                  <li key={file}>{file}</li>
+                ))}
+                {filesExpanded && selected.files.slice(5).map((file) => (
+                  <li key={file}>{file}</li>
+                ))}
+              </ul>
+              {selected.files.length > 5 && (
+                <button
+                  type="button"
+                  className="toggle-files-button"
+                  onClick={() => setFilesExpanded(!filesExpanded)}
+                  aria-label={filesExpanded ? "Show less files" : "Show more files"}
+                >
+                  <span>{filesExpanded ? "Show less" : `Show ${selected.files.length - 5} more files`}</span>
+                  <ChevronDown
+                    size={15}
+                    style={{
+                      transform: filesExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 0.2s ease"
+                    }}
+                  />
+                </button>
+              )}
             </div>
 
             <div className="panel">

@@ -634,6 +634,30 @@ p { color: var(--muted); line-height: 1.45; }
   font-size: var(--font-size-sm);
 }
 
+.toggle-files-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  width: 100%;
+  margin-top: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  background: var(--paper);
+  border: 1px dashed var(--line);
+  color: var(--accent);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-files-button:hover {
+  background: #eee8d8;
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .validation-copy { min-height: 56px; }
 
 .validation-panel {

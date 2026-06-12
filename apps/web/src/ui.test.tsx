@@ -200,6 +200,56 @@ describe("SkillLibraryApp", () => {
   it("converts selected browser files to package-tree entries", async () => {
     await expect(filesToPackageEntries([new File(["# Demo\n"], "SKILL.md")])).resolves.toEqual([{ path: "SKILL.md", content: "# Demo\n" }]);
   });
+
+  it("renders at most 5 files by default and toggles additional files on click", () => {
+    const multiFileSkill = {
+      ...skill,
+      files: [
+        "SKILL.md",
+        "file1.txt",
+        "file2.txt",
+        "file3.txt",
+        "file4.txt",
+        "file5.txt",
+        "file6.txt",
+        "file7.txt"
+      ]
+    };
+
+    render(<SkillLibraryApp skills={[multiFileSkill]} branding={testBranding} />);
+    
+    // Switch to Catalog to view detail pane
+    fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+
+    // The first 5 files should be visible
+    expect(screen.queryByText("file1.txt")).toBeTruthy();
+    expect(screen.queryByText("file4.txt")).toBeTruthy();
+
+    // The 6th and 7th files should NOT be visible by default
+    expect(screen.queryByText("file5.txt")).toBeNull();
+    expect(screen.queryByText("file6.txt")).toBeNull();
+
+    // The toggle button should show the remaining count
+    const toggleBtn = screen.getByRole("button", { name: "Show more files" });
+    expect(toggleBtn.textContent).toContain("Show 3 more files");
+
+    // Click the toggle button to expand
+    fireEvent.click(toggleBtn);
+
+    // Now all files should be visible
+    expect(screen.queryByText("file5.txt")).toBeTruthy();
+    expect(screen.queryByText("file6.txt")).toBeTruthy();
+    expect(screen.queryByText("file7.txt")).toBeTruthy();
+    expect(toggleBtn.getAttribute("aria-label")).toBe("Show less files");
+    expect(toggleBtn.textContent).toContain("Show less");
+
+    // Click again to collapse
+    fireEvent.click(toggleBtn);
+
+    // Extra files should be hidden again
+    expect(screen.queryByText("file5.txt")).toBeNull();
+    expect(screen.queryByText("file6.txt")).toBeNull();
+  });
 });
 
 const pkg: SkillPackage = {
