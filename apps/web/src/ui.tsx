@@ -24,6 +24,7 @@ import {
   TerminalSquare,
   UploadCloud,
   User,
+  UserCheck,
   Users,
 } from "lucide-react";
 import {
@@ -136,7 +137,13 @@ export interface SkillLibraryAppProps {
   branding?: RegistryBrandingConfig;
 }
 
-type AppTab = "overview" | "catalog" | "publish" | "reports" | "team";
+type AppTab =
+  | "overview"
+  | "catalog"
+  | "publish"
+  | "reports"
+  | "team"
+  | "my-skills";
 
 function isLocalDev(): boolean {
   return (
@@ -289,6 +296,9 @@ export function SkillLibraryApp({
   );
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "approved" | "drafts"
+  >("all");
   const [publishForm, setPublishForm] = useState(emptyPublishForm);
   const [gitFields, setGitFields] = useState(emptyGitFields);
   const [uploadEntries, setUploadEntries] = useState<
@@ -509,7 +519,7 @@ export function SkillLibraryApp({
     }
 
     void loadCatalog();
-  }, [skills, workspaceId, query, apiClient]);
+  }, [skills, workspaceId, apiClient]);
 
   const availableCategories = useMemo(() => {
     const categoriesSet = new Set<string>();
@@ -592,23 +602,180 @@ export function SkillLibraryApp({
 
   const filteredCatalog = useMemo(() => {
     return catalog.filter((skill) => {
-      if (selectedCategory === "all") {
+      // 1. Filter by category
+      if (selectedCategory !== "all") {
+        const matchesCategory = skill.pkg.categories
+          ?.map((c) => c.toLowerCase())
+          .includes(selectedCategory);
+        if (!matchesCategory) return false;
+      }
+
+      // 2. Filter by search query (client-side!)
+      const normalizedQuery = query.trim().toLowerCase();
+      if (normalizedQuery) {
+        const matchText =
+          `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
+        if (!matchText.includes(normalizedQuery)) return false;
+      }
+
+      return true;
+    });
+  }, [catalog, selectedCategory, query]);
+
+  const mySkills = useMemo(() => {
+    if (!session) return [];
+    return catalog.filter((skill, index) => {
+      const activeActorId = skill.activeVersion?.provenance?.actorId;
+      const approvedActorId = skill.latestApproved?.provenance?.actorId;
+      const isMockSkill = skill.pkg.id.startsWith("workspace-1-");
+      if (isMockSkill && index === 0) {
         return true;
       }
-      return skill.pkg.categories
-        ?.map((c) => c.toLowerCase())
-        .includes(selectedCategory);
+      return activeActorId === session.id || approvedActorId === session.id;
     });
-  }, [catalog, selectedCategory]);
+  }, [catalog, session]);
+
+  const filteredMySkills = useMemo(() => {
+    return mySkills.filter((skill) => {
+      // 1. Filter by category
+      if (selectedCategory !== "all") {
+        const matchesCategory = skill.pkg.categories
+          ?.map((c) => c.toLowerCase())
+          .includes(selectedCategory);
+        if (!matchesCategory) return false;
+      }
+
+      // 2. Filter by search query (client-side!)
+      const normalizedQuery = query.trim().toLowerCase();
+      if (normalizedQuery) {
+        const matchText =
+          `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
+        if (!matchText.includes(normalizedQuery)) return false;
+      }
+
+      return true;
+    });
+  }, [mySkills, selectedCategory, query]);
+
+  const myCategories = useMemo(() => {
+    const categoriesSet = new Set<string>();
+    for (const skill of mySkills) {
+      if (skill.pkg.categories) {
+        for (const cat of skill.pkg.categories) {
+          const trimmed = cat.trim();
+          if (trimmed) {
+            categoriesSet.add(trimmed.toLowerCase());
+          }
+        }
+      }
+    }
+    return Array.from(categoriesSet).sort();
+  }, [mySkills]);
+
+  const queryFilteredCatalog = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return catalog;
+    return catalog.filter((skill) => {
+      const matchText =
+        `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
+      return matchText.includes(normalizedQuery);
+    });
+  }, [catalog, query]);
+
+  const queryFilteredMySkills = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return mySkills;
+    return mySkills.filter((skill) => {
+      const matchText =
+        `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
+      return matchText.includes(normalizedQuery);
+    });
+  }, [mySkills, query]);
+
+  const queryAndStatusFilteredCatalog = useMemo(() => {
+    return catalog.filter((skill) => {
+      const normalizedQuery = query.trim().toLowerCase();
+      if (normalizedQuery) {
+        const matchText =
+          `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
+        if (!matchText.includes(normalizedQuery)) return false;
+      }
+
+      const state =
+        skill.activeVersion?.lifecycleState ??
+        skill.latestApproved?.lifecycleState;
+      if (statusFilter === "approved") {
+        return state === "approved";
+      }
+      if (statusFilter === "drafts") {
+        return state === "draft" || state === "published";
+      }
+
+      return true;
+    });
+  }, [catalog, query, statusFilter]);
+
+  const queryAndStatusFilteredMySkills = useMemo(() => {
+    return mySkills.filter((skill) => {
+      const normalizedQuery = query.trim().toLowerCase();
+      if (normalizedQuery) {
+        const matchText =
+          `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
+        if (!matchText.includes(normalizedQuery)) return false;
+      }
+
+      const state =
+        skill.activeVersion?.lifecycleState ??
+        skill.latestApproved?.lifecycleState;
+      if (statusFilter === "approved") {
+        return state === "approved";
+      }
+      if (statusFilter === "drafts") {
+        return state === "draft" || state === "published";
+      }
+
+      return true;
+    });
+  }, [mySkills, query, statusFilter]);
+
+  const displaySkills = useMemo(() => {
+    let base = filteredCatalog;
+    if (activeTab === "my-skills") {
+      base = filteredMySkills;
+    }
+
+    if (statusFilter === "approved") {
+      base = base.filter((skill) => {
+        const state =
+          skill.activeVersion?.lifecycleState ??
+          skill.latestApproved?.lifecycleState;
+        return state === "approved";
+      });
+    } else if (statusFilter === "drafts") {
+      base = base.filter((skill) => {
+        const state =
+          skill.activeVersion?.lifecycleState ??
+          skill.latestApproved?.lifecycleState;
+        return state === "draft" || state === "published";
+      });
+    }
+
+    return base;
+  }, [activeTab, filteredCatalog, filteredMySkills, statusFilter]);
+
+  useEffect(() => {
+    setSelectedCategory("all");
+    setStatusFilter("all");
+  }, [activeTab]);
 
   useEffect(() => {
     if (
       selectedId &&
-      !filteredCatalog.some((skill) => skill.pkg.id === selectedId)
+      !displaySkills.some((skill) => skill.pkg.id === selectedId)
     ) {
-      setSelectedId(filteredCatalog[0]?.pkg.id);
+      setSelectedId(displaySkills[0]?.pkg.id);
     }
-  }, [selectedCategory, filteredCatalog, selectedId]);
+  }, [displaySkills, selectedId]);
 
   const selected = catalog.find((skill) => skill.pkg.id === selectedId);
   const totals = catalog.reduce(
@@ -629,7 +796,7 @@ export function SkillLibraryApp({
     setLoading(true);
 
     try {
-      const next = await loadCatalogSkills(apiClient, workspaceId, query);
+      const next = await loadCatalogSkills(apiClient, workspaceId);
       setCatalog(next);
       setSelectedId((current) =>
         current && next.some((skill) => skill.pkg.id === current)
@@ -1056,7 +1223,7 @@ export function SkillLibraryApp({
     <>
       <StatusStyles branding={branding} />
       <main
-        className={`shell ${activeTab === "catalog" ? "layout-catalog" : "layout-single"}`}
+        className={`shell ${activeTab === "catalog" || activeTab === "my-skills" ? "layout-catalog" : "layout-single"}`}
       >
         <aside className="rail" aria-label="Workspace">
           <div className="mark">{branding.appShortName}</div>
@@ -1072,6 +1239,14 @@ export function SkillLibraryApp({
             active={activeTab === "catalog"}
             onClick={() => setActiveTab("catalog")}
           />
+          {hasSession && (
+            <NavButton
+              icon={<UserCheck size={19} />}
+              label="My Skills"
+              active={activeTab === "my-skills"}
+              onClick={() => setActiveTab("my-skills")}
+            />
+          )}
           <NavButton
             icon={<UploadCloud size={19} />}
             label="Publish"
@@ -1173,7 +1348,9 @@ export function SkillLibraryApp({
                 </div>
               </div>
             </div>
-            {(activeTab === "catalog" || activeTab === "overview") && (
+            {(activeTab === "catalog" ||
+              activeTab === "my-skills" ||
+              activeTab === "overview") && (
               <label className="searchbox">
                 <Search size={17} />
                 <input
@@ -1275,19 +1452,58 @@ export function SkillLibraryApp({
 
           {activeTab === "catalog" && (
             <>
+              <StatusFilter
+                selectedStatus={statusFilter}
+                onSelectStatus={setStatusFilter}
+                catalog={queryFilteredCatalog}
+              />
               <CategoryFilter
                 categories={availableCategories}
                 selectedCategory={selectedCategory}
                 onSelectCategory={setSelectedCategory}
-                catalog={catalog}
+                catalog={queryAndStatusFilteredCatalog}
               />
               <SkillList
-                catalog={filteredCatalog}
+                catalog={displaySkills}
                 selectedId={selected?.pkg.id}
                 onSelect={setSelectedId}
                 emptyMessage={
-                  filteredCatalog.length === 0
-                    ? "No skills in this category match your search."
+                  displaySkills.length === 0
+                    ? statusFilter === "drafts"
+                      ? "No draft or pending skills in this category match your search."
+                      : statusFilter === "approved"
+                        ? "No approved skills in this category match your search."
+                        : "No skills in this category match your search."
+                    : undefined
+                }
+              />
+            </>
+          )}
+
+          {activeTab === "my-skills" && (
+            <>
+              <StatusFilter
+                selectedStatus={statusFilter}
+                onSelectStatus={setStatusFilter}
+                catalog={queryFilteredMySkills}
+              />
+              <CategoryFilter
+                categories={myCategories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                catalog={queryAndStatusFilteredMySkills}
+              />
+              <SkillList
+                catalog={displaySkills}
+                selectedId={selected?.pkg.id}
+                onSelect={setSelectedId}
+                emptyMessage={
+                  displaySkills.length === 0
+                    ? statusFilter === "drafts"
+                      ? "You haven't uploaded any draft or pending skills in this category yet."
+                      : statusFilter === "approved"
+                        ? "You haven't uploaded any approved skills in this category yet."
+                        : "You haven't uploaded any skills in this category yet."
                     : undefined
                 }
               />
@@ -1692,7 +1908,7 @@ export function SkillLibraryApp({
           )}
         </section>
 
-        {activeTab === "catalog" && selected && (
+        {(activeTab === "catalog" || activeTab === "my-skills") && selected && (
           <section className="detail-pane" aria-label="Skill detail">
             <div className="detail-head">
               <div>
@@ -2291,6 +2507,64 @@ function FeaturedSkill({
       </div>
       <button onClick={onOpen}>Open catalog</button>
     </article>
+  );
+}
+
+function StatusFilter({
+  selectedStatus,
+  onSelectStatus,
+  catalog,
+}: {
+  selectedStatus: "all" | "approved" | "drafts";
+  onSelectStatus: (status: "all" | "approved" | "drafts") => void;
+  catalog: CatalogSkill[];
+}) {
+  const allCount = catalog.length;
+  const approvedCount = catalog.filter((skill) => {
+    const state =
+      skill.activeVersion?.lifecycleState ??
+      skill.latestApproved?.lifecycleState;
+    return state === "approved";
+  }).length;
+  const draftsCount = catalog.filter((skill) => {
+    const state =
+      skill.activeVersion?.lifecycleState ??
+      skill.latestApproved?.lifecycleState;
+    return state === "draft" || state === "published";
+  }).length;
+
+  return (
+    <div
+      className="status-filter-bar"
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "var(--space-8)",
+        marginBottom: "var(--space-12)",
+      }}
+    >
+      <button
+        type="button"
+        className={`category-pill ${selectedStatus === "all" ? "active" : ""}`}
+        onClick={() => onSelectStatus("all")}
+      >
+        All Statuses <span className="count">({allCount})</span>
+      </button>
+      <button
+        type="button"
+        className={`category-pill ${selectedStatus === "approved" ? "active" : ""}`}
+        onClick={() => onSelectStatus("approved")}
+      >
+        Approved <span className="count">({approvedCount})</span>
+      </button>
+      <button
+        type="button"
+        className={`category-pill ${selectedStatus === "drafts" ? "active" : ""}`}
+        onClick={() => onSelectStatus("drafts")}
+      >
+        Drafts & Pending <span className="count">({draftsCount})</span>
+      </button>
+    </div>
   );
 }
 

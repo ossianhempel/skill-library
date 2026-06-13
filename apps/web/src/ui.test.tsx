@@ -388,6 +388,75 @@ describe("SkillLibraryApp", () => {
     expect(screen.queryByText("file5.txt")).toBeNull();
     expect(screen.queryByText("file6.txt")).toBeNull();
   });
+
+  it("renders My Skills tab when a session is active and filters user's skills", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url) => {
+      if (url.includes("/api/auth/get-session")) {
+        return new Response(
+          JSON.stringify({
+            user: {
+              id: "user-123",
+              name: "Alice",
+              email: "alice@example.com",
+              image: null,
+              role: "user",
+            },
+          })
+        );
+      }
+      return new Response(JSON.stringify({}));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Create a skill uploaded by Alice, and one uploaded by Bob
+    const skillAlice = {
+      ...skill,
+      pkg: { ...skill.pkg, id: "package-alice", name: "Alice Skill" },
+      latestApproved: {
+        ...skill.latestApproved,
+        provenance: { kind: "upload" as const, actorId: "user-123" },
+      },
+      activeVersion: {
+        ...skill.activeVersion,
+        provenance: { kind: "upload" as const, actorId: "user-123" },
+      },
+    };
+
+    const skillBob = {
+      ...skill,
+      pkg: { ...skill.pkg, id: "package-bob", name: "Bob Skill" },
+      latestApproved: {
+        ...skill.latestApproved,
+        provenance: { kind: "upload" as const, actorId: "user-456" },
+      },
+      activeVersion: {
+        ...skill.activeVersion,
+        provenance: { kind: "upload" as const, actorId: "user-456" },
+      },
+    };
+
+    render(
+      <SkillLibraryApp
+        skills={[skillAlice, skillBob]}
+        branding={testBranding}
+      />
+    );
+
+    // Wait for the session to load and show the My Skills button
+    const mySkillsBtn = await screen.findByRole("button", {
+      name: "My Skills",
+    });
+    expect(mySkillsBtn).toBeTruthy();
+
+    // Go to My Skills tab
+    fireEvent.click(mySkillsBtn);
+
+    // Should render Alice's skill, but not Bob's skill
+    expect(screen.getAllByText("Alice Skill").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Bob Skill")).toBeNull();
+
+    vi.unstubAllGlobals();
+  });
 });
 
 const pkg: SkillPackage = {

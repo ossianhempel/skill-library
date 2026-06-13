@@ -2,23 +2,45 @@ import { Hono } from "hono";
 import { createRegistryApi, type RegistryApi } from "./index.js";
 import type { RegistryStore, TeamMemberRecord } from "@skill-library/storage";
 import type { PackageTreeEntry } from "@skill-library/validation";
-import type { LifecycleState, RegistryBrandingConfig, Workspace } from "@skill-library/domain";
-import { actorFromHeaders, devHeaderAuthEnabled, hasRole, parseRole } from "./auth.js";
-import { getBetterAuthInstance, type BetterAuthInstance } from "./better-auth.js";
+import type {
+  LifecycleState,
+  RegistryBrandingConfig,
+  Workspace,
+} from "@skill-library/domain";
+import {
+  actorFromHeaders,
+  devHeaderAuthEnabled,
+  hasRole,
+  parseRole,
+} from "./auth.js";
+import {
+  getBetterAuthInstance,
+  type BetterAuthInstance,
+} from "./better-auth.js";
 import { getOrCreateAgentToken } from "./agent-token.js";
 
-export function createHttpApp(store: RegistryStore, branding: RegistryBrandingConfig) {
+export function createHttpApp(
+  store: RegistryStore,
+  branding: RegistryBrandingConfig
+) {
   const api = createRegistryApi(store);
   const auth = getBetterAuthInstance(store);
   const app = new Hono();
-  const resolveActor = (headers: Headers) => actorFromHeaders(headers, auth, store);
+  const resolveActor = (headers: Headers) =>
+    actorFromHeaders(headers, auth, store);
 
-  async function canAccessWorkspace(headers: Headers, workspace: Workspace): Promise<boolean> {
+  async function canAccessWorkspace(
+    headers: Headers,
+    workspace: Workspace
+  ): Promise<boolean> {
     const actor = await resolveActor(headers);
     return workspace.visibility === "public" || hasRole(actor, "user");
   }
 
-  async function canAccessPackage(headers: Headers, packageId: string): Promise<boolean> {
+  async function canAccessPackage(
+    headers: Headers,
+    packageId: string
+  ): Promise<boolean> {
     const pkg = await api.packageDetail(packageId);
 
     if (!pkg) {
@@ -29,14 +51,18 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     return !workspace || (await canAccessWorkspace(headers, workspace));
   }
 
-  app.on(["POST", "GET"], "/api/auth/*", (context) => auth.handler(context.req.raw));
+  app.on(["POST", "GET"], "/api/auth/*", (context) =>
+    auth.handler(context.req.raw)
+  );
 
   app.get("/health", (context) => context.json({ ok: true, mode: store.mode }));
 
   app.get("/api/config", (context) => context.json({ branding }));
 
   app.get("/api/workspaces/:workspaceId", async (context) => {
-    const workspace = await api.workspaceDetail(context.req.param("workspaceId"));
+    const workspace = await api.workspaceDetail(
+      context.req.param("workspaceId")
+    );
 
     if (!workspace) {
       return context.json({ error: "Workspace not found" }, 404);
@@ -56,18 +82,27 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Admin role required" }, 403);
     }
 
-    const body = (await context.req.json()) as { reportingPolicy?: string; visibility?: string };
+    const body = (await context.req.json()) as {
+      reportingPolicy?: string;
+      visibility?: string;
+    };
     const reportingPolicy = parseReportingPolicy(body.reportingPolicy);
     const visibility = parseVisibility(body.visibility);
 
-    if ((body.reportingPolicy && !reportingPolicy) || (body.visibility && !visibility)) {
-      return context.json({ error: "Request body includes invalid workspace settings." }, 400);
+    if (
+      (body.reportingPolicy && !reportingPolicy) ||
+      (body.visibility && !visibility)
+    ) {
+      return context.json(
+        { error: "Request body includes invalid workspace settings." },
+        400
+      );
     }
 
     const workspace = await api.updateWorkspace({
       workspaceId: context.req.param("workspaceId"),
       reportingPolicy,
-      visibility
+      visibility,
     });
 
     if (!workspace) {
@@ -81,7 +116,10 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     const workspaceId = context.req.param("workspaceId");
     const workspace = await api.workspaceDetail(workspaceId);
 
-    if (workspace && !(await canAccessWorkspace(context.req.raw.headers, workspace))) {
+    if (
+      workspace &&
+      !(await canAccessWorkspace(context.req.raw.headers, workspace))
+    ) {
       return context.json({ error: "User role required" }, 403);
     }
 
@@ -97,6 +135,14 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     for (const pkg of packages) {
       if (await api.latestApprovedVersion(pkg.id)) {
         installablePackages.push(pkg);
+      } else if (actor) {
+        const versions = await api.packageVersions(pkg.id);
+        const hasUserVersion = versions.some(
+          (v) => v.provenance.actorId === actor.id
+        );
+        if (hasUserVersion) {
+          installablePackages.push(pkg);
+        }
       }
     }
 
@@ -121,11 +167,18 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.get("/api/packages/:packageId/latest-approved", async (context) => {
-    if (!(await canAccessPackage(context.req.raw.headers, context.req.param("packageId")))) {
+    if (
+      !(await canAccessPackage(
+        context.req.raw.headers,
+        context.req.param("packageId")
+      ))
+    ) {
       return context.json({ error: "User role required" }, 403);
     }
 
-    const version = await api.latestApprovedVersion(context.req.param("packageId"));
+    const version = await api.latestApprovedVersion(
+      context.req.param("packageId")
+    );
 
     if (!version) {
       return context.json({ error: "Approved version not found" }, 404);
@@ -151,7 +204,12 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   });
 
   app.get("/api/packages/:packageId/versions", async (context) => {
-    if (!(await canAccessPackage(context.req.raw.headers, context.req.param("packageId")))) {
+    if (
+      !(await canAccessPackage(
+        context.req.raw.headers,
+        context.req.param("packageId")
+      ))
+    ) {
       return context.json({ error: "User role required" }, 403);
     }
 
@@ -159,7 +217,11 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     const versions = await api.packageVersions(context.req.param("packageId"));
 
     if (!hasRole(actor, "maintainer")) {
-      return context.json({ versions: versions.filter((entry) => entry.lifecycleState === "approved") });
+      return context.json({
+        versions: versions.filter(
+          (entry) => entry.lifecycleState === "approved"
+        ),
+      });
     }
 
     return context.json({ versions });
@@ -178,7 +240,10 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
 
     const actor = await resolveActor(context.req.raw.headers);
 
-    if (!hasRole(actor, "maintainer") && version.lifecycleState !== "approved") {
+    if (
+      !hasRole(actor, "maintainer") &&
+      version.lifecycleState !== "approved"
+    ) {
       return context.json({ error: "Approved version required" }, 403);
     }
 
@@ -202,7 +267,10 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     try {
       return context.json(await api.ingestArtifact(body.entries), 201);
     } catch (error) {
-      return context.json({ error: error instanceof Error ? error.message : "Invalid artifact" }, 422);
+      return context.json(
+        { error: error instanceof Error ? error.message : "Invalid artifact" },
+        422
+      );
     }
   });
 
@@ -223,8 +291,20 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       actorId?: string;
     };
 
-    if (!body.packageSlug || !body.packageName || !body.description || !body.version || !Array.isArray(body.entries)) {
-      return context.json({ error: "Request body must include packageSlug, packageName, description, version, and entries." }, 400);
+    if (
+      !body.packageSlug ||
+      !body.packageName ||
+      !body.description ||
+      !body.version ||
+      !Array.isArray(body.entries)
+    ) {
+      return context.json(
+        {
+          error:
+            "Request body must include packageSlug, packageName, description, version, and entries.",
+        },
+        400
+      );
     }
 
     try {
@@ -236,59 +316,90 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
         categories: body.categories,
         version: body.version,
         entries: body.entries,
-        actorId: body.actorId ?? actor?.id
+        actorId: body.actorId ?? actor?.id,
       });
 
       return context.json({ version }, 201);
     } catch (error) {
-      return context.json({ error: error instanceof Error ? error.message : "Unable to publish uploaded package." }, 422);
-    }
-  });
-
-  app.post("/api/workspaces/:workspaceId/packages/import-git", async (context) => {
-    const actor = await resolveActor(context.req.raw.headers);
-
-    if (!hasRole(actor, "user")) {
-      return context.json({ error: "Sign-in required" }, 403);
-    }
-
-    const body = (await context.req.json()) as {
-      packageSlug?: string;
-      packageName?: string;
-      description?: string;
-      categories?: string[];
-      version?: string;
-      repositoryPath?: string;
-      ref?: string;
-      subdirectory?: string;
-      actorId?: string;
-    };
-
-    if (!body.packageSlug || !body.packageName || !body.description || !body.version || !body.repositoryPath) {
-      return context.json({ error: "Request body must include packageSlug, packageName, description, version, and repositoryPath." }, 400);
-    }
-
-    try {
-      const version = await api.createGitImportedVersion({
-        workspaceId: context.req.param("workspaceId"),
-        packageSlug: body.packageSlug,
-        packageName: body.packageName,
-        description: body.description,
-        categories: body.categories,
-        version: body.version,
-        git: {
-          repositoryPath: body.repositoryPath,
-          ref: body.ref,
-          subdirectory: body.subdirectory
+      return context.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unable to publish uploaded package.",
         },
-        actorId: body.actorId ?? actor?.id
-      });
-
-      return context.json({ version }, 201);
-    } catch (error) {
-      return context.json({ error: error instanceof Error ? error.message : "Unable to import Git package." }, 422);
+        422
+      );
     }
   });
+
+  app.post(
+    "/api/workspaces/:workspaceId/packages/import-git",
+    async (context) => {
+      const actor = await resolveActor(context.req.raw.headers);
+
+      if (!hasRole(actor, "user")) {
+        return context.json({ error: "Sign-in required" }, 403);
+      }
+
+      const body = (await context.req.json()) as {
+        packageSlug?: string;
+        packageName?: string;
+        description?: string;
+        categories?: string[];
+        version?: string;
+        repositoryPath?: string;
+        ref?: string;
+        subdirectory?: string;
+        actorId?: string;
+      };
+
+      if (
+        !body.packageSlug ||
+        !body.packageName ||
+        !body.description ||
+        !body.version ||
+        !body.repositoryPath
+      ) {
+        return context.json(
+          {
+            error:
+              "Request body must include packageSlug, packageName, description, version, and repositoryPath.",
+          },
+          400
+        );
+      }
+
+      try {
+        const version = await api.createGitImportedVersion({
+          workspaceId: context.req.param("workspaceId"),
+          packageSlug: body.packageSlug,
+          packageName: body.packageName,
+          description: body.description,
+          categories: body.categories,
+          version: body.version,
+          git: {
+            repositoryPath: body.repositoryPath,
+            ref: body.ref,
+            subdirectory: body.subdirectory,
+          },
+          actorId: body.actorId ?? actor?.id,
+        });
+
+        return context.json({ version }, 201);
+      } catch (error) {
+        return context.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Unable to import Git package.",
+          },
+          422
+        );
+      }
+    }
+  );
 
   app.post("/api/versions/:versionId/lifecycle", async (context) => {
     const actor = await resolveActor(context.req.raw.headers);
@@ -297,11 +408,18 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Maintainer role required" }, 403);
     }
 
-    const body = (await context.req.json()) as { toState?: string; actorId?: string; replacementVersionId?: string };
+    const body = (await context.req.json()) as {
+      toState?: string;
+      actorId?: string;
+      replacementVersionId?: string;
+    };
     const toState = parseLifecycleState(body.toState);
 
     if (!toState) {
-      return context.json({ error: "Request body must include a valid toState." }, 400);
+      return context.json(
+        { error: "Request body must include a valid toState." },
+        400
+      );
     }
 
     let version;
@@ -311,10 +429,18 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
         versionId: context.req.param("versionId"),
         toState,
         actorId: body.actorId ?? actor?.id,
-        replacementVersionId: body.replacementVersionId
+        replacementVersionId: body.replacementVersionId,
       });
     } catch (error) {
-      return context.json({ error: error instanceof Error ? error.message : "Unable to transition version." }, 422);
+      return context.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unable to transition version.",
+        },
+        422
+      );
     }
 
     if (!version) {
@@ -329,7 +455,10 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     const versionId = context.req.query("versionId");
 
     if (!packageId || !versionId) {
-      return context.json({ error: "packageId and versionId query parameters are required." }, 400);
+      return context.json(
+        { error: "packageId and versionId query parameters are required." },
+        400
+      );
     }
 
     const version = await api.versionDetail(versionId);
@@ -348,7 +477,10 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
 
     const actor = await resolveActor(context.req.raw.headers);
 
-    if (!hasRole(actor, "maintainer") && version.lifecycleState !== "approved") {
+    if (
+      !hasRole(actor, "maintainer") &&
+      version.lifecycleState !== "approved"
+    ) {
       return context.json({ error: "Approved version required" }, 403);
     }
 
@@ -363,8 +495,8 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     return new Response(new Uint8Array(download.content), {
       headers: {
         "content-disposition": `attachment; filename="${download.artifact.digest.replace(":", "-")}.zip"`,
-        "content-type": "application/zip"
-      }
+        "content-type": "application/zip",
+      },
     });
   });
 
@@ -379,7 +511,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       workspaceId: context.req.param("workspaceId"),
       eventType: parseUsageEventType(context.req.query("eventType")),
       packageId: context.req.query("packageId"),
-      versionId: context.req.query("versionId")
+      versionId: context.req.query("versionId"),
     });
 
     return context.json({ count });
@@ -392,7 +524,9 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "Maintainer role required" }, 403);
     }
 
-    const reports = await api.workspaceReports(context.req.param("workspaceId"));
+    const reports = await api.workspaceReports(
+      context.req.param("workspaceId")
+    );
     return context.json({ reports });
   });
 
@@ -400,7 +534,10 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     const workspaceId = context.req.param("workspaceId");
     const workspace = await api.workspaceDetail(workspaceId);
 
-    if (workspace && !(await canAccessWorkspace(context.req.raw.headers, workspace))) {
+    if (
+      workspace &&
+      !(await canAccessWorkspace(context.req.raw.headers, workspace))
+    ) {
       return context.json({ error: "User role required" }, 403);
     }
 
@@ -415,10 +552,22 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({ error: "User role required" }, 403);
     }
 
-    const body = (await context.req.json()) as Parameters<RegistryApi["recordInstallReport"]>[0];
+    const body = (await context.req.json()) as Parameters<
+      RegistryApi["recordInstallReport"]
+    >[0];
 
-    if (!body.installId || !body.packageId || !body.versionId || !body.state || !body.reportedAt || !body.targetKind) {
-      return context.json({ error: "Request body must include install report fields." }, 400);
+    if (
+      !body.installId ||
+      !body.packageId ||
+      !body.versionId ||
+      !body.state ||
+      !body.reportedAt ||
+      !body.targetKind
+    ) {
+      return context.json(
+        { error: "Request body must include install report fields." },
+        400
+      );
     }
 
     await api.recordInstallReport(body);
@@ -437,13 +586,16 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
           const token = await getOrCreateAgentToken(store, session.user.id);
 
           if (!token) {
-            return context.json({ error: "Could not create agent token." }, 500);
+            return context.json(
+              { error: "Could not create agent token." },
+              500
+            );
           }
 
           return context.json({
             token,
             role: parseRole(user.role ?? null) ?? "user",
-            actorId: session.user.id
+            actorId: session.user.id,
           });
         }
       } catch (error) {
@@ -463,7 +615,7 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
       return context.json({
         token,
         role: actor.role,
-        actorId: actor.id
+        actorId: actor.id,
       });
     }
 
@@ -508,7 +660,13 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
     const role = parseAdminRole(body.role);
 
     if (!role) {
-      return context.json({ error: "Request body must include a valid role (user, maintainer, or admin)." }, 400);
+      return context.json(
+        {
+          error:
+            "Request body must include a valid role (user, maintainer, or admin).",
+        },
+        400
+      );
     }
 
     const user = await store.updateUserRole(userId, role);
@@ -524,8 +682,8 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
         email: user.email,
         role: user.role,
         created_at: user.createdAt,
-        image: user.image
-      }
+        image: user.image,
+      },
     });
   });
 
@@ -544,7 +702,9 @@ export function createHttpApp(store: RegistryStore, branding: RegistryBrandingCo
   return app;
 }
 
-function parseAdminRole(value: string | undefined): "user" | "maintainer" | "admin" | undefined {
+function parseAdminRole(
+  value: string | undefined
+): "user" | "maintainer" | "admin" | undefined {
   if (value === "user" || value === "maintainer" || value === "admin") {
     return value;
   }
@@ -559,7 +719,7 @@ function mapTeamMemberRow(member: TeamMemberRecord) {
     role: member.role,
     created_at: member.createdAt,
     image: member.image,
-    skillsSubmitted: member.skillsSubmitted
+    skillsSubmitted: member.skillsSubmitted,
   };
 }
 
@@ -567,15 +727,25 @@ function parseUsageEventType(value: string | undefined) {
   return value === "view" || value === "download" ? value : undefined;
 }
 
-function parseLifecycleState(value: string | undefined): LifecycleState | undefined {
-  if (value === "draft" || value === "published" || value === "approved" || value === "hidden" || value === "deprecated") {
+function parseLifecycleState(
+  value: string | undefined
+): LifecycleState | undefined {
+  if (
+    value === "draft" ||
+    value === "published" ||
+    value === "approved" ||
+    value === "hidden" ||
+    value === "deprecated"
+  ) {
     return value;
   }
 
   return undefined;
 }
 
-function parseReportingPolicy(value: string | undefined): Workspace["reportingPolicy"] | undefined {
+function parseReportingPolicy(
+  value: string | undefined
+): Workspace["reportingPolicy"] | undefined {
   if (value === "disabled" || value === "opt-in" || value === "required") {
     return value;
   }
@@ -583,7 +753,9 @@ function parseReportingPolicy(value: string | undefined): Workspace["reportingPo
   return undefined;
 }
 
-function parseVisibility(value: string | undefined): Workspace["visibility"] | undefined {
+function parseVisibility(
+  value: string | undefined
+): Workspace["visibility"] | undefined {
   if (value === "public" || value === "private") {
     return value;
   }
@@ -591,7 +763,9 @@ function parseVisibility(value: string | undefined): Workspace["visibility"] | u
   return undefined;
 }
 
-async function parsePackageTreeBody(request: Request): Promise<{ entries: PackageTreeEntry[] }> {
+async function parsePackageTreeBody(
+  request: Request
+): Promise<{ entries: PackageTreeEntry[] }> {
   const body = (await request.json()) as { entries?: PackageTreeEntry[] };
 
   if (!Array.isArray(body.entries)) {
