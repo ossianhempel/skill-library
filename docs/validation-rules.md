@@ -2,28 +2,28 @@
 
 Validation runs before package publishing, Git import approval, CLI validation, and MCP validation. The shared validator normalizes directory and zip inputs into the same package-tree shape before applying rules.
 
-Rules follow the [Agent Skills specification](https://agentskills.io/specification). Implementation lives in `@skill-library/validation`; this document is the rule catalog.
+Rules follow the [Agent Skills specification](agent-skills-spec.md). Implementation lives in `@skill-library/validation`; this document is the rule catalog.
 
 ## Blocking Errors
 
 Structural rules (existing):
 
-| ruleId | Condition |
-|--------|-----------|
-| `required-skill-md` | Package must contain exactly one skill root with `SKILL.md`. |
-| `invalid-path` | Every artifact entry must have a file-relative path. |
-| `path-traversal` | Artifact paths cannot include `..` segments or escape the skill root. |
+| ruleId              | Condition                                                             |
+| ------------------- | --------------------------------------------------------------------- |
+| `required-skill-md` | Package must contain exactly one skill root with `SKILL.md`.          |
+| `invalid-path`      | Every artifact entry must have a file-relative path.                  |
+| `path-traversal`    | Artifact paths cannot include `..` segments or escape the skill root. |
 
 Open-spec frontmatter rules (errors):
 
-| ruleId | Condition |
-|--------|-----------|
-| `skill-md-missing-frontmatter` | `SKILL.md` at the detected skill root does not start with parseable YAML frontmatter delimited by `---`. |
-| `skill-md-missing-name` | Frontmatter lacks a non-empty `name`. |
-| `skill-md-missing-description` | Frontmatter lacks a non-empty `description`. |
-| `skill-md-invalid-name-format` | `name` violates spec: 1–64 chars, lowercase `a-z` / `0-9` / `-`, no leading/trailing hyphen, no consecutive hyphens (`--`). |
-| `skill-md-invalid-description-length` | `description` is empty or longer than 1024 characters. |
-| `skill-md-name-directory-mismatch` | Frontmatter `name` does not equal the skill root directory basename (when skill root is a named folder, e.g. `review-helper/SKILL.md` requires `name: review-helper`). |
+| ruleId                                | Condition                                                                                                                                                              |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `skill-md-missing-frontmatter`        | `SKILL.md` at the detected skill root does not start with parseable YAML frontmatter delimited by `---`.                                                               |
+| `skill-md-missing-name`               | Frontmatter lacks a non-empty `name`.                                                                                                                                  |
+| `skill-md-missing-description`        | Frontmatter lacks a non-empty `description`.                                                                                                                           |
+| `skill-md-invalid-name-format`        | `name` violates spec: 1–64 chars, lowercase `a-z` / `0-9` / `-`, no leading/trailing hyphen, no consecutive hyphens (`--`).                                            |
+| `skill-md-invalid-description-length` | `description` is empty or longer than 1024 characters.                                                                                                                 |
+| `skill-md-name-directory-mismatch`    | Frontmatter `name` does not equal the skill root directory basename (when skill root is a named folder, e.g. `review-helper/SKILL.md` requires `name: review-helper`). |
 
 Blocking errors prevent ordinary approval and artifact ingestion.
 
@@ -72,11 +72,11 @@ description: Name must match the skill directory basename.
 
 Warnings do not block approval or artifact ingestion. Reviewers should read them during catalog review.
 
-| ruleId | Condition |
-|--------|-----------|
-| `skill-md-body-empty` | Markdown body after frontmatter is empty or whitespace-only. |
-| `skill-md-body-large` | Body exceeds the recommended size threshold (`SKILL_MD_BODY_SIZE_WARNING_CHARS`, default 20_000 characters — approximates ~5000 tokens). |
-| `skill-md-slug-package-mismatch` | Publish metadata `packageSlug` differs from frontmatter `name` (when publish context is available). |
+| ruleId                           | Condition                                                                                                                                |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `skill-md-body-empty`            | Markdown body after frontmatter is empty or whitespace-only.                                                                             |
+| `skill-md-body-large`            | Body exceeds the recommended size threshold (`SKILL_MD_BODY_SIZE_WARNING_CHARS`, default 20_000 characters — approximates ~5000 tokens). |
+| `skill-md-slug-package-mismatch` | Publish metadata `packageSlug` differs from frontmatter `name` (when publish context is available).                                      |
 
 ## Artifact Inputs
 

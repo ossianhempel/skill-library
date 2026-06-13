@@ -268,7 +268,21 @@ export function SkillLibraryApp({
   const [branding, setBranding] = useState<RegistryBrandingConfig>(
     brandingProp ?? DEFAULT_REGISTRY_BRANDING
   );
-  const workspaceId = workspaceIdProp ?? branding.defaultWorkspaceId;
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>(
+    workspaceIdProp ?? branding.defaultWorkspaceId
+  );
+  const workspaceId = selectedWorkspaceId;
+  const [customWorkspaceId, setCustomWorkspaceId] = useState("");
+  const [isCreatingCustomWorkspace, setIsCreatingCustomWorkspace] =
+    useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState("");
+
+  useEffect(() => {
+    if (workspaceIdProp) {
+      setSelectedWorkspaceId(workspaceIdProp);
+    }
+  }, [workspaceIdProp]);
+
   const [catalog, setCatalog] = useState<CatalogSkill[]>(skills ?? []);
   const [selectedId, setSelectedId] = useState<string | undefined>(
     catalog[0]?.pkg.id
@@ -515,6 +529,66 @@ export function SkillLibraryApp({
     }
     return Array.from(categoriesSet).sort();
   }, [catalog]);
+
+  const availableWorkspaces = useMemo(() => {
+    const workspacesSet = new Set<string>();
+    if (workspaceIdProp) workspacesSet.add(workspaceIdProp);
+    if (branding.defaultWorkspaceId)
+      workspacesSet.add(branding.defaultWorkspaceId);
+    for (const skill of catalog) {
+      if (skill.pkg.workspaceId) {
+        workspacesSet.add(skill.pkg.workspaceId);
+      }
+    }
+    return Array.from(workspacesSet).sort();
+  }, [catalog, workspaceIdProp, branding.defaultWorkspaceId]);
+
+  const handleWorkspaceChange = (val: string) => {
+    if (val === "__new__") {
+      setIsCreatingCustomWorkspace(true);
+      setSelectedWorkspaceId(customWorkspaceId);
+    } else {
+      setIsCreatingCustomWorkspace(false);
+      setSelectedWorkspaceId(val);
+    }
+  };
+
+  const handleCustomWorkspaceChange = (val: string) => {
+    setCustomWorkspaceId(val);
+    setSelectedWorkspaceId(val);
+  };
+
+  const selectedCategoriesArray = useMemo(() => {
+    if (Array.isArray(publishForm.categories)) {
+      return publishForm.categories;
+    }
+    if (typeof publishForm.categories === "string") {
+      return publishForm.categories
+        .split(",")
+        .map((cat) => cat.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, [publishForm.categories]);
+
+  const categoriesToShow = useMemo(() => {
+    const set = new Set<string>(availableCategories);
+    for (const cat of selectedCategoriesArray) {
+      set.add(cat);
+    }
+    return Array.from(set).sort();
+  }, [availableCategories, selectedCategoriesArray]);
+
+  const handleAddCategory = () => {
+    const trimmed = newCategoryInput.trim().toLowerCase();
+    if (trimmed && !selectedCategoriesArray.includes(trimmed)) {
+      setPublishForm({
+        ...publishForm,
+        categories: [...selectedCategoriesArray, trimmed],
+      });
+    }
+    setNewCategoryInput("");
+  };
 
   const filteredCatalog = useMemo(() => {
     return catalog.filter((skill) => {
@@ -1064,7 +1138,40 @@ export function SkillLibraryApp({
           <header className="topbar">
             <div>
               <p className="kicker">{branding.registryTagline}</p>
-              <h1>{branding.appName}</h1>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <h1 style={{ margin: 0 }}>{branding.appName}</h1>
+                <div className="role-select-wrapper">
+                  <select
+                    className="role-select"
+                    value={workspaceId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "__new__") {
+                        setIsCreatingCustomWorkspace(true);
+                        setActiveTab("publish");
+                      } else {
+                        setIsCreatingCustomWorkspace(false);
+                        setSelectedWorkspaceId(val);
+                      }
+                    }}
+                    title="Active Workspace"
+                  >
+                    {availableWorkspaces.map((ws) => (
+                      <option key={ws} value={ws}>
+                        Workspace: {ws}
+                      </option>
+                    ))}
+                    <option value="__new__">+ New Workspace...</option>
+                  </select>
+                </div>
+              </div>
             </div>
             {(activeTab === "catalog" || activeTab === "overview") && (
               <label className="searchbox">
@@ -1218,8 +1325,37 @@ export function SkillLibraryApp({
                 <div className="form-grid">
                   <label>
                     Workspace
-                    <input value={workspaceId} readOnly />
+                    <select
+                      value={
+                        isCreatingCustomWorkspace ? "__new__" : workspaceId
+                      }
+                      onChange={(event) =>
+                        handleWorkspaceChange(event.target.value)
+                      }
+                    >
+                      {availableWorkspaces.map((ws) => (
+                        <option key={ws} value={ws}>
+                          {ws}
+                        </option>
+                      ))}
+                      <option value="__new__">
+                        + Create custom workspace...
+                      </option>
+                    </select>
                   </label>
+                  {isCreatingCustomWorkspace && (
+                    <label>
+                      New Workspace ID
+                      <input
+                        value={customWorkspaceId}
+                        placeholder="e.g. engineering"
+                        onChange={(event) =>
+                          handleCustomWorkspaceChange(event.target.value)
+                        }
+                        required
+                      />
+                    </label>
+                  )}
                   <label>
                     Slug
                     <input
@@ -1246,18 +1382,92 @@ export function SkillLibraryApp({
                       }
                     />
                   </label>
-                  <label>
-                    Categories (comma-separated)
-                    <input
-                      value={publishForm.categories ?? ""}
-                      placeholder="sales, marketing, finance"
-                      onChange={(event) =>
-                        setPublishForm({
-                          ...publishForm,
-                          categories: event.target.value,
+                  <label style={{ gridColumn: "span 3" }}>
+                    Categories
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "8px",
+                        marginTop: "6px",
+                        marginBottom: "8px",
+                        padding: "10px",
+                        background: "rgba(21, 23, 19, 0.03)",
+                        border: "1px solid var(--line)",
+                      }}
+                    >
+                      {categoriesToShow.length === 0 ? (
+                        <span
+                          style={{
+                            color: "var(--muted)",
+                            fontSize: "0.85rem",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          No categories selected. Select or add one below.
+                        </span>
+                      ) : (
+                        categoriesToShow.map((cat) => {
+                          const isSelected =
+                            selectedCategoriesArray.includes(cat);
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              className={`category-pill ${isSelected ? "active" : ""}`}
+                              onClick={() => {
+                                const nextCategories = isSelected
+                                  ? selectedCategoriesArray.filter(
+                                      (c) => c !== cat
+                                    )
+                                  : [...selectedCategoriesArray, cat];
+                                setPublishForm({
+                                  ...publishForm,
+                                  categories: nextCategories,
+                                });
+                              }}
+                              style={{ textTransform: "capitalize" }}
+                            >
+                              {cat}
+                              {isSelected && (
+                                <span
+                                  style={{
+                                    marginLeft: "4px",
+                                    fontSize: "0.8em",
+                                  }}
+                                >
+                                  ✓
+                                </span>
+                              )}
+                            </button>
+                          );
                         })
-                      }
-                    />
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        value={newCategoryInput}
+                        placeholder="Add a new custom category..."
+                        onChange={(event) =>
+                          setNewCategoryInput(event.target.value)
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            handleAddCategory();
+                          }
+                        }}
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        className="button"
+                        onClick={handleAddCategory}
+                        style={{ height: "40px", padding: "0 16px" }}
+                      >
+                        + Add
+                      </button>
+                    </div>
                   </label>
                   <label>
                     Name (optional)

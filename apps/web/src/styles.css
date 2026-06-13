@@ -137,6 +137,11 @@ button {
   gap: var(--space-8);
   cursor: pointer;
   text-decoration: none;
+  transition:
+    transform 0.1s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.1s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.1s ease,
+    border-color 0.1s ease;
 }
 
 .rail button:hover,
@@ -145,6 +150,14 @@ button {
 .featured-skill button:hover {
   transform: translateY(-1px);
   box-shadow: 4px 4px 0 var(--ink);
+}
+
+.rail button:active,
+.actions button:active,
+.button:active,
+.featured-skill button:active {
+  transform: translateY(3px) translateX(3px);
+  box-shadow: 1px 1px 0 var(--ink);
 }
 
 .rail button {
@@ -335,6 +348,10 @@ p {
   transform: translateY(-1px);
 }
 
+.mcp-connect-button:active {
+  transform: translateY(1px);
+}
+
 .mcp-connect-button.copied {
   border-color: var(--accent);
   background: rgba(232, 244, 236, 0.9);
@@ -433,7 +450,8 @@ p {
   font-weight: 800;
 }
 
-.form-grid input {
+.form-grid input,
+.form-grid select {
   width: 100%;
   border: 1px solid var(--line);
   background: #eee8d8;
@@ -441,6 +459,18 @@ p {
   padding: var(--space-10);
   font: inherit;
   min-width: 0;
+}
+
+.form-grid select {
+  height: 40px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23151713' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  padding-right: 36px;
 }
 
 .form-grid input::placeholder {
@@ -518,6 +548,21 @@ p {
   min-height: 34px;
   padding: 0 var(--space-12);
   cursor: pointer;
+  transition:
+    transform 0.1s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.1s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.1s ease,
+    border-color 0.1s ease;
+}
+
+.git-import button:hover {
+  transform: translateY(-1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.git-import button:active {
+  transform: translateY(3px) translateX(3px);
+  box-shadow: 1px 1px 0 var(--ink);
 }
 
 .git-fields {
@@ -599,6 +644,11 @@ p {
   background-color: var(--panel);
   transform: translateY(-1px);
   box-shadow: 4px 4px 0 var(--line);
+}
+
+.skill-row:active {
+  transform: translateY(3px) translateX(3px);
+  box-shadow: 1px 1px 0 var(--line);
 }
 
 .skill-row.active {
@@ -718,6 +768,10 @@ p {
   background: #eee8d8;
   border-color: var(--accent);
   color: var(--accent-strong);
+}
+
+.toggle-files-button:active {
+  transform: translateY(1px);
 }
 
 .validation-copy {
@@ -1039,6 +1093,11 @@ p {
   background: var(--accent);
 }
 
+.login-btn:active {
+  transform: translateY(3px) translateX(3px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
 .login-btn:disabled {
   opacity: 0.72;
   cursor: wait;
@@ -1152,6 +1211,7 @@ p {
   place-items: center;
   cursor: pointer;
   margin-top: 2px;
+  transition: all 0.12s ease;
 }
 
 .session-logout:hover {
@@ -1160,6 +1220,10 @@ p {
   border-color: var(--signal);
   transform: none;
   box-shadow: none;
+}
+
+.session-logout:active {
+  transform: scale(0.92);
 }
 
 /* ── Admin Panel ── */
@@ -1188,11 +1252,21 @@ p {
   cursor: pointer;
   font: inherit;
   font-size: var(--font-size-sm);
+  transition:
+    transform 0.1s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.1s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.1s ease,
+    border-color 0.1s ease;
 }
 
 .admin-header button:hover {
   transform: translateY(-1px);
   box-shadow: 3px 3px 0 var(--ink);
+}
+
+.admin-header button:active {
+  transform: translateY(2px) translateX(2px);
+  box-shadow: 1px 1px 0 var(--ink);
 }
 
 .admin-empty {
@@ -1447,7 +1521,8 @@ p {
   cursor: pointer;
   transition:
     background-color 0.12s ease,
-    border-color 0.12s ease;
+    border-color 0.12s ease,
+    transform 0.12s ease;
 }
 
 .admin-delete-btn:hover {
@@ -1455,6 +1530,10 @@ p {
   border-color: var(--signal);
   transform: none;
   box-shadow: none;
+}
+
+.admin-delete-btn:active {
+  transform: scale(0.96);
 }
 
 @keyframes spin {
@@ -1509,6 +1588,11 @@ p {
   color: var(--ink);
   transform: translateY(-1px);
   box-shadow: 2px 2px 0 var(--ink);
+}
+
+.category-pill:active {
+  transform: translateY(1px) translateX(1px);
+  box-shadow: 0px 0px 0 var(--ink);
 }
 
 .category-pill.active {
