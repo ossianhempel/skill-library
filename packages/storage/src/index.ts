@@ -5,10 +5,15 @@ import { PGlite } from "@electric-sql/pglite";
 import {
   acquirePgliteWriterLock,
   formatPglitePersistenceWarning,
-  type PgliteWriterLockOptions
+  type PgliteWriterLockOptions,
 } from "./pglite-lock.js";
 import { sql, type Kysely } from "kysely";
-import { createKyselyInstance, resolveDatabaseEngine, type DatabaseEngine, type DatabaseSchema } from "./kysely.js";
+import {
+  createKyselyInstance,
+  resolveDatabaseEngine,
+  type DatabaseEngine,
+  type DatabaseSchema,
+} from "./kysely.js";
 import { runRegistryMigrations, runAuthMigrations } from "./migrations.js";
 import type {
   CatalogPackageStats,
@@ -20,7 +25,7 @@ import type {
   SkillPackage,
   SkillVersion,
   UsageEvent,
-  Workspace
+  Workspace,
 } from "@skill-library/domain";
 import { DOWNLOAD_HISTORY_DAYS } from "@skill-library/domain";
 
@@ -29,9 +34,13 @@ export type DatabaseMode = DatabaseEngine;
 export {
   resolveDatabaseEngine,
   createKyselyInstance,
-  buildTediousConfig
+  buildTediousConfig,
 } from "./kysely.js";
-export type { DatabaseEngine, DatabaseSchema, KyselyEngineConfig } from "./kysely.js";
+export type {
+  DatabaseEngine,
+  DatabaseSchema,
+  KyselyEngineConfig,
+} from "./kysely.js";
 
 export interface RegistryStore {
   mode: DatabaseMode;
@@ -56,19 +65,29 @@ export interface RegistryStore {
   upsertWorkspace(workspace: Workspace): Promise<void>;
   upsertPackage(pkg: SkillPackage): Promise<void>;
   createVersion(version: SkillVersion): Promise<SkillVersion>;
-  transitionVersion(input: VersionTransitionInput): Promise<SkillVersion | undefined>;
+  transitionVersion(
+    input: VersionTransitionInput
+  ): Promise<SkillVersion | undefined>;
   listPackages(workspaceId: string): Promise<SkillPackage[]>;
   getPackage(packageId: string): Promise<SkillPackage | undefined>;
   listVersions(packageId: string): Promise<SkillVersion[]>;
   getVersion(versionId: string): Promise<SkillVersion | undefined>;
-  getLatestApprovedVersion(packageId: string): Promise<SkillVersion | undefined>;
+  getLatestApprovedVersion(
+    packageId: string
+  ): Promise<SkillVersion | undefined>;
   recordInstallReport(report: InstallReport): Promise<void>;
   recordUsageEvent(event: UsageEvent): Promise<void>;
   countUsageEvents(filter: UsageEventFilter): Promise<number>;
-  getDownloadHistory(filter: UsageEventFilter, days?: number): Promise<DownloadHistoryPoint[]>;
+  getDownloadHistory(
+    filter: UsageEventFilter,
+    days?: number
+  ): Promise<DownloadHistoryPoint[]>;
   getPackageReport(packageId: string): Promise<PackageReport | undefined>;
   getWorkspaceReports(workspaceId: string): Promise<PackageReport[]>;
-  getWorkspaceCatalogStats(workspaceId: string, days?: number): Promise<CatalogPackageStats[]>;
+  getWorkspaceCatalogStats(
+    workspaceId: string,
+    days?: number
+  ): Promise<CatalogPackageStats[]>;
 }
 
 export interface RegistryStoreConfig {
@@ -138,45 +157,63 @@ export function resolveDatabaseMode(config: RegistryStoreConfig): DatabaseMode {
   return config.databaseUrl ? "postgres" : "pglite";
 }
 
-export function resolveStoragePaths(config: RegistryStoreConfig = {}): RegistryStoragePaths {
+export function resolveStoragePaths(
+  config: RegistryStoreConfig = {}
+): RegistryStoragePaths {
   const dataDir = config.dataDir ?? defaultDataDir;
 
   return {
     dataDir,
     pgliteDataDir: config.pgliteDataDir ?? join(dataDir, "db"),
-    artifactDir: config.artifactDir ?? join(dataDir, "artifacts")
+    artifactDir: config.artifactDir ?? join(dataDir, "artifacts"),
   };
 }
 
-export async function createRegistryStore(config: RegistryStoreConfig = {}): Promise<RegistryStore> {
+export async function createRegistryStore(
+  config: RegistryStoreConfig = {}
+): Promise<RegistryStore> {
   const engine = resolveDatabaseEngine(config);
   const paths = resolveStoragePaths(config);
 
   await mkdir(paths.artifactDir, { recursive: true });
 
   if (engine === "postgres") {
-    const { db: kysely } = createKyselyInstance({ databaseUrl: config.databaseUrl, databaseEngine: "postgres" });
+    const { db: kysely } = createKyselyInstance({
+      databaseUrl: config.databaseUrl,
+      databaseEngine: "postgres",
+    });
     return new SqlRegistryStore(engine, paths, "postgres", kysely, async () => {
       await kysely.destroy();
     });
   }
 
   if (engine === "mssql") {
-    const { db: kysely } = createKyselyInstance({ databaseUrl: config.databaseUrl, databaseEngine: "mssql" });
+    const { db: kysely } = createKyselyInstance({
+      databaseUrl: config.databaseUrl,
+      databaseEngine: "mssql",
+    });
     return new SqlRegistryStore(engine, paths, "mssql", kysely, async () => {
       await kysely.destroy();
     });
   }
 
-  console.warn(`[skill-library] ${formatPglitePersistenceWarning(paths.dataDir)}`);
+  console.warn(
+    `[skill-library] ${formatPglitePersistenceWarning(paths.dataDir)}`
+  );
 
   await mkdir(paths.dataDir, { recursive: true });
-  const releasePgliteWriterLock = await acquirePgliteWriterLock(paths.dataDir, config.pgliteWriterLock);
+  const releasePgliteWriterLock = await acquirePgliteWriterLock(
+    paths.dataDir,
+    config.pgliteWriterLock
+  );
   await mkdir(dirname(paths.pgliteDataDir), { recursive: true });
   const db = new PGlite(paths.pgliteDataDir);
   // One PGlite instance backs both the legacy query path and Kysely. PGliteDriver.destroy()
   // closes the instance, so we close it directly once here instead of via kysely.destroy().
-  const { db: kysely } = createKyselyInstance({ databaseEngine: "pglite", pgliteInstance: db });
+  const { db: kysely } = createKyselyInstance({
+    databaseEngine: "pglite",
+    pgliteInstance: db,
+  });
 
   return new SqlRegistryStore("pglite", paths, "pglite", kysely, async () => {
     if (!db.closed) {
@@ -268,23 +305,31 @@ export class SqlRegistryStore implements RegistryStore {
     const storagePath = artifactPath(this.paths.artifactDir, artifact.digest);
 
     await mkdir(dirname(storagePath), { recursive: true });
-    await writeFile(storagePath, artifact.content, { flag: "wx" }).catch(async (error: NodeJS.ErrnoException) => {
-      if (error.code !== "EEXIST") {
-        throw error;
+    await writeFile(storagePath, artifact.content, { flag: "wx" }).catch(
+      async (error: NodeJS.ErrnoException) => {
+        if (error.code !== "EEXIST") {
+          throw error;
+        }
       }
-    });
+    );
 
     await this.insertIgnore(
       "artifacts",
       ["digest"],
-      { digest: artifact.digest, storage_path: storagePath, size_bytes: artifact.content.byteLength },
+      {
+        digest: artifact.digest,
+        storage_path: storagePath,
+        size_bytes: artifact.content.byteLength,
+      },
       [["digest", artifact.digest]]
     );
 
     const stored = await this.getArtifact(artifact.digest);
 
     if (!stored) {
-      throw new Error(`Artifact record was not stored for digest ${artifact.digest}`);
+      throw new Error(
+        `Artifact record was not stored for digest ${artifact.digest}`
+      );
     }
 
     return stored;
@@ -326,13 +371,13 @@ export class SqlRegistryStore implements RegistryStore {
         slug: workspace.slug,
         name: workspace.name,
         reporting_policy: workspace.reportingPolicy,
-        visibility: workspace.visibility
+        visibility: workspace.visibility,
       },
       {
         slug: workspace.slug,
         name: workspace.name,
         reporting_policy: workspace.reportingPolicy,
-        visibility: workspace.visibility
+        visibility: workspace.visibility,
       }
     );
   }
@@ -352,7 +397,7 @@ export class SqlRegistryStore implements RegistryStore {
         description: pkg.description,
         categories,
         created_at: pkg.createdAt,
-        updated_at: pkg.updatedAt
+        updated_at: pkg.updatedAt,
       },
       {
         workspace_id: pkg.workspaceId,
@@ -360,7 +405,7 @@ export class SqlRegistryStore implements RegistryStore {
         name: pkg.name,
         description: pkg.description,
         categories,
-        updated_at: pkg.updatedAt
+        updated_at: pkg.updatedAt,
       }
     );
   }
@@ -378,28 +423,34 @@ export class SqlRegistryStore implements RegistryStore {
         provenance: JSON.stringify(version.provenance),
         created_at: version.createdAt,
         approved_at: version.approvedAt ?? null,
-        replacement_version_id: version.replacementVersionId ?? null
+        replacement_version_id: version.replacementVersionId ?? null,
       })
       .execute();
 
     return version;
   }
 
-  async transitionVersion(input: VersionTransitionInput): Promise<SkillVersion | undefined> {
+  async transitionVersion(
+    input: VersionTransitionInput
+  ): Promise<SkillVersion | undefined> {
     const current = await this.getVersion(input.versionId);
 
     if (!current) {
       return undefined;
     }
 
-    const approvedAt = input.toState === "approved" ? new Date().toISOString() : current.approvedAt;
+    const approvedAt =
+      input.toState === "approved"
+        ? new Date().toISOString()
+        : current.approvedAt;
 
     await this.kysely
       .updateTable("skill_versions")
       .set({
         lifecycle_state: input.toState,
         approved_at: approvedAt ?? null,
-        replacement_version_id: input.replacementVersionId ?? current.replacementVersionId ?? null
+        replacement_version_id:
+          input.replacementVersionId ?? current.replacementVersionId ?? null,
       })
       .where("id", "=", input.versionId)
       .execute();
@@ -411,7 +462,7 @@ export class SqlRegistryStore implements RegistryStore {
         version_id: input.versionId,
         from_state: current.lifecycleState,
         to_state: input.toState,
-        actor_id: input.actorId ?? null
+        actor_id: input.actorId ?? null,
       })
       .execute();
 
@@ -440,32 +491,100 @@ export class SqlRegistryStore implements RegistryStore {
   }
 
   async listVersions(packageId: string): Promise<SkillVersion[]> {
+    const actorId = this.jsonText("v.provenance", "actorId");
     const rows = await this.kysely
-      .selectFrom("skill_versions")
-      .selectAll()
-      .where("package_id", "=", packageId)
-      .orderBy("created_at", "desc")
+      .selectFrom("skill_versions as v")
+      .leftJoin("user as u", (join) =>
+        join.on((eb) =>
+          eb.or([
+            eb(actorId, "=", eb.ref("u.id")),
+            eb(actorId, "=", eb.ref("u.email")),
+          ])
+        )
+      )
+      .select([
+        "v.id",
+        "v.package_id",
+        "v.version",
+        "v.lifecycle_state",
+        "v.artifact_digest",
+        "v.validation",
+        "v.provenance",
+        "v.created_at",
+        "v.approved_at",
+        "v.replacement_version_id",
+        "u.name as actor_name",
+        "u.email as actor_email",
+      ])
+      .where("v.package_id", "=", packageId)
+      .orderBy("v.created_at", "desc")
       .execute();
 
     return rows.map(fromVersionRow);
   }
 
   async getVersion(versionId: string): Promise<SkillVersion | undefined> {
+    const actorId = this.jsonText("v.provenance", "actorId");
     const row = await this.kysely
-      .selectFrom("skill_versions")
-      .selectAll()
-      .where("id", "=", versionId)
+      .selectFrom("skill_versions as v")
+      .leftJoin("user as u", (join) =>
+        join.on((eb) =>
+          eb.or([
+            eb(actorId, "=", eb.ref("u.id")),
+            eb(actorId, "=", eb.ref("u.email")),
+          ])
+        )
+      )
+      .select([
+        "v.id",
+        "v.package_id",
+        "v.version",
+        "v.lifecycle_state",
+        "v.artifact_digest",
+        "v.validation",
+        "v.provenance",
+        "v.created_at",
+        "v.approved_at",
+        "v.replacement_version_id",
+        "u.name as actor_name",
+        "u.email as actor_email",
+      ])
+      .where("v.id", "=", versionId)
       .executeTakeFirst();
 
     return row ? fromVersionRow(row) : undefined;
   }
 
-  async getLatestApprovedVersion(packageId: string): Promise<SkillVersion | undefined> {
+  async getLatestApprovedVersion(
+    packageId: string
+  ): Promise<SkillVersion | undefined> {
+    const actorId = this.jsonText("v.provenance", "actorId");
     const base = this.kysely
-      .selectFrom("skill_versions")
-      .selectAll()
-      .where("package_id", "=", packageId)
-      .where("lifecycle_state", "=", "approved");
+      .selectFrom("skill_versions as v")
+      .leftJoin("user as u", (join) =>
+        join.on((eb) =>
+          eb.or([
+            eb(actorId, "=", eb.ref("u.id")),
+            eb(actorId, "=", eb.ref("u.email")),
+          ])
+        )
+      )
+      .select([
+        "v.id",
+        "v.package_id",
+        "v.version",
+        "v.lifecycle_state",
+        "v.artifact_digest",
+        "v.validation",
+        "v.provenance",
+        "v.created_at",
+        "v.approved_at",
+        "v.replacement_version_id",
+        "u.name as actor_name",
+        "u.email as actor_email",
+      ])
+      .where("v.package_id", "=", packageId)
+      .where("v.lifecycle_state", "=", "approved");
 
     // Row-limiting and null ordering both diverge: SQL Server uses TOP (not LIMIT) and has
     // no NULLS LAST (emulated with a leading CASE); pg/pglite use LIMIT and NULLS LAST.
@@ -473,10 +592,13 @@ export class SqlRegistryStore implements RegistryStore {
       this.engine === "mssql"
         ? base
             .top(1)
-            .orderBy(sql`case when approved_at is null then 1 else 0 end`)
-            .orderBy("approved_at", "desc")
-            .orderBy("created_at", "desc")
-        : base.orderBy(sql`approved_at desc nulls last`).orderBy("created_at", "desc").limit(1);
+            .orderBy(sql`case when v.approved_at is null then 1 else 0 end`)
+            .orderBy("v.approved_at", "desc")
+            .orderBy("v.created_at", "desc")
+        : base
+            .orderBy(sql`v.approved_at desc nulls last`)
+            .orderBy("v.created_at", "desc")
+            .limit(1);
 
     const row = await query.executeTakeFirst();
 
@@ -493,11 +615,11 @@ export class SqlRegistryStore implements RegistryStore {
         version_id: report.versionId,
         state: report.state,
         reported_at: report.reportedAt,
-        target_kind: report.targetKind
+        target_kind: report.targetKind,
       },
       [
         ["install_id", report.installId],
-        ["reported_at", report.reportedAt]
+        ["reported_at", report.reportedAt],
       ]
     );
   }
@@ -512,7 +634,7 @@ export class SqlRegistryStore implements RegistryStore {
         package_id: event.packageId ?? null,
         version_id: event.versionId ?? null,
         event_type: event.eventType,
-        created_at: event.createdAt
+        created_at: event.createdAt,
       },
       [["id", event.id]]
     );
@@ -568,7 +690,10 @@ export class SqlRegistryStore implements RegistryStore {
     return row?.agent_api_token ?? undefined;
   }
 
-  async setAgentToken(userId: string, token: string): Promise<string | undefined> {
+  async setAgentToken(
+    userId: string,
+    token: string
+  ): Promise<string | undefined> {
     // Bind updated_at as a JS Date rather than now()/sysdatetimeoffset() so the write
     // is identical across dialects.
     const result = await this.kysely
@@ -596,7 +721,12 @@ export class SqlRegistryStore implements RegistryStore {
     const rows = await this.kysely
       .selectFrom("user as u")
       .leftJoin("skill_versions as v", (join) =>
-        join.on((eb) => eb.or([eb(actorId, "=", eb.ref("u.id")), eb(actorId, "=", eb.ref("u.email"))]))
+        join.on((eb) =>
+          eb.or([
+            eb(actorId, "=", eb.ref("u.id")),
+            eb(actorId, "=", eb.ref("u.email")),
+          ])
+        )
       )
       .select((eb) => [
         "u.id",
@@ -605,9 +735,16 @@ export class SqlRegistryStore implements RegistryStore {
         "u.role",
         "u.created_at",
         "u.image",
-        eb.fn.count("v.id").as("skills_submitted")
+        eb.fn.count("v.id").as("skills_submitted"),
       ])
-      .groupBy(["u.id", "u.name", "u.email", "u.role", "u.created_at", "u.image"])
+      .groupBy([
+        "u.id",
+        "u.name",
+        "u.email",
+        "u.role",
+        "u.created_at",
+        "u.image",
+      ])
       .orderBy("u.created_at", "asc")
       .execute();
 
@@ -618,12 +755,19 @@ export class SqlRegistryStore implements RegistryStore {
       role: row.role,
       createdAt: toIsoString(row.created_at),
       image: row.image,
-      skillsSubmitted: Number(row.skills_submitted ?? 0)
+      skillsSubmitted: Number(row.skills_submitted ?? 0),
     }));
   }
 
-  async updateUserRole(userId: string, role: string): Promise<UserRecord | undefined> {
-    await this.kysely.updateTable("user").set({ role }).where("id", "=", userId).execute();
+  async updateUserRole(
+    userId: string,
+    role: string
+  ): Promise<UserRecord | undefined> {
+    await this.kysely
+      .updateTable("user")
+      .set({ role })
+      .where("id", "=", userId)
+      .execute();
 
     // Read back instead of RETURNING/OUTPUT so the path is dialect-agnostic; a missing
     // user yields undefined (404 at the caller).
@@ -640,7 +784,7 @@ export class SqlRegistryStore implements RegistryStore {
           email: row.email,
           role: row.role,
           createdAt: toIsoString(row.created_at),
-          image: row.image
+          image: row.image,
         }
       : undefined;
   }
@@ -649,7 +793,10 @@ export class SqlRegistryStore implements RegistryStore {
     await this.kysely.deleteFrom("user").where("id", "=", userId).execute();
   }
 
-  async getDownloadHistory(filter: UsageEventFilter, days: number = DOWNLOAD_HISTORY_DAYS): Promise<DownloadHistoryPoint[]> {
+  async getDownloadHistory(
+    filter: UsageEventFilter,
+    days: number = DOWNLOAD_HISTORY_DAYS
+  ): Promise<DownloadHistoryPoint[]> {
     // Bucket downloads by calendar day. CAST(created_at AS date) is portable across
     // Postgres/PGlite and SQL Server; the returned day is normalized to YYYY-MM-DD in JS.
     const day = sql`cast(created_at as date)`;
@@ -677,7 +824,9 @@ export class SqlRegistryStore implements RegistryStore {
     );
   }
 
-  async getPackageReport(packageId: string): Promise<PackageReport | undefined> {
+  async getPackageReport(
+    packageId: string
+  ): Promise<PackageReport | undefined> {
     const pkg = await this.getPackage(packageId);
 
     if (!pkg) {
@@ -685,21 +834,22 @@ export class SqlRegistryStore implements RegistryStore {
     }
 
     const versions = await this.listVersions(packageId);
-    const latestApprovedVersion = await this.getLatestApprovedVersion(packageId);
+    const latestApprovedVersion =
+      await this.getLatestApprovedVersion(packageId);
     const views = await this.countUsageEvents({
       workspaceId: pkg.workspaceId,
       packageId,
-      eventType: "view"
+      eventType: "view",
     });
     const downloads = await this.countUsageEvents({
       workspaceId: pkg.workspaceId,
       packageId,
-      eventType: "download"
+      eventType: "download",
     });
     const downloadHistory = await this.getDownloadHistory({
       workspaceId: pkg.workspaceId,
       packageId,
-      eventType: "download"
+      eventType: "download",
     });
     const reportRows = await this.kysely
       .selectFrom("install_reports")
@@ -719,12 +869,15 @@ export class SqlRegistryStore implements RegistryStore {
       reports: reportRows.map((row) => ({
         installId: row.install_id,
         state: row.state as InstalledSkillState,
-        reportedAt: toIsoString(row.reported_at)
-      }))
+        reportedAt: toIsoString(row.reported_at),
+      })),
     });
   }
 
-  async getWorkspaceCatalogStats(workspaceId: string, days: number = DOWNLOAD_HISTORY_DAYS): Promise<CatalogPackageStats[]> {
+  async getWorkspaceCatalogStats(
+    workspaceId: string,
+    days: number = DOWNLOAD_HISTORY_DAYS
+  ): Promise<CatalogPackageStats[]> {
     const packages = await this.listPackages(workspaceId);
     const stats: CatalogPackageStats[] = [];
 
@@ -733,19 +886,22 @@ export class SqlRegistryStore implements RegistryStore {
       const downloads = await this.countUsageEvents({
         workspaceId,
         packageId: pkg.id,
-        eventType: "download"
+        eventType: "download",
       });
-      const downloadHistory = await this.getDownloadHistory({
-        workspaceId,
-        packageId: pkg.id,
-        eventType: "download"
-      }, days);
+      const downloadHistory = await this.getDownloadHistory(
+        {
+          workspaceId,
+          packageId: pkg.id,
+          eventType: "download",
+        },
+        days
+      );
 
       stats.push({
         packageId: pkg.id,
         downloads,
         downloadHistory,
-        lastModifiedAt: resolveLastModifiedAt(versions)
+        lastModifiedAt: resolveLastModifiedAt(versions),
       });
     }
 
@@ -767,7 +923,11 @@ export class SqlRegistryStore implements RegistryStore {
     return reports;
   }
 
-  async seed(workspace: Workspace, packages: SkillPackage[], versions: SkillVersion[]): Promise<void> {
+  async seed(
+    workspace: Workspace,
+    packages: SkillPackage[],
+    versions: SkillVersion[]
+  ): Promise<void> {
     await this.upsertWorkspace(workspace);
 
     for (const pkg of packages) {
@@ -775,11 +935,13 @@ export class SqlRegistryStore implements RegistryStore {
     }
 
     for (const version of versions) {
-      await this.createVersion(version).catch((error: NodeJS.ErrnoException) => {
-        if (!String(error.message).includes("duplicate key")) {
-          throw error;
+      await this.createVersion(version).catch(
+        (error: NodeJS.ErrnoException) => {
+          if (!String(error.message).includes("duplicate key")) {
+            throw error;
+          }
         }
-      });
+      );
     }
   }
 }
@@ -807,11 +969,16 @@ export class MemoryRegistryStore implements RegistryStore {
     return undefined;
   }
 
-  async setAgentToken(_userId: string, _token: string): Promise<string | undefined> {
+  async setAgentToken(
+    _userId: string,
+    _token: string
+  ): Promise<string | undefined> {
     return undefined;
   }
 
-  async findUserByAgentToken(_token: string): Promise<UserIdentity | undefined> {
+  async findUserByAgentToken(
+    _token: string
+  ): Promise<UserIdentity | undefined> {
     return undefined;
   }
 
@@ -819,7 +986,10 @@ export class MemoryRegistryStore implements RegistryStore {
     return [];
   }
 
-  async updateUserRole(_userId: string, _role: string): Promise<UserRecord | undefined> {
+  async updateUserRole(
+    _userId: string,
+    _role: string
+  ): Promise<UserRecord | undefined> {
     return undefined;
   }
 
@@ -830,7 +1000,7 @@ export class MemoryRegistryStore implements RegistryStore {
       digest: artifact.digest,
       storagePath: artifactPath(this.paths.artifactDir, artifact.digest),
       sizeBytes: artifact.content.byteLength,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
   }
 
@@ -861,7 +1031,9 @@ export class MemoryRegistryStore implements RegistryStore {
     return version;
   }
 
-  async transitionVersion(input: VersionTransitionInput): Promise<SkillVersion | undefined> {
+  async transitionVersion(
+    input: VersionTransitionInput
+  ): Promise<SkillVersion | undefined> {
     const version = await this.getVersion(input.versionId);
 
     if (!version) {
@@ -869,12 +1041,20 @@ export class MemoryRegistryStore implements RegistryStore {
     }
 
     version.lifecycleState = input.toState;
-    version.approvedAt = input.toState === "approved" ? new Date().toISOString() : version.approvedAt;
-    version.replacementVersionId = input.replacementVersionId ?? version.replacementVersionId;
+    version.approvedAt =
+      input.toState === "approved"
+        ? new Date().toISOString()
+        : version.approvedAt;
+    version.replacementVersionId =
+      input.replacementVersionId ?? version.replacementVersionId;
     return version;
   }
 
-  seed(workspace: Workspace, packages: SkillPackage[], versions: SkillVersion[]) {
+  seed(
+    workspace: Workspace,
+    packages: SkillPackage[],
+    versions: SkillVersion[]
+  ) {
     this.workspaces.set(workspace.id, workspace);
 
     for (const pkg of packages) {
@@ -889,7 +1069,9 @@ export class MemoryRegistryStore implements RegistryStore {
   }
 
   async listPackages(workspaceId: string): Promise<SkillPackage[]> {
-    return [...this.packages.values()].filter((pkg) => pkg.workspaceId === workspaceId);
+    return [...this.packages.values()].filter(
+      (pkg) => pkg.workspaceId === workspaceId
+    );
   }
 
   async getPackage(packageId: string): Promise<SkillPackage | undefined> {
@@ -897,14 +1079,20 @@ export class MemoryRegistryStore implements RegistryStore {
   }
 
   async listVersions(packageId: string): Promise<SkillVersion[]> {
-    return (this.versions.get(packageId) ?? []).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    return (this.versions.get(packageId) ?? []).sort((left, right) =>
+      right.createdAt.localeCompare(left.createdAt)
+    );
   }
 
   async getVersion(versionId: string): Promise<SkillVersion | undefined> {
-    return [...this.versions.values()].flat().find((version) => version.id === versionId);
+    return [...this.versions.values()]
+      .flat()
+      .find((version) => version.id === versionId);
   }
 
-  async getLatestApprovedVersion(packageId: string): Promise<SkillVersion | undefined> {
+  async getLatestApprovedVersion(
+    packageId: string
+  ): Promise<SkillVersion | undefined> {
     return (this.versions.get(packageId) ?? [])
       .filter((version) => version.lifecycleState === "approved")
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
@@ -933,7 +1121,10 @@ export class MemoryRegistryStore implements RegistryStore {
     return 0;
   }
 
-  async getDownloadHistory(filter: UsageEventFilter, days: number = DOWNLOAD_HISTORY_DAYS): Promise<DownloadHistoryPoint[]> {
+  async getDownloadHistory(
+    filter: UsageEventFilter,
+    days: number = DOWNLOAD_HISTORY_DAYS
+  ): Promise<DownloadHistoryPoint[]> {
     const startMs = Date.parse(downloadHistoryStartIso(days));
     const counts = new Map<string, number>();
 
@@ -953,12 +1144,16 @@ export class MemoryRegistryStore implements RegistryStore {
     }
 
     return fillDownloadHistory(
-      [...counts.entries()].map(([date, count]) => ({ date, count })).sort((left, right) => left.date.localeCompare(right.date)),
+      [...counts.entries()]
+        .map(([date, count]) => ({ date, count }))
+        .sort((left, right) => left.date.localeCompare(right.date)),
       days
     );
   }
 
-  async getPackageReport(packageId: string): Promise<PackageReport | undefined> {
+  async getPackageReport(
+    packageId: string
+  ): Promise<PackageReport | undefined> {
     const pkg = await this.getPackage(packageId);
 
     if (!pkg) {
@@ -966,21 +1161,22 @@ export class MemoryRegistryStore implements RegistryStore {
     }
 
     const versions = await this.listVersions(packageId);
-    const latestApprovedVersion = await this.getLatestApprovedVersion(packageId);
+    const latestApprovedVersion =
+      await this.getLatestApprovedVersion(packageId);
     const views = await this.countUsageEvents({
       workspaceId: pkg.workspaceId,
       packageId,
-      eventType: "view"
+      eventType: "view",
     });
     const downloads = await this.countUsageEvents({
       workspaceId: pkg.workspaceId,
       packageId,
-      eventType: "download"
+      eventType: "download",
     });
     const downloadHistory = await this.getDownloadHistory({
       workspaceId: pkg.workspaceId,
       packageId,
-      eventType: "download"
+      eventType: "download",
     });
 
     return buildPackageReport({
@@ -992,11 +1188,14 @@ export class MemoryRegistryStore implements RegistryStore {
       downloads,
       downloadHistory,
       lastModifiedAt: resolveLastModifiedAt(versions),
-      reports: this.reports.filter((report) => report.packageId === packageId)
+      reports: this.reports.filter((report) => report.packageId === packageId),
     });
   }
 
-  async getWorkspaceCatalogStats(workspaceId: string, days: number = DOWNLOAD_HISTORY_DAYS): Promise<CatalogPackageStats[]> {
+  async getWorkspaceCatalogStats(
+    workspaceId: string,
+    days: number = DOWNLOAD_HISTORY_DAYS
+  ): Promise<CatalogPackageStats[]> {
     const packages = await this.listPackages(workspaceId);
     const stats: CatalogPackageStats[] = [];
 
@@ -1005,19 +1204,22 @@ export class MemoryRegistryStore implements RegistryStore {
       const downloads = await this.countUsageEvents({
         workspaceId,
         packageId: pkg.id,
-        eventType: "download"
+        eventType: "download",
       });
-      const downloadHistory = await this.getDownloadHistory({
-        workspaceId,
-        packageId: pkg.id,
-        eventType: "download"
-      }, days);
+      const downloadHistory = await this.getDownloadHistory(
+        {
+          workspaceId,
+          packageId: pkg.id,
+          eventType: "download",
+        },
+        days
+      );
 
       stats.push({
         packageId: pkg.id,
         downloads,
         downloadHistory,
-        lastModifiedAt: resolveLastModifiedAt(versions)
+        lastModifiedAt: resolveLastModifiedAt(versions),
       });
     }
 
@@ -1047,9 +1249,8 @@ const installStates: InstalledSkillState[] = [
   "hidden",
   "unknown-registry",
   "missing-metadata",
-  "modified-local-content"
+  "modified-local-content",
 ];
-
 
 interface PackageRow {
   id: string;
@@ -1081,6 +1282,8 @@ interface VersionRow {
   created_at: string | Date;
   approved_at?: string | Date | null;
   replacement_version_id?: string | null;
+  actor_name?: string | null;
+  actor_email?: string | null;
 }
 
 interface ArtifactRow {
@@ -1114,7 +1317,10 @@ interface ReportInput {
 }
 
 function buildPackageReport(input: ReportInput): PackageReport {
-  const latestByInstall = new Map<string, Pick<InstallReport, "installId" | "state" | "reportedAt">>();
+  const latestByInstall = new Map<
+    string,
+    Pick<InstallReport, "installId" | "state" | "reportedAt">
+  >();
 
   for (const report of input.reports) {
     const current = latestByInstall.get(report.installId);
@@ -1124,7 +1330,9 @@ function buildPackageReport(input: ReportInput): PackageReport {
     }
   }
 
-  const byState = Object.fromEntries(installStates.map((state) => [state, 0])) as PackageReport["installs"]["byState"];
+  const byState = Object.fromEntries(
+    installStates.map((state) => [state, 0])
+  ) as PackageReport["installs"]["byState"];
 
   for (const report of latestByInstall.values()) {
     byState[report.state] += 1;
@@ -1141,8 +1349,8 @@ function buildPackageReport(input: ReportInput): PackageReport {
     lastModifiedAt: input.lastModifiedAt,
     installs: {
       total: latestByInstall.size,
-      byState
-    }
+      byState,
+    },
   };
 }
 
@@ -1160,7 +1368,10 @@ function downloadHistoryStartIso(days: number): string {
   return start.toISOString();
 }
 
-function fillDownloadHistory(points: DownloadHistoryPoint[], days: number): DownloadHistoryPoint[] {
+function fillDownloadHistory(
+  points: DownloadHistoryPoint[],
+  days: number
+): DownloadHistoryPoint[] {
   const counts = new Map(points.map((point) => [point.date, point.count]));
   const filled: DownloadHistoryPoint[] = [];
   const cursor = new Date();
@@ -1179,7 +1390,7 @@ function fillDownloadHistory(points: DownloadHistoryPoint[], days: number): Down
 function fromDownloadHistoryRow(row: DownloadHistoryRow): DownloadHistoryPoint {
   return {
     date: toDayString(row.day),
-    count: Number(row.count)
+    count: Number(row.count),
   };
 }
 
@@ -1200,7 +1411,7 @@ function fromPackageRow(row: PackageRow): SkillPackage {
     description: row.description,
     categories: parseJson(row.categories),
     createdAt: toIsoString(row.created_at),
-    updatedAt: toIsoString(row.updated_at)
+    updatedAt: toIsoString(row.updated_at),
   };
 }
 
@@ -1210,11 +1421,27 @@ function fromWorkspaceRow(row: WorkspaceRow): Workspace {
     slug: row.slug,
     name: row.name,
     reportingPolicy: row.reporting_policy,
-    visibility: row.visibility
+    visibility: row.visibility,
   };
 }
 
 function fromVersionRow(row: VersionRow): SkillVersion {
+  const provenance = parseJson(row.provenance);
+
+  let author: string | undefined = undefined;
+  if (row.actor_name) {
+    author = row.actor_name;
+  } else if (row.actor_email) {
+    author = row.actor_email;
+  } else if (
+    provenance &&
+    typeof provenance === "object" &&
+    "actorId" in provenance &&
+    typeof (provenance as any).actorId === "string"
+  ) {
+    author = (provenance as any).actorId;
+  }
+
   return {
     id: row.id,
     packageId: row.package_id,
@@ -1222,10 +1449,11 @@ function fromVersionRow(row: VersionRow): SkillVersion {
     lifecycleState: row.lifecycle_state,
     artifactDigest: row.artifact_digest,
     validation: parseJson(row.validation),
-    provenance: parseJson(row.provenance),
+    provenance,
     createdAt: toIsoString(row.created_at),
     approvedAt: row.approved_at ? toIsoString(row.approved_at) : undefined,
-    replacementVersionId: row.replacement_version_id ?? undefined
+    replacementVersionId: row.replacement_version_id ?? undefined,
+    author,
   };
 }
 
@@ -1234,7 +1462,7 @@ function fromArtifactRow(row: ArtifactRow): StoredArtifact {
     digest: row.digest,
     storagePath: row.storage_path,
     sizeBytes: Number(row.size_bytes),
-    createdAt: toIsoString(row.created_at)
+    createdAt: toIsoString(row.created_at),
   };
 }
 
@@ -1243,10 +1471,16 @@ function parseJson<T>(value: T | string): T {
 }
 
 function toIsoString(value: string | Date): string {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+  return value instanceof Date
+    ? value.toISOString()
+    : new Date(value).toISOString();
 }
 
 function artifactPath(artifactDir: string, digest: string): string {
   const normalizedDigest = digest.replace(/^sha256:/, "");
-  return join(artifactDir, normalizedDigest.slice(0, 2), `${normalizedDigest}.zip`);
+  return join(
+    artifactDir,
+    normalizedDigest.slice(0, 2),
+    `${normalizedDigest}.zip`
+  );
 }

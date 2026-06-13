@@ -59,15 +59,17 @@ export function SkillStatsMeta({
   version,
   downloads,
   downloadHistory,
-  updatedAt,
+  uploadedAt,
   lastModifiedAt,
+  author,
   compact = false,
 }: {
   version?: string;
   downloads: number;
   downloadHistory: DownloadHistoryPoint[];
-  updatedAt: string;
+  uploadedAt: string;
   lastModifiedAt: string;
+  author?: string;
   compact?: boolean;
 }) {
   return (
@@ -78,14 +80,22 @@ export function SkillStatsMeta({
         <em>Version</em>
         <strong>{version ?? "—"}</strong>
       </span>
+      {author && (
+        <span className="skill-stat">
+          <em>Author</em>
+          <strong>{author}</strong>
+        </span>
+      )}
       <span className="skill-stat">
         <em>Downloads</em>
         <strong>{downloads}</strong>
       </span>
-      <span className="skill-stat">
-        <em>Updated</em>
-        <strong>{formatSkillDate(updatedAt)}</strong>
-      </span>
+      {!compact && (
+        <span className="skill-stat">
+          <em>Uploaded</em>
+          <strong>{formatSkillDate(uploadedAt)}</strong>
+        </span>
+      )}
       <span className="skill-stat">
         <em>Last modified</em>
         <strong>{formatSkillDate(lastModifiedAt)}</strong>

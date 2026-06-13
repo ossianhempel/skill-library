@@ -70,6 +70,7 @@ export interface SkillVersion {
   createdAt: string;
   approvedAt?: string;
   replacementVersionId?: SkillVersionId;
+  author?: string;
 }
 
 export interface VersionProvenance {

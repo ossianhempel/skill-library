@@ -2,13 +2,24 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import type { SkillPackage, SkillVersion, Workspace } from "@skill-library/domain";
-import { createRegistryStore, resolveDatabaseMode, resolveStoragePaths, type SqlRegistryStore } from "./index.js";
+import type {
+  SkillPackage,
+  SkillVersion,
+  Workspace,
+} from "@skill-library/domain";
+import {
+  createRegistryStore,
+  resolveDatabaseMode,
+  resolveStoragePaths,
+  type SqlRegistryStore,
+} from "./index.js";
 
 const tmpDirs: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(tmpDirs.map((dir) => rm(dir, { recursive: true, force: true })));
+  await Promise.all(
+    tmpDirs.map((dir) => rm(dir, { recursive: true, force: true }))
+  );
   tmpDirs.length = 0;
 });
 
@@ -17,11 +28,13 @@ describe("storage configuration", () => {
     const paths = resolveStoragePaths({ dataDir: "/data" });
 
     expect(resolveDatabaseMode({})).toBe("pglite");
-    expect(resolveDatabaseMode({ databaseUrl: "postgres://example" })).toBe("postgres");
+    expect(resolveDatabaseMode({ databaseUrl: "postgres://example" })).toBe(
+      "postgres"
+    );
     expect(paths).toEqual({
       dataDir: "/data",
       pgliteDataDir: "/data/db",
-      artifactDir: "/data/artifacts"
+      artifactDir: "/data/artifacts",
     });
   });
 });
@@ -40,15 +53,17 @@ describe("PGlite registry store", () => {
         expect.objectContaining({
           id: "package-1",
           slug: "review-helper",
-          categories: ["review", "quality"]
-        })
+          categories: ["review", "quality"],
+        }),
       ]);
 
-      await expect(store.getLatestApprovedVersion("package-1")).resolves.toEqual(
+      await expect(
+        store.getLatestApprovedVersion("package-1")
+      ).resolves.toEqual(
         expect.objectContaining({
           id: "version-2",
           lifecycleState: "approved",
-          artifactDigest: "sha256:two"
+          artifactDigest: "sha256:two",
         })
       );
     } finally {
@@ -71,7 +86,7 @@ describe("PGlite registry store", () => {
           versionId: "version-2",
           state: "current",
           reportedAt: "2026-06-07T12:00:00.000Z",
-          targetKind: "codex-global"
+          targetKind: "codex-global",
         })
       ).resolves.toBeUndefined();
     } finally {
@@ -87,20 +102,22 @@ describe("PGlite registry store", () => {
       await store.migrate();
       const artifact = await store.putArtifact({
         digest: "sha256:abc123",
-        content: Buffer.from("artifact-content")
+        content: Buffer.from("artifact-content"),
       });
       const duplicate = await store.putArtifact({
         digest: "sha256:abc123",
-        content: Buffer.from("artifact-content")
+        content: Buffer.from("artifact-content"),
       });
 
       await expect(store.getArtifact("sha256:abc123")).resolves.toEqual(
         expect.objectContaining({
           digest: "sha256:abc123",
-          sizeBytes: "artifact-content".length
+          sizeBytes: "artifact-content".length,
         })
       );
-      await expect(store.readArtifactContent("sha256:abc123")).resolves.toEqual(Buffer.from("artifact-content"));
+      await expect(store.readArtifactContent("sha256:abc123")).resolves.toEqual(
+        Buffer.from("artifact-content")
+      );
       expect(duplicate.storagePath).toBe(artifact.storagePath);
     } finally {
       await store.close();
@@ -121,7 +138,7 @@ describe("PGlite registry store", () => {
         packageId: "package-1",
         versionId: "version-2",
         eventType: "download",
-        createdAt: "2026-06-07T12:00:00.000Z"
+        createdAt: "2026-06-07T12:00:00.000Z",
       });
       await store.recordUsageEvent({
         id: "usage-download-2",
@@ -129,33 +146,37 @@ describe("PGlite registry store", () => {
         packageId: "package-1",
         versionId: "version-2",
         eventType: "download",
-        createdAt: "2026-06-07T12:30:00.000Z"
+        createdAt: "2026-06-07T12:30:00.000Z",
       });
 
-      await expect(store.getDownloadHistory({
-        workspaceId: "workspace-1",
-        packageId: "package-1",
-        eventType: "download"
-      })).resolves.toEqual(expect.arrayContaining([
-        expect.objectContaining({ count: 2 })
-      ]));
+      await expect(
+        store.getDownloadHistory({
+          workspaceId: "workspace-1",
+          packageId: "package-1",
+          eventType: "download",
+        })
+      ).resolves.toEqual(
+        expect.arrayContaining([expect.objectContaining({ count: 2 })])
+      );
 
       await expect(store.getPackageReport("package-1")).resolves.toEqual(
         expect.objectContaining({
           downloads: 2,
           downloadHistory: expect.arrayContaining([
-            expect.objectContaining({ count: 2 })
+            expect.objectContaining({ count: 2 }),
           ]),
-          lastModifiedAt: "2026-06-07T11:00:00.000Z"
+          lastModifiedAt: "2026-06-07T11:00:00.000Z",
         })
       );
 
-      await expect(store.getWorkspaceCatalogStats("workspace-1")).resolves.toEqual([
+      await expect(
+        store.getWorkspaceCatalogStats("workspace-1")
+      ).resolves.toEqual([
         expect.objectContaining({
           packageId: "package-1",
           downloads: 2,
-          lastModifiedAt: "2026-06-07T11:00:00.000Z"
-        })
+          lastModifiedAt: "2026-06-07T11:00:00.000Z",
+        }),
       ]);
     } finally {
       await store.close();
@@ -176,11 +197,23 @@ describe("PGlite registry store", () => {
         packageId: "package-1",
         versionId: "version-2",
         eventType: "download",
-        createdAt: "2026-06-07T12:00:00.000Z"
+        createdAt: "2026-06-07T12:00:00.000Z",
       });
 
-      await expect(store.countUsageEvents({ workspaceId: "workspace-1", eventType: "download", packageId: "package-1" })).resolves.toBe(1);
-      await expect(store.countUsageEvents({ workspaceId: "workspace-1", eventType: "view", packageId: "package-1" })).resolves.toBe(0);
+      await expect(
+        store.countUsageEvents({
+          workspaceId: "workspace-1",
+          eventType: "download",
+          packageId: "package-1",
+        })
+      ).resolves.toBe(1);
+      await expect(
+        store.countUsageEvents({
+          workspaceId: "workspace-1",
+          eventType: "view",
+          packageId: "package-1",
+        })
+      ).resolves.toBe(0);
     } finally {
       await store.close();
     }
@@ -201,16 +234,89 @@ describe("PGlite registry store", () => {
         artifactDigest: "sha256:three",
         validation: { ok: true, files: [], issues: [] },
         provenance: { kind: "upload", importedAt: "2026-06-07T13:00:00.000Z" },
-        createdAt: "2026-06-07T13:00:00.000Z"
+        createdAt: "2026-06-07T13:00:00.000Z",
       });
 
-      await expect(store.getVersion("version-3")).resolves.toEqual(expect.objectContaining({ lifecycleState: "draft" }));
-      await expect(store.transitionVersion({ versionId: "version-3", toState: "published", actorId: "actor-1" })).resolves.toEqual(
+      await expect(store.getVersion("version-3")).resolves.toEqual(
+        expect.objectContaining({ lifecycleState: "draft" })
+      );
+      await expect(
+        store.transitionVersion({
+          versionId: "version-3",
+          toState: "published",
+          actorId: "actor-1",
+        })
+      ).resolves.toEqual(
         expect.objectContaining({ lifecycleState: "published" })
       );
-      await expect(store.transitionVersion({ versionId: "version-3", toState: "approved", actorId: "actor-1" })).resolves.toEqual(
-        expect.objectContaining({ lifecycleState: "approved", approvedAt: expect.any(String) })
+      await expect(
+        store.transitionVersion({
+          versionId: "version-3",
+          toState: "approved",
+          actorId: "actor-1",
+        })
+      ).resolves.toEqual(
+        expect.objectContaining({
+          lifecycleState: "approved",
+          approvedAt: expect.any(String),
+        })
       );
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("resolves the author from user table based on provenance actorId", async () => {
+    const dataDir = await makeTmpDir();
+    const store = await createRegistryStore({ dataDir });
+
+    try {
+      await store.migrate();
+      await seedStore(store as SqlRegistryStore);
+
+      const sqlStore = store as SqlRegistryStore;
+      await sqlStore.kysely
+        .insertInto("user")
+        .values({
+          id: "user-alice",
+          name: "Alice Smith",
+          email: "alice@example.com",
+          emailVerified: true,
+          role: "user",
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        .execute();
+
+      await store.createVersion({
+        id: "version-alice",
+        packageId: "package-1",
+        version: "2.0.0",
+        lifecycleState: "draft",
+        artifactDigest: "sha256:alice",
+        validation: { ok: true, files: [], issues: [] },
+        provenance: {
+          kind: "upload",
+          actorId: "user-alice",
+          importedAt: "2026-06-07T14:00:00.000Z",
+        },
+        createdAt: "2026-06-07T14:00:00.000Z",
+      });
+
+      const retrieved = await store.getVersion("version-alice");
+      expect(retrieved?.author).toBe("Alice Smith");
+
+      const list = await store.listVersions("package-1");
+      const listAlice = list.find((v) => v.id === "version-alice");
+      expect(listAlice?.author).toBe("Alice Smith");
+
+      await store.transitionVersion({
+        versionId: "version-alice",
+        toState: "approved",
+        actorId: "user-alice",
+      });
+      const latestApproved = await store.getLatestApprovedVersion("package-1");
+      expect(latestApproved?.author).toBe("Alice Smith");
     } finally {
       await store.close();
     }
@@ -229,7 +335,7 @@ async function seedStore(store: SqlRegistryStore) {
     slug: "acme",
     name: "Acme",
     reportingPolicy: "opt-in",
-    visibility: "public"
+    visibility: "public",
   };
   const pkg: SkillPackage = {
     id: "package-1",
@@ -239,7 +345,7 @@ async function seedStore(store: SqlRegistryStore) {
     description: "Review local code changes.",
     categories: ["review", "quality"],
     createdAt: "2026-06-07T10:00:00.000Z",
-    updatedAt: "2026-06-07T10:00:00.000Z"
+    updatedAt: "2026-06-07T10:00:00.000Z",
   };
   const versions: SkillVersion[] = [
     {
@@ -250,7 +356,7 @@ async function seedStore(store: SqlRegistryStore) {
       artifactDigest: "sha256:one",
       validation: { ok: true, files: [], issues: [] },
       provenance: { kind: "upload", importedAt: "2026-06-07T10:00:00.000Z" },
-      createdAt: "2026-06-07T10:00:00.000Z"
+      createdAt: "2026-06-07T10:00:00.000Z",
     },
     {
       id: "version-2",
@@ -261,8 +367,8 @@ async function seedStore(store: SqlRegistryStore) {
       validation: { ok: true, files: [], issues: [] },
       provenance: { kind: "upload", importedAt: "2026-06-07T11:00:00.000Z" },
       createdAt: "2026-06-07T11:00:00.000Z",
-      approvedAt: "2026-06-07T11:05:00.000Z"
-    }
+      approvedAt: "2026-06-07T11:05:00.000Z",
+    },
   ];
 
   await store.seed(workspace, [pkg], versions);

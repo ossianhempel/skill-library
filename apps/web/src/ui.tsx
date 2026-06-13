@@ -1974,9 +1974,15 @@ export function SkillLibraryApp({
                   selected.latestApproved?.version ??
                   selected.activeVersion?.version
                 }
+                author={
+                  selected.activeVersion?.author ??
+                  selected.latestApproved?.author
+                }
                 downloads={selected.downloads}
                 downloadHistory={selected.downloadHistory}
-                updatedAt={selected.pkg.updatedAt}
+                uploadedAt={
+                  selected.activeVersion?.createdAt ?? selected.pkg.createdAt
+                }
                 lastModifiedAt={selected.lastModifiedAt}
               />
             </div>
@@ -2058,13 +2064,15 @@ export function SkillLibraryApp({
                   installable from the catalog.
                 </p>
                 <div className="actions">
-                  <button
-                    onClick={() => void handleLifecycle("approved")}
-                    disabled={loading}
-                  >
-                    <CheckCircle2 size={17} />
-                    Approve
-                  </button>
+                  {selected.activeVersion?.lifecycleState !== "approved" && (
+                    <button
+                      onClick={() => void handleLifecycle("approved")}
+                      disabled={loading}
+                    >
+                      <CheckCircle2 size={17} />
+                      Approve
+                    </button>
+                  )}
                   <button
                     className="secondary"
                     onClick={() => void handleLifecycle("hidden")}
@@ -2499,9 +2507,10 @@ function FeaturedSkill({
           version={
             skill.latestApproved?.version ?? skill.activeVersion?.version
           }
+          author={skill.activeVersion?.author ?? skill.latestApproved?.author}
           downloads={skill.downloads}
           downloadHistory={skill.downloadHistory}
-          updatedAt={skill.pkg.updatedAt}
+          uploadedAt={skill.activeVersion?.createdAt ?? skill.pkg.createdAt}
           lastModifiedAt={skill.lastModifiedAt}
         />
       </div>
@@ -2995,9 +3004,10 @@ function SkillRow({
           version={
             skill.latestApproved?.version ?? skill.activeVersion?.version
           }
+          author={skill.activeVersion?.author ?? skill.latestApproved?.author}
           downloads={skill.downloads}
           downloadHistory={skill.downloadHistory}
-          updatedAt={skill.pkg.updatedAt}
+          uploadedAt={skill.activeVersion?.createdAt ?? skill.pkg.createdAt}
           lastModifiedAt={skill.lastModifiedAt}
         />
       </div>

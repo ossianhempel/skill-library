@@ -331,6 +331,51 @@ describe("SkillLibraryApp", () => {
     );
   });
 
+  it("hides the Approve button if the active version is already approved", async () => {
+    const api = fakeApi();
+
+    const approvedSkill = {
+      ...skill,
+      activeVersion: {
+        ...skill.activeVersion,
+        lifecycleState: "approved" as const,
+      },
+    };
+
+    const { rerender } = render(
+      <SkillLibraryApp
+        api={api}
+        authToken="test-token"
+        workspaceId="workspace-1"
+        skills={[approvedSkill]}
+      />
+    );
+
+    // Switch to Catalog to view detail pane
+    fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+
+    const draftSkill = {
+      ...skill,
+      activeVersion: {
+        ...skill.activeVersion,
+        lifecycleState: "draft" as const,
+      },
+    };
+
+    rerender(
+      <SkillLibraryApp
+        api={api}
+        authToken="test-token"
+        workspaceId="workspace-1"
+        skills={[draftSkill]}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeNull();
+  });
+
   it("converts selected browser files to package-tree entries", async () => {
     await expect(
       filesToPackageEntries([new File(["# Demo\n"], "SKILL.md")])
@@ -414,11 +459,17 @@ describe("SkillLibraryApp", () => {
       pkg: { ...skill.pkg, id: "package-alice", name: "Alice Skill" },
       latestApproved: {
         ...skill.latestApproved,
-        provenance: { kind: "upload" as const, actorId: "user-123" },
+        provenance: {
+          ...skill.latestApproved.provenance,
+          actorId: "user-123",
+        },
       },
       activeVersion: {
         ...skill.activeVersion,
-        provenance: { kind: "upload" as const, actorId: "user-123" },
+        provenance: {
+          ...skill.activeVersion.provenance,
+          actorId: "user-123",
+        },
       },
     };
 
@@ -427,11 +478,17 @@ describe("SkillLibraryApp", () => {
       pkg: { ...skill.pkg, id: "package-bob", name: "Bob Skill" },
       latestApproved: {
         ...skill.latestApproved,
-        provenance: { kind: "upload" as const, actorId: "user-456" },
+        provenance: {
+          ...skill.latestApproved.provenance,
+          actorId: "user-456",
+        },
       },
       activeVersion: {
         ...skill.activeVersion,
-        provenance: { kind: "upload" as const, actorId: "user-456" },
+        provenance: {
+          ...skill.activeVersion.provenance,
+          actorId: "user-456",
+        },
       },
     };
 
