@@ -1,9 +1,28 @@
 import { randomUUID } from "node:crypto";
-import type { InstallReport, LifecycleState, SkillPackage, SkillVersion, ValidationResult, VersionProvenance } from "@skill-library/domain";
+import type {
+  InstallReport,
+  LifecycleState,
+  SkillPackage,
+  SkillVersion,
+  ValidationResult,
+  VersionProvenance,
+} from "@skill-library/domain";
 import type { Workspace } from "@skill-library/domain";
-import { createRegistryStore, type RegistryStore, type RegistryStoreConfig, type StoredArtifact } from "@skill-library/storage";
-import { packPackageZip, validatePackageTree, type PackageTreeEntry } from "@skill-library/validation";
-import { importPackageTreeFromGit, type GitImportRequest } from "./git-import.js";
+import {
+  createRegistryStore,
+  type RegistryStore,
+  type RegistryStoreConfig,
+  type StoredArtifact,
+} from "@skill-library/storage";
+import {
+  packPackageZip,
+  validatePackageTree,
+  type PackageTreeEntry,
+} from "@skill-library/validation";
+import {
+  importPackageTreeFromGit,
+  type GitImportRequest,
+} from "./git-import.js";
 
 export interface RegistryApi {
   search(workspaceId: string, query?: string): Promise<SkillPackage[]>;
@@ -12,7 +31,9 @@ export interface RegistryApi {
   packageDetail(packageId: string): Promise<SkillPackage | undefined>;
   packageVersions(packageId: string): ReturnType<RegistryStore["listVersions"]>;
   versionDetail(versionId: string): ReturnType<RegistryStore["getVersion"]>;
-  latestApprovedVersion(packageId: string): ReturnType<RegistryStore["getLatestApprovedVersion"]>;
+  latestApprovedVersion(
+    packageId: string
+  ): ReturnType<RegistryStore["getLatestApprovedVersion"]>;
   recordPackageView(packageId: string): Promise<void>;
   recordArtifactDownload(packageId: string, versionId: string): Promise<void>;
   recordInstallReport(report: InstallReport): Promise<void>;
@@ -22,10 +43,18 @@ export interface RegistryApi {
   workspaceCatalogStats: RegistryStore["getWorkspaceCatalogStats"];
   validate(entries: PackageTreeEntry[]): ReturnType<typeof validatePackageTree>;
   ingestArtifact(entries: PackageTreeEntry[]): Promise<IngestedArtifact>;
-  createUploadedVersion(input: CreateUploadedVersionInput): Promise<SkillVersion>;
-  createGitImportedVersion(input: CreateGitImportedVersionInput): Promise<SkillVersion>;
-  transitionVersion(input: TransitionVersionInput): Promise<SkillVersion | undefined>;
-  artifactDownload(digest: string): Promise<{ artifact: StoredArtifact; content: Buffer } | undefined>;
+  createUploadedVersion(
+    input: CreateUploadedVersionInput
+  ): Promise<SkillVersion>;
+  createGitImportedVersion(
+    input: CreateGitImportedVersionInput
+  ): Promise<SkillVersion>;
+  transitionVersion(
+    input: TransitionVersionInput
+  ): Promise<SkillVersion | undefined>;
+  artifactDownload(
+    digest: string
+  ): Promise<{ artifact: StoredArtifact; content: Buffer } | undefined>;
 }
 
 export interface IngestedArtifact {
@@ -42,6 +71,8 @@ export interface CreateUploadedVersionInput {
   version: string;
   entries: PackageTreeEntry[];
   actorId?: string;
+  actorName?: string;
+  actorEmail?: string;
 }
 
 export interface CreateGitImportedVersionInput {
@@ -53,6 +84,8 @@ export interface CreateGitImportedVersionInput {
   version: string;
   git: GitImportRequest;
   actorId?: string;
+  actorName?: string;
+  actorEmail?: string;
 }
 
 export interface TransitionVersionInput {
@@ -78,7 +111,11 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         return packages;
       }
 
-      return packages.filter((pkg) => `${pkg.name} ${pkg.description} ${pkg.categories.join(" ")}`.toLowerCase().includes(normalizedQuery));
+      return packages.filter((pkg) =>
+        `${pkg.name} ${pkg.description} ${pkg.categories.join(" ")}`
+          .toLowerCase()
+          .includes(normalizedQuery)
+      );
     },
     workspaceDetail(workspaceId) {
       return store.getWorkspace(workspaceId);
@@ -93,7 +130,7 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
       const workspace = {
         ...current,
         reportingPolicy: input.reportingPolicy ?? current.reportingPolicy,
-        visibility: input.visibility ?? current.visibility
+        visibility: input.visibility ?? current.visibility,
       };
 
       await store.upsertWorkspace(workspace);
@@ -123,7 +160,7 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         workspaceId: pkg.workspaceId,
         packageId,
         eventType: "view",
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       });
     },
     async recordArtifactDownload(packageId, versionId) {
@@ -139,7 +176,7 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         packageId,
         versionId,
         eventType: "download",
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       });
     },
     recordInstallReport(report) {
@@ -170,12 +207,12 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
       const content = await packPackageZip(entries);
       const artifact = await store.putArtifact({
         digest: validation.digest,
-        content
+        content,
       });
 
       return {
         validation,
-        artifact
+        artifact,
       };
     },
     async createUploadedVersion(input) {
@@ -184,10 +221,14 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
       const provenance: VersionProvenance = {
         kind: "upload",
         actorId: input.actorId,
-        importedAt: now
+        actorName: input.actorName,
+        actorEmail: input.actorEmail,
+        importedAt: now,
       };
       const validation = validatePackageTree(input.entries);
-      const artifact = validation.ok ? (await this.ingestArtifact(input.entries)).artifact : undefined;
+      const artifact = validation.ok
+        ? (await this.ingestArtifact(input.entries)).artifact
+        : undefined;
 
       await ensureWorkspace(store, input.workspaceId);
       await store.upsertPackage({
@@ -198,7 +239,7 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         description: input.description,
         categories: input.categories ?? [],
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       });
 
       return store.createVersion({
@@ -206,10 +247,11 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         packageId,
         version: input.version,
         lifecycleState: "draft",
-        artifactDigest: artifact?.digest ?? validation.digest ?? `invalid:${randomUUID()}`,
+        artifactDigest:
+          artifact?.digest ?? validation.digest ?? `invalid:${randomUUID()}`,
         validation,
         provenance,
-        createdAt: now
+        createdAt: now,
       });
     },
     async createGitImportedVersion(input) {
@@ -219,13 +261,19 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
       const provenance: VersionProvenance = {
         kind: "git",
         actorId: input.actorId,
+        actorName: input.actorName,
+        actorEmail: input.actorEmail,
         sourceUrl: imported.sourceUrl,
         ref: imported.ref,
         commit: imported.commit,
-        importedAt: now
+        importedAt: now,
+        gitAuthorName: imported.authorName,
+        gitAuthorEmail: imported.authorEmail,
       };
       const validation = validatePackageTree(imported.entries);
-      const artifact = validation.ok ? (await this.ingestArtifact(imported.entries)).artifact : undefined;
+      const artifact = validation.ok
+        ? (await this.ingestArtifact(imported.entries)).artifact
+        : undefined;
 
       await ensureWorkspace(store, input.workspaceId);
       await store.upsertPackage({
@@ -236,7 +284,7 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         description: input.description,
         categories: input.categories ?? [],
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       });
 
       return store.createVersion({
@@ -244,10 +292,11 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         packageId,
         version: input.version,
         lifecycleState: "draft",
-        artifactDigest: artifact?.digest ?? validation.digest ?? `invalid:${randomUUID()}`,
+        artifactDigest:
+          artifact?.digest ?? validation.digest ?? `invalid:${randomUUID()}`,
         validation,
         provenance,
-        createdAt: now
+        createdAt: now,
       });
     },
     async transitionVersion(input) {
@@ -264,11 +313,14 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
       const content = await store.readArtifactContent(digest);
 
       return artifact && content ? { artifact, content } : undefined;
-    }
+    },
   };
 }
 
-async function ensureWorkspace(store: RegistryStore, workspaceId: string): Promise<void> {
+async function ensureWorkspace(
+  store: RegistryStore,
+  workspaceId: string
+): Promise<void> {
   const existing = await store.getWorkspace(workspaceId);
 
   if (existing) {
@@ -280,7 +332,7 @@ async function ensureWorkspace(store: RegistryStore, workspaceId: string): Promi
     slug: workspaceId,
     name: workspaceId,
     reportingPolicy: "opt-in",
-    visibility: "private"
+    visibility: "private",
   });
 }
 
@@ -292,12 +344,14 @@ function stableId(...parts: string[]) {
     .replace(/^-|-$/g, "");
 }
 
-export async function createDefaultRegistryApi(config: RegistryStoreConfig = {}): Promise<{ api: RegistryApi; store: RegistryStore }> {
+export async function createDefaultRegistryApi(
+  config: RegistryStoreConfig = {}
+): Promise<{ api: RegistryApi; store: RegistryStore }> {
   const store = await createRegistryStore(config);
   await store.migrate();
 
   return {
     api: createRegistryApi(store),
-    store
+    store,
   };
 }

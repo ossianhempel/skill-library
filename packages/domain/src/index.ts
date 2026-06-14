@@ -76,10 +76,14 @@ export interface SkillVersion {
 export interface VersionProvenance {
   kind: "upload" | "git";
   actorId?: string;
+  actorName?: string;
+  actorEmail?: string;
   sourceUrl?: string;
   ref?: string;
   commit?: string;
   importedAt: string;
+  gitAuthorName?: string;
+  gitAuthorEmail?: string;
 }
 
 export interface ArtifactFile {

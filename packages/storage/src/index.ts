@@ -492,6 +492,8 @@ export class SqlRegistryStore implements RegistryStore {
 
   async listVersions(packageId: string): Promise<SkillVersion[]> {
     const actorId = this.jsonText("v.provenance", "actorId");
+    const actorEmail = this.jsonText("v.provenance", "actorEmail");
+    const gitAuthorEmail = this.jsonText("v.provenance", "gitAuthorEmail");
     const rows = await this.kysely
       .selectFrom("skill_versions as v")
       .leftJoin("user as u", (join) =>
@@ -499,6 +501,8 @@ export class SqlRegistryStore implements RegistryStore {
           eb.or([
             eb(actorId, "=", eb.ref("u.id")),
             eb(actorId, "=", eb.ref("u.email")),
+            eb(actorEmail, "=", eb.ref("u.email")),
+            eb(gitAuthorEmail, "=", eb.ref("u.email")),
           ])
         )
       )
@@ -525,6 +529,8 @@ export class SqlRegistryStore implements RegistryStore {
 
   async getVersion(versionId: string): Promise<SkillVersion | undefined> {
     const actorId = this.jsonText("v.provenance", "actorId");
+    const actorEmail = this.jsonText("v.provenance", "actorEmail");
+    const gitAuthorEmail = this.jsonText("v.provenance", "gitAuthorEmail");
     const row = await this.kysely
       .selectFrom("skill_versions as v")
       .leftJoin("user as u", (join) =>
@@ -532,6 +538,8 @@ export class SqlRegistryStore implements RegistryStore {
           eb.or([
             eb(actorId, "=", eb.ref("u.id")),
             eb(actorId, "=", eb.ref("u.email")),
+            eb(actorEmail, "=", eb.ref("u.email")),
+            eb(gitAuthorEmail, "=", eb.ref("u.email")),
           ])
         )
       )
@@ -559,6 +567,8 @@ export class SqlRegistryStore implements RegistryStore {
     packageId: string
   ): Promise<SkillVersion | undefined> {
     const actorId = this.jsonText("v.provenance", "actorId");
+    const actorEmail = this.jsonText("v.provenance", "actorEmail");
+    const gitAuthorEmail = this.jsonText("v.provenance", "gitAuthorEmail");
     const base = this.kysely
       .selectFrom("skill_versions as v")
       .leftJoin("user as u", (join) =>
@@ -566,6 +576,8 @@ export class SqlRegistryStore implements RegistryStore {
           eb.or([
             eb(actorId, "=", eb.ref("u.id")),
             eb(actorId, "=", eb.ref("u.email")),
+            eb(actorEmail, "=", eb.ref("u.email")),
+            eb(gitAuthorEmail, "=", eb.ref("u.email")),
           ])
         )
       )
@@ -717,6 +729,8 @@ export class SqlRegistryStore implements RegistryStore {
 
   async listTeamMembers(): Promise<TeamMemberRecord[]> {
     const actorId = this.jsonText("v.provenance", "actorId");
+    const actorEmail = this.jsonText("v.provenance", "actorEmail");
+    const gitAuthorEmail = this.jsonText("v.provenance", "gitAuthorEmail");
 
     const rows = await this.kysely
       .selectFrom("user as u")
@@ -725,6 +739,8 @@ export class SqlRegistryStore implements RegistryStore {
           eb.or([
             eb(actorId, "=", eb.ref("u.id")),
             eb(actorId, "=", eb.ref("u.email")),
+            eb(actorEmail, "=", eb.ref("u.email")),
+            eb(gitAuthorEmail, "=", eb.ref("u.email")),
           ])
         )
       )
@@ -1433,6 +1449,38 @@ function fromVersionRow(row: VersionRow): SkillVersion {
     author = row.actor_name;
   } else if (row.actor_email) {
     author = row.actor_email;
+  } else if (
+    provenance &&
+    typeof provenance === "object" &&
+    "actorName" in provenance &&
+    typeof (provenance as any).actorName === "string" &&
+    (provenance as any).actorName
+  ) {
+    author = (provenance as any).actorName;
+  } else if (
+    provenance &&
+    typeof provenance === "object" &&
+    "actorEmail" in provenance &&
+    typeof (provenance as any).actorEmail === "string" &&
+    (provenance as any).actorEmail
+  ) {
+    author = (provenance as any).actorEmail;
+  } else if (
+    provenance &&
+    typeof provenance === "object" &&
+    "gitAuthorName" in provenance &&
+    typeof (provenance as any).gitAuthorName === "string" &&
+    (provenance as any).gitAuthorName
+  ) {
+    author = (provenance as any).gitAuthorName;
+  } else if (
+    provenance &&
+    typeof provenance === "object" &&
+    "gitAuthorEmail" in provenance &&
+    typeof (provenance as any).gitAuthorEmail === "string" &&
+    (provenance as any).gitAuthorEmail
+  ) {
+    author = (provenance as any).gitAuthorEmail;
   } else if (
     provenance &&
     typeof provenance === "object" &&

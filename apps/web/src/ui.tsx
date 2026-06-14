@@ -626,12 +626,25 @@ export function SkillLibraryApp({
     if (!session) return [];
     return catalog.filter((skill, index) => {
       const activeActorId = skill.activeVersion?.provenance?.actorId;
+      const activeActorEmail = skill.activeVersion?.provenance?.actorEmail;
+      const activeGitEmail = skill.activeVersion?.provenance?.gitAuthorEmail;
       const approvedActorId = skill.latestApproved?.provenance?.actorId;
+      const approvedActorEmail = skill.latestApproved?.provenance?.actorEmail;
+      const approvedGitEmail = skill.latestApproved?.provenance?.gitAuthorEmail;
       const isMockSkill = skill.pkg.id.startsWith("workspace-1-");
       if (isMockSkill && index === 0) {
         return true;
       }
-      return activeActorId === session.id || approvedActorId === session.id;
+      return (
+        activeActorId === session.id ||
+        activeActorId === session.email ||
+        activeActorEmail === session.email ||
+        activeGitEmail === session.email ||
+        approvedActorId === session.id ||
+        approvedActorId === session.email ||
+        approvedActorEmail === session.email ||
+        approvedGitEmail === session.email
+      );
     });
   }, [catalog, session]);
 
@@ -2124,7 +2137,7 @@ export function buildInstallPrompt(
   registryUrl: string,
   target: "codex-global" | "project" = "codex-global"
 ) {
-  return `skill-library install ${packageSlug} --workspace ${workspaceId} --target ${target} --registry ${registryUrl}`;
+  return `npx @skill-library/cli install ${packageSlug} --workspace ${workspaceId} --target ${target} --registry ${registryUrl}`;
 }
 
 export const PUBLISH_FIELD_PLACEHOLDERS = {

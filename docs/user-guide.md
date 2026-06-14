@@ -12,11 +12,11 @@ The **first Microsoft account to sign in** is promoted to **Admin** automaticall
 
 ### Roles
 
-| UI label | Internal role | Permissions |
-|----------|---------------|-------------|
-| **Viewer** | `user` | Browse and install approved skills; publish drafts |
-| **Editor** | `maintainer` | Everything viewers can do; approve, hide, and deprecate skills; view adoption reports |
-| **Admin** | `admin` | Manage teammate roles; all editor permissions |
+| UI label   | Internal role | Permissions                                                                           |
+| ---------- | ------------- | ------------------------------------------------------------------------------------- |
+| **Viewer** | `user`        | Browse and install approved skills; publish drafts                                    |
+| **Editor** | `maintainer`  | Everything viewers can do; approve, hide, and deprecate skills; view adoption reports |
+| **Admin**  | `admin`       | Manage teammate roles; all editor permissions                                         |
 
 Admins change roles on the **Team** tab. Everyone signed in can open **Team** to see teammates and how many skills each person has submitted. You cannot change your own role.
 
@@ -39,7 +39,7 @@ That token is tied to your account and role. Treat it like a password.
 For local development or automation without SSO, set a browser API token before opening the app:
 
 ```js
-localStorage.setItem("skill-library-token", "<user-or-maintainer-token>")
+localStorage.setItem("skill-library-token", "<user-or-maintainer-token>");
 ```
 
 Legacy static deploy keys in `SKILL_LIBRARY_API_KEYS` still work for automation. See [security.md](security.md).
@@ -64,7 +64,7 @@ Skill detail shows:
 The recommended install path is the local CLI:
 
 ```sh
-skill-library install <package-id> --workspace <workspace-id> --root <destination-root> --registry <registry-url>
+npx @skill-library/cli install <package-id> --workspace <workspace-id> --root <destination-root> --registry <registry-url>
 ```
 
 The web UI generates a one-time prompt that a user can hand to a local agent/helper. ZIP fallback maps to the artifact download API.

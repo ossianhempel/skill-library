@@ -1,13 +1,24 @@
 import { describe, expect, it } from "vitest";
-import type { InstallReport, SkillPackage, SkillVersion } from "@skill-library/domain";
+import type {
+  InstallReport,
+  SkillPackage,
+  SkillVersion,
+} from "@skill-library/domain";
 import { validatePackageTree } from "@skill-library/validation";
-import { createHttpMcpApi, createInstallPlan, createRegistryMcpTools, handleMcpJsonRpc, type McpRegistryApi } from "./index.js";
+import {
+  createHttpMcpApi,
+  createInstallPlan,
+  createRegistryMcpTools,
+  handleMcpJsonRpc,
+  type McpRegistryApi,
+} from "./index.js";
 
 describe("MCP registry tools", () => {
   it("creates CLI-backed install plans", () => {
     expect(createInstallPlan("review-helper", "project")).toEqual({
-      command: "skill-library install review-helper --target project",
-      metadataBehavior: "Installer writes generated registry metadata after verifying the artifact digest."
+      command: "npx @skill-library/cli install review-helper --target project",
+      metadataBehavior:
+        "Installer writes generated registry metadata after verifying the artifact digest.",
     });
   });
 
@@ -27,19 +38,33 @@ describe("MCP registry tools", () => {
         return {
           ok: entries.some((entry) => entry.path.endsWith("SKILL.md")),
           files: [],
-          issues: []
+          issues: [],
         };
       },
       async recordInstallReport(report) {
         reports.push(report);
-      }
+      },
     };
     const tools = createRegistryMcpTools(api);
 
-    await expect(tools.search({ workspaceId: "workspace-1", query: "review" })).resolves.toEqual({ packages: [pkg] });
-    await expect(tools.packageDetail({ packageId: "package-1" })).resolves.toEqual({ package: pkg, latestApproved: version });
-    await expect(tools.validatePackage({ entries: [{ path: "demo/SKILL.md", content: skillMd("demo", "Demo skill.") }] })).resolves.toEqual({
-      validation: { ok: true, files: expect.any(Array), issues: expect.any(Array) }
+    await expect(
+      tools.search({ workspaceId: "workspace-1", query: "review" })
+    ).resolves.toEqual({ packages: [pkg] });
+    await expect(
+      tools.packageDetail({ packageId: "package-1" })
+    ).resolves.toEqual({ package: pkg, latestApproved: version });
+    await expect(
+      tools.validatePackage({
+        entries: [
+          { path: "demo/SKILL.md", content: skillMd("demo", "Demo skill.") },
+        ],
+      })
+    ).resolves.toEqual({
+      validation: {
+        ok: true,
+        files: expect.any(Array),
+        issues: expect.any(Array),
+      },
     });
     await expect(
       tools.submitStatusReport({
@@ -49,8 +74,8 @@ describe("MCP registry tools", () => {
           versionId: "version-1",
           state: "current",
           reportedAt: "2026-06-07T12:00:00.000Z",
-          targetKind: "codex-global"
-        }
+          targetKind: "codex-global",
+        },
       })
     ).resolves.toEqual({ accepted: true });
     expect(reports).toHaveLength(1);
@@ -69,14 +94,22 @@ describe("MCP registry tools", () => {
       },
       validate(entries) {
         return validatePackageTree(entries);
-      }
+      },
     });
 
-    await expect(tools.validatePackage({ entries: [{ path: "demo/SKILL.md", content: "# Missing frontmatter\n" }] })).resolves.toEqual({
+    await expect(
+      tools.validatePackage({
+        entries: [
+          { path: "demo/SKILL.md", content: "# Missing frontmatter\n" },
+        ],
+      })
+    ).resolves.toEqual({
       validation: expect.objectContaining({
         ok: false,
-        issues: expect.arrayContaining([expect.objectContaining({ ruleId: "skill-md-missing-frontmatter" })])
-      })
+        issues: expect.arrayContaining([
+          expect.objectContaining({ ruleId: "skill-md-missing-frontmatter" }),
+        ]),
+      }),
     });
   });
 
@@ -93,23 +126,43 @@ describe("MCP registry tools", () => {
       },
       validate() {
         return { ok: true, files: [], issues: [] };
-      }
+      },
     });
 
-    await expect(handleMcpJsonRpc(tools, { jsonrpc: "2.0", id: 1, method: "tools/list" })).resolves.toEqual({
+    await expect(
+      handleMcpJsonRpc(tools, { jsonrpc: "2.0", id: 1, method: "tools/list" })
+    ).resolves.toEqual({
       jsonrpc: "2.0",
       id: 1,
-      result: { tools: expect.arrayContaining([expect.objectContaining({ name: "search" })]) }
+      result: {
+        tools: expect.arrayContaining([
+          expect.objectContaining({ name: "search" }),
+        ]),
+      },
     });
     await expect(
-      handleMcpJsonRpc(tools, { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "search", arguments: { workspaceId: "workspace-1" } } })
+      handleMcpJsonRpc(tools, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "search", arguments: { workspaceId: "workspace-1" } },
+      })
     ).resolves.toEqual({
       jsonrpc: "2.0",
       id: 2,
-      result: { packages: [pkg] }
+      result: { packages: [pkg] },
     });
-    await expect(handleMcpJsonRpc(tools, { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "missing", arguments: {} } })).resolves.toEqual(
-      expect.objectContaining({ error: expect.objectContaining({ code: -32602 }) })
+    await expect(
+      handleMcpJsonRpc(tools, {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: { name: "missing", arguments: {} },
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({ code: -32602 }),
+      })
     );
   });
 
@@ -131,7 +184,7 @@ describe("MCP registry tools", () => {
         }
 
         return jsonResponse({ error: "not found" }, 404);
-      }
+      },
     });
 
     await expect(api.search("workspace-1", "review")).resolves.toEqual([pkg]);
@@ -142,11 +195,23 @@ describe("MCP registry tools", () => {
         versionId: "version-1",
         state: "current",
         reportedAt: "2026-06-07T12:00:00.000Z",
-        targetKind: "codex-global"
+        targetKind: "codex-global",
       })
     ).resolves.toBeUndefined();
-    expect(requests[0]?.init).toEqual(expect.objectContaining({ headers: expect.objectContaining({ "x-skill-library-role": "maintainer" }) }));
-    expect(requests[1]?.init).toEqual(expect.objectContaining({ headers: expect.objectContaining({ "x-skill-library-actor": "agent-1" }) }));
+    expect(requests[0]?.init).toEqual(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "x-skill-library-role": "maintainer",
+        }),
+      })
+    );
+    expect(requests[1]?.init).toEqual(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "x-skill-library-actor": "agent-1",
+        }),
+      })
+    );
   });
 
   it("creates an HTTP-backed MCP API with bearer token auth", async () => {
@@ -162,12 +227,16 @@ describe("MCP registry tools", () => {
         }
 
         return jsonResponse({ error: "not found" }, 404);
-      }
+      },
     });
 
     await expect(api.search("workspace-1", "review")).resolves.toEqual([pkg]);
     expect(requests[0]?.init).toEqual(
-      expect.objectContaining({ headers: expect.objectContaining({ authorization: "Bearer maintainer-secret" }) })
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          authorization: "Bearer maintainer-secret",
+        }),
+      })
     );
   });
 });
@@ -180,7 +249,7 @@ const pkg: SkillPackage = {
   description: "Review local code changes.",
   categories: ["review"],
   createdAt: "2026-06-07T12:00:00.000Z",
-  updatedAt: "2026-06-07T12:00:00.000Z"
+  updatedAt: "2026-06-07T12:00:00.000Z",
 };
 
 const version: SkillVersion = {
@@ -192,17 +261,21 @@ const version: SkillVersion = {
   validation: { ok: true, files: [], issues: [] },
   provenance: { kind: "upload", importedAt: "2026-06-07T12:00:00.000Z" },
   createdAt: "2026-06-07T12:00:00.000Z",
-  approvedAt: "2026-06-07T12:05:00.000Z"
+  approvedAt: "2026-06-07T12:05:00.000Z",
 };
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" }
+    headers: { "content-type": "application/json" },
   });
 }
 
-function skillMd(name: string, description: string, body = "# Skill\n\nBody content.\n"): string {
+function skillMd(
+  name: string,
+  description: string,
+  body = "# Skill\n\nBody content.\n"
+): string {
   return `---
 name: ${name}
 description: ${description}

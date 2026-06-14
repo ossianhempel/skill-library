@@ -76,7 +76,7 @@ describe("SkillLibraryApp", () => {
     // In simplified UI, detail pane is hidden on Overview tab
     expect(screen.queryByText("SKILL.md")).toBeNull();
     expect(
-      screen.queryByText(/skill-library install review-helper/)
+      screen.queryByText(/npx @skill-library\/cli install review-helper/)
     ).toBeNull();
 
     expect(screen.queryByText("Publish local folder")).toBeNull();
@@ -89,7 +89,7 @@ describe("SkillLibraryApp", () => {
     expect(screen.getAllByText("9").length).toBeGreaterThan(0);
     expect(screen.getByText("SKILL.md")).toBeTruthy();
     expect(
-      screen.getByText(/skill-library install review-helper/)
+      screen.getByText(/npx @skill-library\/cli install review-helper/)
     ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));

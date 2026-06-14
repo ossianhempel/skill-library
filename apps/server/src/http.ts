@@ -289,6 +289,8 @@ export function createHttpApp(
       version?: string;
       entries?: PackageTreeEntry[];
       actorId?: string;
+      actorName?: string;
+      actorEmail?: string;
     };
 
     if (
@@ -307,6 +309,21 @@ export function createHttpApp(
       );
     }
 
+    let actorName = body.actorName;
+    let actorEmail = body.actorEmail;
+
+    if (actor && actor.id && (!actorName || !actorEmail)) {
+      const userRow = await store.kysely
+        ?.selectFrom("user")
+        .select(["name", "email"])
+        .where("id", "=", actor.id)
+        .executeTakeFirst();
+      if (userRow) {
+        if (!actorName) actorName = userRow.name;
+        if (!actorEmail) actorEmail = userRow.email;
+      }
+    }
+
     try {
       const version = await api.createUploadedVersion({
         workspaceId: context.req.param("workspaceId"),
@@ -317,6 +334,8 @@ export function createHttpApp(
         version: body.version,
         entries: body.entries,
         actorId: body.actorId ?? actor?.id,
+        actorName,
+        actorEmail,
       });
 
       return context.json({ version }, 201);
@@ -352,6 +371,8 @@ export function createHttpApp(
         ref?: string;
         subdirectory?: string;
         actorId?: string;
+        actorName?: string;
+        actorEmail?: string;
       };
 
       if (
@@ -370,6 +391,21 @@ export function createHttpApp(
         );
       }
 
+      let actorName = body.actorName;
+      let actorEmail = body.actorEmail;
+
+      if (actor && actor.id && (!actorName || !actorEmail)) {
+        const userRow = await store.kysely
+          ?.selectFrom("user")
+          .select(["name", "email"])
+          .where("id", "=", actor.id)
+          .executeTakeFirst();
+        if (userRow) {
+          if (!actorName) actorName = userRow.name;
+          if (!actorEmail) actorEmail = userRow.email;
+        }
+      }
+
       try {
         const version = await api.createGitImportedVersion({
           workspaceId: context.req.param("workspaceId"),
@@ -384,6 +420,8 @@ export function createHttpApp(
             subdirectory: body.subdirectory,
           },
           actorId: body.actorId ?? actor?.id,
+          actorName,
+          actorEmail,
         });
 
         return context.json({ version }, 201);
