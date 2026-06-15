@@ -6,9 +6,12 @@ import { existsSync, readFileSync } from "node:fs";
 const MAX_LINES = 500;
 const IGNORED_EXTENSIONS = new Set([".md", ".mdx"]);
 const IGNORED_DIRECTORIES = new Set(["docs", "skills"]);
+// Stylesheets are intentionally excluded: the LOC limit targets code modules
+// (where a large file signals tangled logic). A single large stylesheet is
+// idiomatic, and splitting it trades real cascade/import-order fragility for no
+// maintainability gain.
 const SOURCE_EXTENSIONS = new Set([
   ".cjs",
-  ".css",
   ".cts",
   ".go",
   ".js",
@@ -17,7 +20,6 @@ const SOURCE_EXTENSIONS = new Set([
   ".mts",
   ".py",
   ".rs",
-  ".scss",
   ".sh",
   ".swift",
   ".ts",

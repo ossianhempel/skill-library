@@ -951,24 +951,43 @@ p {
 }
 
 @media (max-width: 720px) {
-  .shell {
+  /* Collapse to a single stacked column. Must match the specificity of the
+     980px `.shell.layout-*` rules above, or those win and squish the pane. */
+  .shell.layout-catalog,
+  .shell.layout-single {
     grid-template-columns: 1fr;
   }
+  /* Rail becomes a wrapping top bar: nav buttons flow as a compact tab strip,
+     the profile/token block drops to its own full-width row below. */
   .rail {
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: 5;
     flex-direction: row;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--space-6);
+    padding: var(--space-8) var(--space-12);
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
+  .rail .mark {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+  }
   .rail button {
-    height: 48px;
+    width: auto;
+    flex: 0 1 auto;
+    height: 44px;
+    flex-direction: row;
+    gap: var(--space-6);
+    padding: 0 var(--space-10);
   }
   .catalog-pane,
   .detail-pane {
-    grid-column: 1;
+    grid-column: 1 / -1;
     padding: var(--space-18);
   }
   .topbar,
@@ -1605,4 +1624,47 @@ p {
 .category-pill .count {
   font-size: var(--font-size-xxs);
   opacity: 0.8;
+}
+
+/* Mobile rail (top bar) overrides for the profile/token block. Defined here at
+   the end so they win over the base .rail-spacer/.session-profile/.token-config
+   rules above on source order (equal specificity, no media-query boost). */
+@media (max-width: 720px) {
+  /* Full-basis spacer forces a line break so the profile drops to its own row
+     below the wrapped nav buttons instead of stretching the bar. */
+  .rail-spacer {
+    flex: 0 0 100%;
+    height: 0;
+    margin: 0;
+  }
+  .session-profile,
+  .token-config {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-8);
+    margin: 0;
+    padding: var(--space-8) 0 0;
+  }
+  .session-info {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-8);
+  }
+  .session-name {
+    max-width: none;
+    text-align: left;
+  }
+  .session-logout {
+    margin-left: auto;
+  }
+  .token-config label {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-8);
+    width: 100%;
+  }
+  .token-config input {
+    flex: 1;
+  }
 }
