@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type ReactNode,
@@ -316,10 +317,37 @@ export function SkillLibraryApp({
     null
   );
   const [loading, setLoading] = useState(false);
+  // Tracks whether the initial catalog query has resolved at least once, so the
+  // Catalog / My Skills lists can show a spinner instead of an empty-state on
+  // first paint (before any data has arrived).
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("overview");
   const [activeToken, setActiveToken] = useState(() => authToken);
   const [dragOver, setDragOver] = useState(false);
   const [filesExpanded, setFilesExpanded] = useState(false);
+  const detailPaneRef = useRef<HTMLElement>(null);
+
+  // Select a skill and, on stacked/narrow layouts where the detail pane sits
+  // below (or scrolled off from) the list, bring the skill info into view.
+  // No-op when the pane is already comfortably visible (e.g. desktop 3-column).
+  function handleSelectSkill(id: string) {
+    setSelectedId(id);
+    if (typeof window === "undefined") {
+      return;
+    }
+    // Wait for the detail pane to mount/update before measuring + scrolling.
+    requestAnimationFrame(() => {
+      const el = detailPaneRef.current;
+      if (!el) {
+        return;
+      }
+      const { top } = el.getBoundingClientRect();
+      const offscreen = top < 0 || top > window.innerHeight * 0.4;
+      if (offscreen) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }
 
   useEffect(() => {
     setFilesExpanded(false);
@@ -519,6 +547,7 @@ export function SkillLibraryApp({
     if (skills) {
       setCatalog(skills);
       setSelectedId(skills[0]?.pkg.id);
+      setCatalogLoaded(true);
       return;
     }
 
@@ -628,17 +657,13 @@ export function SkillLibraryApp({
 
   const mySkills = useMemo(() => {
     if (!session) return [];
-    return catalog.filter((skill, index) => {
+    return catalog.filter((skill) => {
       const activeActorId = skill.activeVersion?.provenance?.actorId;
       const activeActorEmail = skill.activeVersion?.provenance?.actorEmail;
       const activeGitEmail = skill.activeVersion?.provenance?.gitAuthorEmail;
       const approvedActorId = skill.latestApproved?.provenance?.actorId;
       const approvedActorEmail = skill.latestApproved?.provenance?.actorEmail;
       const approvedGitEmail = skill.latestApproved?.provenance?.gitAuthorEmail;
-      const isMockSkill = skill.pkg.id.startsWith("workspace-1-");
-      if (isMockSkill && index === 0) {
-        return true;
-      }
       return (
         activeActorId === session.id ||
         activeActorId === session.email ||
@@ -840,6 +865,7 @@ export function SkillLibraryApp({
       );
     } finally {
       setLoading(false);
+      setCatalogLoaded(true);
     }
   }
 
@@ -1491,7 +1517,8 @@ export function SkillLibraryApp({
               <SkillList
                 catalog={displaySkills}
                 selectedId={selected?.pkg.id}
-                onSelect={setSelectedId}
+                onSelect={handleSelectSkill}
+                loading={!catalogLoaded}
                 emptyMessage={
                   displaySkills.length === 0
                     ? statusFilter === "drafts"
@@ -1521,7 +1548,8 @@ export function SkillLibraryApp({
               <SkillList
                 catalog={displaySkills}
                 selectedId={selected?.pkg.id}
-                onSelect={setSelectedId}
+                onSelect={handleSelectSkill}
+                loading={!catalogLoaded}
                 emptyMessage={
                   displaySkills.length === 0
                     ? statusFilter === "drafts"
@@ -1934,7 +1962,11 @@ export function SkillLibraryApp({
         </section>
 
         {(activeTab === "catalog" || activeTab === "my-skills") && selected && (
-          <section className="detail-pane" aria-label="Skill detail">
+          <section
+            className="detail-pane"
+            aria-label="Skill detail"
+            ref={detailPaneRef}
+          >
             <div className="detail-head">
               <div>
                 <p className="kicker">Selected package</p>
@@ -2821,12 +2853,25 @@ function SkillList({
   selectedId,
   onSelect,
   emptyMessage,
+  loading = false,
 }: {
   catalog: CatalogSkill[];
   selectedId?: string;
   onSelect: (id: string) => void;
   emptyMessage?: string;
+  loading?: boolean;
 }) {
+  // Show a spinner while the initial query is still in flight so an empty list
+  // isn't mistaken for "no skills found".
+  if (loading && catalog.length === 0) {
+    return (
+      <div className="skill-list-loading" role="status" aria-live="polite">
+        <Loader2 size={22} className="spin" aria-hidden="true" />
+        <p>Loading skills…</p>
+      </div>
+    );
+  }
+
   if (catalog.length === 0) {
     return (
       <p className="empty-catalog-copy">
