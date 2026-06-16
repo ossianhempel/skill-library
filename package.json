@@ -9,7 +9,8 @@
     "test": "pnpm -r test",
     "verify": "pnpm build && pnpm test",
     "lint:max-lines:staged": "node scripts/check-staged-file-loc.js",
-    "prepare": "husky"
+    "prepare": "husky",
+    "docs:list": "pnpm dlx tsx scripts/docs-list.ts"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",
