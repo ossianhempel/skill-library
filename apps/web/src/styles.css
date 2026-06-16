@@ -864,13 +864,20 @@ p {
 .install-section code {
   display: block;
   white-space: pre-wrap;
-  word-break: break-all;
+  overflow-wrap: anywhere;
+  word-break: normal;
   background: #171a16;
   color: #f8f0d9;
   padding: var(--space-12);
   font-size: var(--font-size-sm);
   font-family: var(--font-mono);
   margin-bottom: var(--space-12);
+}
+
+.install-hint {
+  margin: 0 0 var(--space-12);
+  color: var(--muted);
+  font-size: var(--font-size-sm);
 }
 
 .install-warning {
