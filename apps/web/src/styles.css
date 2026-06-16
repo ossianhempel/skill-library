@@ -880,6 +880,40 @@ p {
   font-size: var(--font-size-sm);
 }
 
+.install-target-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--space-12);
+  padding: 3px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.install-target-option {
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.install-target-option:hover {
+  color: var(--ink);
+}
+
+.install-target-option.active {
+  border-color: var(--accent);
+  background: rgba(232, 244, 236, 0.9);
+  color: var(--ink);
+}
+
 .install-warning {
   color: var(--muted);
   font-style: italic;

@@ -44,6 +44,7 @@ import {
   WORKSPACE_ROLE_LABELS,
   type CatalogPackageStats,
   type DownloadHistoryPoint,
+  type InstallTargetKind,
   type LifecycleState,
   type PackageReport,
   type RegistryBrandingConfig,
@@ -309,6 +310,8 @@ export function SkillLibraryApp({
   >();
   const [notice, setNotice] = useState("Ready");
   const [copiedInstall, setCopiedInstall] = useState(false);
+  const [installTarget, setInstallTarget] =
+    useState<InstallTargetKind>("project");
   const [copiedMcpTarget, setCopiedMcpTarget] = useState<McpSetupTarget | null>(
     null
   );
@@ -1162,6 +1165,7 @@ export function SkillLibraryApp({
       registryUrl: resolvedRegistryUrl,
       appName: branding.appName,
       version: selected.latestApproved?.version,
+      target: installTarget,
     });
 
     await navigator.clipboard?.writeText(prompt).catch(() => undefined);
@@ -1961,6 +1965,26 @@ export function SkillLibraryApp({
                     Agent-ready prompt — paste it into Claude Code, Codex,
                     Cursor, or any agent to install this skill and verify it.
                   </p>
+                  <div
+                    className="install-target-toggle"
+                    role="group"
+                    aria-label="Install target"
+                  >
+                    {INSTALL_PROVIDER_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={`install-target-option ${
+                          installTarget === option.id ? "active" : ""
+                        }`}
+                        aria-pressed={installTarget === option.id}
+                        title={option.hint}
+                        onClick={() => setInstallTarget(option.id)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                   <code>
                     {buildInstallAgentPrompt({
                       packageSlug: selected.pkg.slug,
@@ -1969,6 +1993,7 @@ export function SkillLibraryApp({
                       registryUrl: resolvedRegistryUrl,
                       appName: branding.appName,
                       version: selected.latestApproved?.version,
+                      target: installTarget,
                     })}
                   </code>
                   <div className="actions">
@@ -2154,10 +2179,26 @@ export function buildInstallPrompt(
   packageSlug: string,
   workspaceId: string,
   registryUrl: string,
-  target: "codex-global" | "project" = "codex-global"
+  target: InstallTargetKind = "codex-global"
 ) {
   return `npx @skill-library/cli install ${packageSlug} --workspace ${workspaceId} --target ${target} --registry ${registryUrl}`;
 }
+
+/**
+ * Providers the install prompt can target, shown as a toggle in the "How to
+ * use" panel. "project" keeps the agent-agnostic project install as the default;
+ * the others map to each agent's global skills directory.
+ */
+export const INSTALL_PROVIDER_OPTIONS: ReadonlyArray<{
+  id: InstallTargetKind;
+  label: string;
+  hint: string;
+}> = [
+  { id: "project", label: "This project", hint: ".agents/skills" },
+  { id: "codex-global", label: "Codex", hint: "~/.codex/skills" },
+  { id: "claude-global", label: "Claude", hint: "~/.claude/skills" },
+  { id: "openclaw-global", label: "OpenClaw", hint: "~/.openclaw/skills" },
+];
 
 export interface InstallAgentPromptInput {
   packageSlug: string;
@@ -2166,7 +2207,7 @@ export interface InstallAgentPromptInput {
   registryUrl: string;
   appName: string;
   version?: string;
-  target?: "codex-global" | "project";
+  target?: InstallTargetKind;
 }
 
 /**
