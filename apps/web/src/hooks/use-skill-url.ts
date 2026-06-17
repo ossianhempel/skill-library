@@ -174,11 +174,10 @@ export function useSkillUrl({
         return;
       }
 
-      setActiveTab("catalog");
-
       // Cross-workspace: switch and defer to the resolution effect, which waits
       // for the target workspace's catalog before matching the slug.
       if (parts.workspaceId !== workspaceId) {
+        setActiveTab("catalog");
         setSelectedWorkspaceId(parts.workspaceId);
         pendingRef.current = {
           workspaceId: parts.workspaceId,
@@ -187,13 +186,17 @@ export function useSkillUrl({
         return;
       }
 
+      // Same workspace: the catalog is already loaded, so decide inline.
       const match = catalog.find((skill) => skill.pkg.slug === parts.slug);
       if (match) {
+        setActiveTab("catalog");
         skipNextPushRef.current = true;
         handleSelectSkill(match.pkg.id);
       } else {
-        // Catalog for this workspace is loaded; resolve against it.
-        pendingRef.current = { workspaceId, slug: parts.slug };
+        // Dead link: switching to overview hides the stale detail and lets the
+        // URL-sync effect drop the invalid path (overview ⇒ not a push).
+        setNotice(`Skill "${parts.slug}" was not found in this workspace.`);
+        setActiveTab("overview");
       }
     }
 
@@ -205,6 +208,7 @@ export function useSkillUrl({
     handleSelectSkill,
     setActiveTab,
     setSelectedWorkspaceId,
+    setNotice,
   ]);
 
   const copyShareLink = useCallback(() => {

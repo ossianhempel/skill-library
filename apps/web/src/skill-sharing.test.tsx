@@ -102,6 +102,32 @@ describe("shareable skill URLs", () => {
     expect(window.location.pathname).toBe("/s/workspace-1/review-helper");
   });
 
+  it("clears a dead same-workspace skill URL reached via back/forward", async () => {
+    render(
+      <SkillLibraryApp
+        skills={[catalogSkill("review-helper", "Review Helper")]}
+        workspaceId="workspace-1"
+        branding={testBranding}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/npx @skill-library\/cli install review-helper/)
+      ).toBeTruthy()
+    );
+
+    // Navigate to a skill URL whose slug is absent from this workspace.
+    window.history.replaceState(null, "", "/s/workspace-1/ghost");
+    fireEvent.popState(window);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+    expect(
+      screen.queryByText(/npx @skill-library\/cli install review-helper/)
+    ).toBeNull();
+  });
+
   it("resolves a deep link that targets a different workspace", async () => {
     window.history.replaceState(null, "", "/s/ws-b/beta");
 
