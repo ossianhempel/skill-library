@@ -11,12 +11,9 @@ import {
   type SkillPackage,
   type SkillVersion,
 } from "@skill-library/domain";
-import { SkillLibraryApp, type CatalogSkill } from "./ui.js";
+import { SkillLibraryApp, type CatalogSkill, type WebApiClient } from "./ui.js";
 
-afterEach(() => {
-  cleanup();
-  window.history.replaceState(null, "", "/");
-});
+afterEach(() => cleanup());
 
 describe("shareable skill URLs", () => {
   it("reflects the selected skill in a shareable URL and copies it", async () => {
@@ -104,7 +101,92 @@ describe("shareable skill URLs", () => {
     // The popstate selection must not push a new entry over the popped URL.
     expect(window.location.pathname).toBe("/s/workspace-1/review-helper");
   });
+
+  it("resolves a deep link that targets a different workspace", async () => {
+    window.history.replaceState(null, "", "/s/ws-b/beta");
+
+    render(
+      <SkillLibraryApp
+        api={multiWorkspaceApi()}
+        authToken="test-token"
+        workspaceId="ws-a"
+        branding={testBranding}
+      />
+    );
+
+    // Must switch to ws-b and select its skill, never the same-named ws-a one.
+    await waitFor(() =>
+      expect(
+        screen.getByText(/npx @skill-library\/cli install beta/)
+      ).toBeTruthy()
+    );
+    expect(
+      screen.queryByText(/npx @skill-library\/cli install alpha/)
+    ).toBeNull();
+  });
 });
+
+function multiWorkspaceApi(): WebApiClient {
+  const packagesByWorkspace: Record<string, SkillPackage[]> = {
+    "ws-a": [pkgFor("ws-a", "pkg-a", "alpha", "Alpha")],
+    "ws-b": [pkgFor("ws-b", "pkg-b", "beta", "Beta")],
+  };
+  const versionsByPackage: Record<string, SkillVersion> = {
+    "pkg-a": approvedVersion("pkg-a"),
+    "pkg-b": approvedVersion("pkg-b"),
+  };
+
+  return {
+    search: vi.fn(async (workspaceId: string) =>
+      (packagesByWorkspace[workspaceId] ?? []).slice()
+    ),
+    latestApprovedVersion: vi.fn(
+      async (packageId: string) => versionsByPackage[packageId]
+    ),
+    packageVersions: vi.fn(async (packageId: string) => {
+      const version = versionsByPackage[packageId];
+      return version ? [version] : [];
+    }),
+    workspaceCatalogStats: vi.fn(async () => []),
+    workspaceReports: vi.fn(async () => []),
+    uploadVersion: vi.fn(),
+    importGitVersion: vi.fn(),
+    validatePackageTree: vi.fn(),
+    transitionVersion: vi.fn(),
+  };
+}
+
+function pkgFor(
+  workspaceId: string,
+  id: string,
+  slug: string,
+  name: string
+): SkillPackage {
+  return {
+    id,
+    workspaceId,
+    slug,
+    name,
+    description: `${name} description.`,
+    categories: ["review"],
+    createdAt: "2026-06-07T12:00:00.000Z",
+    updatedAt: "2026-06-07T12:00:00.000Z",
+  };
+}
+
+function approvedVersion(packageId: string): SkillVersion {
+  return {
+    id: `version-${packageId}`,
+    packageId,
+    version: "1.0.0",
+    lifecycleState: "approved",
+    artifactDigest: "sha256:one",
+    validation: { ok: true, files: [], issues: [] },
+    provenance: { kind: "upload", importedAt: "2026-06-07T12:00:00.000Z" },
+    createdAt: "2026-06-07T12:00:00.000Z",
+    approvedAt: "2026-06-07T12:05:00.000Z",
+  };
+}
 
 const testBranding = {
   ...DEFAULT_REGISTRY_BRANDING,

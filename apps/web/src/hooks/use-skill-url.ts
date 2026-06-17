@@ -37,8 +37,10 @@ export function useSkillUrl({
   setNotice: (notice: string) => void;
 }) {
   const [copiedLink, setCopiedLink] = useState(false);
-  // A slug awaiting resolution once the right workspace's catalog has loaded.
-  const pendingSlugRef = useRef<string | null>(null);
+  // A skill awaiting resolution once its workspace's catalog has loaded. Tracks
+  // the target workspace so a cross-workspace link is never resolved against the
+  // previous workspace's (stale) catalog.
+  const pendingRef = useRef<{ workspaceId: string; slug: string } | null>(null);
   // Set when a selection originates from a back/forward navigation, so the URL
   // sync does not push a duplicate history entry over it.
   const skipNextPushRef = useRef(false);
@@ -54,7 +56,7 @@ export function useSkillUrl({
       return;
     }
 
-    pendingSlugRef.current = parts.slug;
+    pendingRef.current = { workspaceId: parts.workspaceId, slug: parts.slug };
     if (parts.workspaceId !== workspaceId) {
       setSelectedWorkspaceId(parts.workspaceId);
     }
@@ -64,22 +66,31 @@ export function useSkillUrl({
   }, []);
 
   // Resolve a pending deep-link slug against the loaded catalog. Selection is
-  // applied here; pendingSlugRef is cleared by the URL-sync effect once the
+  // applied here; pendingRef is cleared by the URL-sync effect once the
   // selection lands, so the URL sync uses replaceState (no duplicate entry).
   useEffect(() => {
-    const pending = pendingSlugRef.current;
-    if (!pending || catalog.length === 0) {
+    const pending = pendingRef.current;
+    if (!pending) {
       return;
     }
 
-    const match = catalog.find((skill) => skill.pkg.slug === pending);
+    // Wait until the app has switched to the target workspace and its catalog
+    // has actually loaded — resolving earlier would search stale data.
+    if (workspaceId !== pending.workspaceId || catalog.length === 0) {
+      return;
+    }
+    if (catalog[0]?.pkg.workspaceId !== pending.workspaceId) {
+      return;
+    }
+
+    const match = catalog.find((skill) => skill.pkg.slug === pending.slug);
     if (match) {
       handleSelectSkill(match.pkg.id);
     } else {
-      pendingSlugRef.current = null;
-      setNotice(`Skill "${pending}" was not found in this workspace.`);
+      pendingRef.current = null;
+      setNotice(`Skill "${pending.slug}" was not found in this workspace.`);
     }
-  }, [catalog, handleSelectSkill, setNotice]);
+  }, [catalog, workspaceId, handleSelectSkill, setNotice]);
 
   // Keep the URL in sync with the current selection.
   useEffect(() => {
@@ -91,9 +102,13 @@ export function useSkillUrl({
 
     // A deep link is still resolving: adopt the URL without a new history entry
     // once the selection it points at has actually landed.
-    if (pendingSlugRef.current) {
-      if (selected && selected.pkg.slug === pendingSlugRef.current) {
-        pendingSlugRef.current = null;
+    if (pendingRef.current) {
+      if (
+        selected &&
+        selected.pkg.workspaceId === pendingRef.current.workspaceId &&
+        selected.pkg.slug === pendingRef.current.slug
+      ) {
+        pendingRef.current = null;
         skipNextPushRef.current = false;
         const next = buildSkillPath(workspaceId, selected.pkg.slug);
         if (current !== next) {
@@ -139,18 +154,26 @@ export function useSkillUrl({
         return;
       }
 
+      setActiveTab("catalog");
+
+      // Cross-workspace: switch and defer to the resolution effect, which waits
+      // for the target workspace's catalog before matching the slug.
       if (parts.workspaceId !== workspaceId) {
         setSelectedWorkspaceId(parts.workspaceId);
+        pendingRef.current = {
+          workspaceId: parts.workspaceId,
+          slug: parts.slug,
+        };
+        return;
       }
-      setActiveTab("catalog");
 
       const match = catalog.find((skill) => skill.pkg.slug === parts.slug);
       if (match) {
         skipNextPushRef.current = true;
         handleSelectSkill(match.pkg.id);
       } else {
-        // Catalog for the popped workspace will load; resolve against it then.
-        pendingSlugRef.current = parts.slug;
+        // Catalog for this workspace is loaded; resolve against it.
+        pendingRef.current = { workspaceId, slug: parts.slug };
       }
     }
 
