@@ -21,6 +21,7 @@ import { summarizeReports } from "./api/catalog.js";
 import { buildInstallAgentPrompt } from "./lib/install-prompts.js";
 import { useAuthSession } from "./hooks/use-auth-session.js";
 import { useCatalog } from "./hooks/use-catalog.js";
+import { useSkillUrl } from "./hooks/use-skill-url.js";
 import { StatusStyles } from "./components/chrome.js";
 import { AppRail, AppTopbar } from "./components/app-shell.js";
 import {
@@ -161,6 +162,17 @@ export function SkillLibraryApp({
   useEffect(() => {
     setFilesExpanded(false);
   }, [selectedId]);
+
+  const { copiedLink, copyShareLink } = useSkillUrl({
+    activeTab,
+    setActiveTab,
+    workspaceId,
+    setSelectedWorkspaceId,
+    catalog,
+    selected,
+    handleSelectSkill,
+    setNotice,
+  });
 
   const availableWorkspaces = useMemo(() => {
     const workspacesSet = new Set<string>();
@@ -449,11 +461,13 @@ export function SkillLibraryApp({
             branding={branding}
             installTarget={installTarget}
             copiedInstall={copiedInstall}
+            copiedLink={copiedLink}
             filesExpanded={filesExpanded}
             canManageLifecycle={canManageLifecycle}
             loading={loading}
             setInstallTarget={setInstallTarget}
             copyInstallPrompt={copyInstallPrompt}
+            copyShareLink={copyShareLink}
             setFilesExpanded={setFilesExpanded}
             handleLifecycle={handleLifecycle}
           />

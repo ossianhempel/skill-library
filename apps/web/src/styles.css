@@ -716,6 +716,19 @@ p {
 .detail-head p {
   max-width: 680px;
 }
+.detail-head-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-8);
+  flex-shrink: 0;
+}
+.copy-link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  white-space: nowrap;
+}
 .split {
   grid-template-columns: 1fr 1fr;
 }
