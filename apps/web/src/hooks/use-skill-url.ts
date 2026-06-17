@@ -23,6 +23,7 @@ export function useSkillUrl({
   workspaceId,
   setSelectedWorkspaceId,
   catalog,
+  catalogLoaded,
   selected,
   handleSelectSkill,
   setNotice,
@@ -32,6 +33,7 @@ export function useSkillUrl({
   workspaceId: string;
   setSelectedWorkspaceId: (workspaceId: string) => void;
   catalog: CatalogSkill[];
+  catalogLoaded: boolean;
   selected: CatalogSkill | undefined;
   handleSelectSkill: (id: string) => void;
   setNotice: (notice: string) => void;
@@ -74,12 +76,11 @@ export function useSkillUrl({
       return;
     }
 
-    // Wait until the app has switched to the target workspace and its catalog
-    // has actually loaded — resolving earlier would search stale data.
-    if (workspaceId !== pending.workspaceId || catalog.length === 0) {
-      return;
-    }
-    if (catalog[0]?.pkg.workspaceId !== pending.workspaceId) {
+    // Wait until the app has switched to the target workspace and that
+    // workspace's catalog has finished loading — resolving earlier would search
+    // stale data, and `catalogLoaded` distinguishes "loaded but empty" from
+    // "not loaded yet" so deep links into empty workspaces still settle.
+    if (workspaceId !== pending.workspaceId || !catalogLoaded) {
       return;
     }
 
@@ -90,7 +91,7 @@ export function useSkillUrl({
       pendingRef.current = null;
       setNotice(`Skill "${pending.slug}" was not found in this workspace.`);
     }
-  }, [catalog, workspaceId, handleSelectSkill, setNotice]);
+  }, [catalog, catalogLoaded, workspaceId, handleSelectSkill, setNotice]);
 
   // Keep the URL in sync with the current selection.
   useEffect(() => {
@@ -132,10 +133,13 @@ export function useSkillUrl({
         window.history.pushState(null, "", next);
       }
     } else if (parseSkillPath(current)) {
-      // Left the catalog views — drop the skill path so the URL stays honest.
+      // Left the catalog views, or a deep link resolved to nothing — drop the
+      // skill path so the URL stays honest.
       window.history.replaceState(null, "", "/");
     }
-  }, [activeTab, selected, workspaceId]);
+    // `catalogLoaded` re-runs this once a deep link settles (e.g. an empty
+    // workspace) so a dead skill path is cleared even with no selection change.
+  }, [activeTab, selected, workspaceId, catalogLoaded]);
 
   // Reset the "copied" affordance whenever the selection changes.
   useEffect(() => {
@@ -151,6 +155,9 @@ export function useSkillUrl({
     function onPopState() {
       const parts = parseSkillPath(window.location.pathname);
       if (!parts) {
+        // Back/forward landed on a non-skill URL (e.g. "/"): leave the catalog
+        // detail behind so the view matches the address bar.
+        setActiveTab("overview");
         return;
       }
 

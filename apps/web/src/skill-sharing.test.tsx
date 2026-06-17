@@ -124,6 +124,51 @@ describe("shareable skill URLs", () => {
       screen.queryByText(/npx @skill-library\/cli install alpha/)
     ).toBeNull();
   });
+
+  it("settles a deep link into an empty workspace instead of hanging", async () => {
+    window.history.replaceState(null, "", "/s/ws-empty/ghost");
+
+    render(
+      <SkillLibraryApp
+        api={multiWorkspaceApi()}
+        authToken="test-token"
+        workspaceId="ws-a"
+        branding={testBranding}
+      />
+    );
+
+    // The empty workspace has no match, so the pending link is cleared and the
+    // URL falls back to "/" rather than staying stuck on the dead path.
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+  });
+
+  it("drops the skill detail when navigating back to a non-skill URL", async () => {
+    render(
+      <SkillLibraryApp
+        skills={[catalogSkill("review-helper", "Review Helper")]}
+        workspaceId="workspace-1"
+        branding={testBranding}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/npx @skill-library\/cli install review-helper/)
+      ).toBeTruthy()
+    );
+
+    // Browser back to the initial non-skill entry.
+    window.history.replaceState(null, "", "/");
+    fireEvent.popState(window);
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/npx @skill-library\/cli install review-helper/)
+      ).toBeNull()
+    );
+    expect(window.location.pathname).toBe("/");
+  });
 });
 
 function multiWorkspaceApi(): WebApiClient {

@@ -169,6 +169,7 @@ export function SkillLibraryApp({
     workspaceId,
     setSelectedWorkspaceId,
     catalog,
+    catalogLoaded,
     selected,
     handleSelectSkill,
     setNotice,
