@@ -124,7 +124,10 @@ export function useSkillUrl({
       ) {
         pendingRef.current = null;
         skipNextPushRef.current = false;
-        const next = buildSkillPath(workspaceId, selected.pkg.slug);
+        const next = buildSkillPath(
+          selected.pkg.workspaceId,
+          selected.pkg.slug
+        );
         if (current !== next) {
           window.history.replaceState(null, "", next);
         }
@@ -140,8 +143,11 @@ export function useSkillUrl({
 
     const onCatalog = CATALOG_TABS.includes(activeTab);
 
+    // Build from the skill's own workspace, never the app's current workspaceId:
+    // during a workspace switch the prior selection lingers, and pairing it with
+    // the new workspaceId would yield an invalid /s/<new-ws>/<old-slug> link.
     if (onCatalog && selected) {
-      const next = buildSkillPath(workspaceId, selected.pkg.slug);
+      const next = buildSkillPath(selected.pkg.workspaceId, selected.pkg.slug);
       if (current !== next) {
         window.history.pushState(null, "", next);
       }
@@ -152,7 +158,9 @@ export function useSkillUrl({
     }
     // `catalogLoaded` re-runs this once a deep link settles (e.g. an empty
     // workspace) so a dead skill path is cleared even with no selection change.
-  }, [activeTab, selected, workspaceId, catalogLoaded]);
+    // The URL is derived from `selected.pkg.workspaceId`, so `workspaceId` is
+    // intentionally not a dependency.
+  }, [activeTab, selected, catalogLoaded]);
 
   // Reset the "copied" affordance whenever the selection changes.
   useEffect(() => {
@@ -218,14 +226,14 @@ export function useSkillUrl({
 
     const url = buildSkillUrl(
       window.location.origin,
-      workspaceId,
+      selected.pkg.workspaceId,
       selected.pkg.slug
     );
     void navigator.clipboard?.writeText(url).catch(() => undefined);
     setCopiedLink(true);
     setNotice("Link copied — share it with your team");
     window.setTimeout(() => setCopiedLink(false), 2500);
-  }, [selected, workspaceId, setNotice]);
+  }, [selected, setNotice]);
 
   return { copiedLink, copyShareLink };
 }

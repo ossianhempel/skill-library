@@ -44,6 +44,24 @@ describe("shareable skill URLs", () => {
     expect(screen.getByRole("button", { name: /Copied/i })).toBeTruthy();
   });
 
+  it("builds the share URL from the skill's own workspace, not the app's", async () => {
+    // Mirrors a mid-switch state: app workspace differs from the selected skill's
+    // workspace. The URL must use the skill's workspace, never the stale combo.
+    render(
+      <SkillLibraryApp
+        skills={[catalogSkill("review-helper", "Review Helper")]}
+        workspaceId="different-ws"
+        branding={testBranding}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/s/workspace-1/review-helper")
+    );
+  });
+
   it("selects the deep-linked skill from a shared URL on load", async () => {
     window.history.replaceState(null, "", "/s/workspace-1/deploy-helper");
 
