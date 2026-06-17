@@ -88,10 +88,23 @@ export function useSkillUrl({
     if (match) {
       handleSelectSkill(match.pkg.id);
     } else {
+      // Dead link: clear it and leave the catalog detail rather than snapping to
+      // an unrelated skill. Overview hides the detail; the URL-sync effect then
+      // drops the invalid path. skipNextPushRef stops it pushing the default
+      // selection on the way out.
       pendingRef.current = null;
+      skipNextPushRef.current = true;
       setNotice(`Skill "${pending.slug}" was not found in this workspace.`);
+      setActiveTab("overview");
     }
-  }, [catalog, catalogLoaded, workspaceId, handleSelectSkill, setNotice]);
+  }, [
+    catalog,
+    catalogLoaded,
+    workspaceId,
+    handleSelectSkill,
+    setActiveTab,
+    setNotice,
+  ]);
 
   // Keep the URL in sync with the current selection.
   useEffect(() => {

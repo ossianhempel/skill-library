@@ -142,6 +142,25 @@ describe("shareable skill URLs", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/"));
   });
 
+  it("clears a dead deep link in a non-empty workspace without snapping to another skill", async () => {
+    window.history.replaceState(null, "", "/s/ws-a/ghost");
+
+    render(
+      <SkillLibraryApp
+        api={multiWorkspaceApi()}
+        authToken="test-token"
+        workspaceId="ws-a"
+        branding={testBranding}
+      />
+    );
+
+    // The slug is missing, so the URL is cleared and we do NOT land on alpha.
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+    expect(
+      screen.queryByText(/npx @skill-library\/cli install alpha/)
+    ).toBeNull();
+  });
+
   it("drops the skill detail when navigating back to a non-skill URL", async () => {
     render(
       <SkillLibraryApp
