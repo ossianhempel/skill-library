@@ -298,7 +298,7 @@ function approvedVersion(packageId: string): SkillVersion {
 
 const testBranding = {
   ...DEFAULT_REGISTRY_BRANDING,
-  registryPublicUrl: "https://skills.rebtech.se",
+  registryPublicUrl: "https://skills.example.com",
 };
 
 function catalogSkill(slug: string, name: string): CatalogSkill {
