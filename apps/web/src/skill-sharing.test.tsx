@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -117,6 +118,56 @@ describe("shareable skill URLs", () => {
       ).toBeTruthy()
     );
     // The popstate selection must not push a new entry over the popped URL.
+    expect(window.location.pathname).toBe("/s/workspace-1/review-helper");
+  });
+
+  it("keeps a same-workspace skill URL reached before the catalog loads", async () => {
+    // A controllable catalog load: search stays pending until we resolve it.
+    let resolveSearch: (packages: SkillPackage[]) => void = () => {};
+    const searchPromise = new Promise<SkillPackage[]>((resolve) => {
+      resolveSearch = resolve;
+    });
+    const version = approvedVersion("pkg-rh");
+    const api: WebApiClient = {
+      search: vi.fn(() => searchPromise),
+      latestApprovedVersion: vi.fn(async () => version),
+      packageVersions: vi.fn(async () => [version]),
+      workspaceCatalogStats: vi.fn(async () => []),
+      workspaceReports: vi.fn(async () => []),
+      uploadVersion: vi.fn(),
+      importGitVersion: vi.fn(),
+      validatePackageTree: vi.fn(),
+      transitionVersion: vi.fn(),
+    };
+
+    render(
+      <SkillLibraryApp
+        api={api}
+        authToken="test-token"
+        workspaceId="workspace-1"
+        branding={testBranding}
+      />
+    );
+
+    // Forward to a valid skill URL while the catalog is still loading.
+    window.history.replaceState(null, "", "/s/workspace-1/review-helper");
+    fireEvent.popState(window);
+
+    // The link must be preserved (deferred), not discarded as a dead URL.
+    expect(window.location.pathname).toBe("/s/workspace-1/review-helper");
+
+    // Once the catalog arrives, the deferred slug resolves and is selected.
+    await act(async () => {
+      resolveSearch([
+        pkgFor("workspace-1", "pkg-rh", "review-helper", "Review Helper"),
+      ]);
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/npx @skill-library\/cli install review-helper/)
+      ).toBeTruthy()
+    );
     expect(window.location.pathname).toBe("/s/workspace-1/review-helper");
   });
 

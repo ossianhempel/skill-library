@@ -194,7 +194,16 @@ export function useSkillUrl({
         return;
       }
 
-      // Same workspace: the catalog is already loaded, so decide inline.
+      // Same workspace, but the catalog may still be loading (e.g. Forward to a
+      // skill URL right after a reload). Defer to the resolution effect rather
+      // than treating a not-yet-loaded slug as dead.
+      if (!catalogLoaded) {
+        setActiveTab("catalog");
+        pendingRef.current = { workspaceId, slug: parts.slug };
+        return;
+      }
+
+      // Catalog is loaded, so decide inline.
       const match = catalog.find((skill) => skill.pkg.slug === parts.slug);
       if (match) {
         setActiveTab("catalog");
@@ -212,6 +221,7 @@ export function useSkillUrl({
     return () => window.removeEventListener("popstate", onPopState);
   }, [
     catalog,
+    catalogLoaded,
     workspaceId,
     handleSelectSkill,
     setActiveTab,
