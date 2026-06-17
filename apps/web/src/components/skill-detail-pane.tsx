@@ -9,6 +9,7 @@ import {
   Download,
   FileCode2,
   GitBranch,
+  Link2,
   RefreshCw,
   ShieldCheck,
   TerminalSquare,
@@ -39,11 +40,13 @@ export const SkillDetailPane = forwardRef<
     branding: RegistryBrandingConfig;
     installTarget: InstallTargetKind;
     copiedInstall: boolean;
+    copiedLink: boolean;
     filesExpanded: boolean;
     canManageLifecycle: boolean;
     loading: boolean;
     setInstallTarget: (target: InstallTargetKind) => void;
     copyInstallPrompt: () => void;
+    copyShareLink: () => void;
     setFilesExpanded: (expanded: boolean) => void;
     handleLifecycle: (toState: LifecycleState) => void;
   }
@@ -56,11 +59,13 @@ export const SkillDetailPane = forwardRef<
     branding,
     installTarget,
     copiedInstall,
+    copiedLink,
     filesExpanded,
     canManageLifecycle,
     loading,
     setInstallTarget,
     copyInstallPrompt,
+    copyShareLink,
     setFilesExpanded,
     handleLifecycle,
   },
@@ -81,9 +86,20 @@ export const SkillDetailPane = forwardRef<
             </div>
           )}
         </div>
-        <LifecycleBadge
-          state={selected.activeVersion?.lifecycleState ?? "draft"}
-        />
+        <div className="detail-head-actions">
+          <LifecycleBadge
+            state={selected.activeVersion?.lifecycleState ?? "draft"}
+          />
+          <button
+            type="button"
+            className="secondary copy-link-button"
+            onClick={() => copyShareLink()}
+            title="Copy a shareable link to this skill"
+          >
+            {copiedLink ? <ClipboardCheck size={16} /> : <Link2 size={16} />}
+            {copiedLink ? "Copied" : "Copy link"}
+          </button>
+        </div>
       </div>
 
       <div className="install-section">

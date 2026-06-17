@@ -43,6 +43,9 @@ export function useCatalog({
   // first paint (before any data has arrived).
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const detailPaneRef = useRef<HTMLElement>(null);
+  // Identifies the in-flight catalog load so a slower request for a previous
+  // workspace can't overwrite a newer one's results.
+  const loadTokenRef = useRef(0);
 
   // Select a skill and, on stacked/narrow layouts where the detail pane sits
   // below (or scrolled off from) the list, bring the skill info into view.
@@ -74,6 +77,8 @@ export function useCatalog({
       return;
     }
 
+    // Switching workspace (or client): the current catalog is not yet loaded.
+    setCatalogLoaded(false);
     void loadCatalog();
   }, [skills, workspaceId, apiClient]);
 
@@ -285,10 +290,15 @@ export function useCatalog({
   const selected = catalog.find((skill) => skill.pkg.id === selectedId);
 
   async function loadCatalog() {
+    const token = ++loadTokenRef.current;
     setLoading(true);
 
     try {
       const next = await loadCatalogSkills(apiClient, workspaceId);
+      // A newer load (e.g. a workspace switch) started while this was in flight.
+      if (token !== loadTokenRef.current) {
+        return;
+      }
       setCatalog(next);
       setSelectedId((current) =>
         current && next.some((skill) => skill.pkg.id === current)
@@ -301,6 +311,9 @@ export function useCatalog({
           : "Catalog is empty. Publish a skill to get started."
       );
     } catch (error) {
+      if (token !== loadTokenRef.current) {
+        return;
+      }
       const fallback = isLocalDev() ? devSampleSkills : [];
       setCatalog(fallback);
       setSelectedId(fallback[0]?.pkg.id);
@@ -314,8 +327,10 @@ export function useCatalog({
             : "API unavailable"
       );
     } finally {
-      setLoading(false);
-      setCatalogLoaded(true);
+      if (token === loadTokenRef.current) {
+        setLoading(false);
+        setCatalogLoaded(true);
+      }
     }
   }
 

@@ -231,10 +231,11 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         : undefined;
 
       await ensureWorkspace(store, input.workspaceId);
+      const slug = await persistedSlug(store, packageId, input.packageSlug);
       await store.upsertPackage({
         id: packageId,
         workspaceId: input.workspaceId,
-        slug: input.packageSlug,
+        slug,
         name: input.packageName,
         description: input.description,
         categories: input.categories ?? [],
@@ -276,10 +277,11 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         : undefined;
 
       await ensureWorkspace(store, input.workspaceId);
+      const slug = await persistedSlug(store, packageId, input.packageSlug);
       await store.upsertPackage({
         id: packageId,
         workspaceId: input.workspaceId,
-        slug: input.packageSlug,
+        slug,
         name: input.packageName,
         description: input.description,
         categories: input.categories ?? [],
@@ -342,6 +344,22 @@ function stableId(...parts: string[]) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+/**
+ * Resolve the slug to persist for a package. The slug is immutable after the
+ * first publish: once a package exists, its originally-published slug is kept
+ * even when a later upload supplies a case/format variant (e.g. "Cool Skill"
+ * then "cool-skill" both map to the same packageId via {@link stableId}). This
+ * keeps shareable `/s/<workspace>/<slug>` links stable across re-publishes.
+ */
+async function persistedSlug(
+  store: RegistryStore,
+  packageId: string,
+  requestedSlug: string
+): Promise<string> {
+  const existing = await store.getPackage(packageId);
+  return existing?.slug ?? requestedSlug;
 }
 
 export async function createDefaultRegistryApi(
