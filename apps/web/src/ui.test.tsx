@@ -12,6 +12,7 @@ import {
   type SkillPackage,
   type SkillVersion,
   type ValidationResult,
+  type Workspace,
 } from "@skill-library/domain";
 import {
   buildInstallPrompt,
@@ -29,7 +30,10 @@ import {
 } from "./ui.js";
 import { ValidationPanel } from "./validation-panel.js";
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("ValidationPanel", () => {
   it("renders validation errors and warnings", () => {
@@ -100,6 +104,69 @@ describe("SkillLibraryApp", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reports" }));
     expect(screen.getByText("Adoption report")).toBeTruthy();
     expect(screen.queryByText("SKILL.md")).toBeNull(); // Hidden in reports tab
+  });
+
+  it("renders workspace logos and rejects unsupported logo input without updating", async () => {
+    const api = fakeApi();
+    const updateWorkspace = vi.mocked(api.updateWorkspace);
+    const fetchMock = vi.fn().mockImplementation(async (url) => {
+      if (url.includes("/api/auth/get-session")) {
+        return new Response(
+          JSON.stringify({
+            user: {
+              id: "admin-1",
+              name: "Admin",
+              email: "admin@example.com",
+              image: null,
+              role: "admin",
+            },
+          })
+        );
+      }
+
+      if (url.includes("/api/team/members")) {
+        return new Response(
+          JSON.stringify({
+            members: [
+              {
+                id: "admin-1",
+                name: "Admin",
+                email: "admin@example.com",
+                image: null,
+                role: "admin",
+                created_at: "2026-06-07T12:00:00.000Z",
+                skillsSubmitted: 0,
+              },
+            ],
+          })
+        );
+      }
+
+      return new Response(JSON.stringify({}));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<SkillLibraryApp api={api} branding={testBranding} />);
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('img[src="https://cdn.example.com/acme.svg"]')
+      ).toBeTruthy()
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Team" }));
+    const input = screen.getByLabelText("Logo URL");
+    fireEvent.change(input, { target: { value: "javascript:alert(1)" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save logo" }));
+
+    expect(
+      await screen.findByText("Logo URL must use http or https.")
+    ).toBeTruthy();
+    expect(updateWorkspace).not.toHaveBeenCalled();
+    expect(
+      document.querySelector('img[src="https://cdn.example.com/acme.svg"]')
+    ).toBeTruthy();
+    vi.unstubAllGlobals();
   });
 
   it("keeps existing formatter helpers", () => {
@@ -648,6 +715,15 @@ const testBranding = {
   registryPublicUrl: "https://skills.rebtech.se",
 };
 
+const workspace: Workspace = {
+  id: "workspace-1",
+  slug: "workspace-1",
+  name: "Workspace 1",
+  reportingPolicy: "opt-in",
+  visibility: "public",
+  logoUrl: "https://cdn.example.com/acme.svg",
+};
+
 const skill = {
   pkg,
   latestApproved,
@@ -664,6 +740,11 @@ const skill = {
 
 function fakeApi(): WebApiClient {
   return {
+    workspaceDetail: vi.fn(async () => workspace),
+    updateWorkspace: vi.fn(async (_workspaceId, input) => ({
+      ...workspace,
+      logoUrl: input.logoUrl || undefined,
+    })),
     search: vi.fn(async () => [pkg]),
     latestApprovedVersion: vi.fn(async () => latestApproved),
     packageVersions: vi.fn(async () => [latestApproved]),

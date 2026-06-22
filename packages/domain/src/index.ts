@@ -46,6 +46,7 @@ export interface Workspace {
   name: string;
   reportingPolicy: "disabled" | "opt-in" | "required";
   visibility: "public" | "private";
+  logoUrl?: string;
 }
 
 export interface SkillPackage {
@@ -198,6 +199,7 @@ export interface UsageEvent {
 export interface RegistryBrandingConfig {
   appName: string;
   appShortName: string;
+  logoUrl: string;
   registryTagline: string;
   companyName: string;
   defaultWorkspaceId: string;
@@ -231,6 +233,7 @@ export interface RegistryBrandingConfig {
 export const DEFAULT_REGISTRY_BRANDING: RegistryBrandingConfig = {
   appName: "Skill Library",
   appShortName: "SL",
+  logoUrl: "",
   registryTagline: "Internal skill registry",
   companyName: "Your company",
   defaultWorkspaceId: "main",
@@ -265,3 +268,73 @@ export const DEFAULT_REGISTRY_BRANDING: RegistryBrandingConfig = {
   statusDeprecatedText: "#fee2e2",
   statusDeprecatedBorder: "#b91c1c",
 };
+
+const LOGO_URL_MAX_LENGTH = 4096;
+const SUPPORTED_LOGO_DATA_URL_PATTERN =
+  /^data:image\/(?:png|jpeg|jpg|gif|webp|svg\+xml);base64,[a-z0-9+/=\s]+$/i;
+
+export type LogoUrlValidationResult =
+  | { ok: true; value?: string }
+  | { ok: false; error: string };
+
+export function normalizeLogoUrlInput(input: unknown): LogoUrlValidationResult {
+  if (input === undefined) {
+    return { ok: true };
+  }
+
+  if (input === null) {
+    return { ok: true, value: "" };
+  }
+
+  if (typeof input !== "string") {
+    return { ok: false, error: "Logo URL must be a string." };
+  }
+
+  const value = input.trim();
+
+  if (!value) {
+    return { ok: true, value: "" };
+  }
+
+  if (value.length > LOGO_URL_MAX_LENGTH) {
+    return {
+      ok: false,
+      error: "Logo URL must be 4096 characters or fewer.",
+    };
+  }
+
+  if (value.startsWith("/")) {
+    return value.startsWith("//")
+      ? { ok: false, error: "Protocol-relative logo URLs are not supported." }
+      : { ok: true, value };
+  }
+
+  if (value.startsWith("data:")) {
+    return SUPPORTED_LOGO_DATA_URL_PATTERN.test(value)
+      ? { ok: true, value: value.replace(/\s+/g, "") }
+      : {
+          ok: false,
+          error:
+            "Logo data URLs must be base64 encoded PNG, JPEG, GIF, WebP, or SVG images.",
+        };
+  }
+
+  try {
+    const url = new URL(value);
+
+    if (url.protocol === "https:" || url.protocol === "http:") {
+      return { ok: true, value: url.toString() };
+    }
+  } catch {
+    return {
+      ok: false,
+      error:
+        "Logo URL must be an absolute http(s) URL, a root-relative path, or an image data URL.",
+    };
+  }
+
+  return {
+    ok: false,
+    error: "Logo URL must use http or https.",
+  };
+}

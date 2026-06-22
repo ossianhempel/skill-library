@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { createRegistryApi, type RegistryApi } from "./index.js";
 import type { RegistryStore, TeamMemberRecord } from "@skill-library/storage";
 import type { PackageTreeEntry } from "@skill-library/validation";
+import { normalizeLogoUrlInput } from "@skill-library/domain";
 import type {
   LifecycleState,
   RegistryBrandingConfig,
@@ -85,16 +86,23 @@ export function createHttpApp(
     const body = (await context.req.json()) as {
       reportingPolicy?: string;
       visibility?: string;
+      logoUrl?: unknown;
     };
     const reportingPolicy = parseReportingPolicy(body.reportingPolicy);
     const visibility = parseVisibility(body.visibility);
+    const logo = normalizeLogoUrlInput(body.logoUrl);
 
     if (
       (body.reportingPolicy && !reportingPolicy) ||
-      (body.visibility && !visibility)
+      (body.visibility && !visibility) ||
+      !logo.ok
     ) {
       return context.json(
-        { error: "Request body includes invalid workspace settings." },
+        {
+          error: logo.ok
+            ? "Request body includes invalid workspace settings."
+            : logo.error,
+        },
         400
       );
     }
@@ -103,6 +111,7 @@ export function createHttpApp(
       workspaceId: context.req.param("workspaceId"),
       reportingPolicy,
       visibility,
+      logoUrl: logo.value,
     });
 
     if (!workspace) {

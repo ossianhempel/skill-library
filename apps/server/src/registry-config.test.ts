@@ -3,7 +3,10 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_REGISTRY_BRANDING } from "@skill-library/domain";
-import { loadRegistryBrandingConfig, mergeRegistryBranding } from "./registry-config.js";
+import {
+  loadRegistryBrandingConfig,
+  mergeRegistryBranding,
+} from "./registry-config.js";
 
 describe("registry-config", () => {
   it("merges partial overrides onto defaults", () => {
@@ -11,21 +14,35 @@ describe("registry-config", () => {
       mergeRegistryBranding({
         companyName: "Rebtech",
         registryTagline: "Rebtech skill registry",
-        registryPublicUrl: "https://skills.rebtech.se"
+        registryPublicUrl: "https://skills.rebtech.se",
+        logoUrl: "https://skills.rebtech.se/logo.svg",
       })
     ).toEqual({
       ...DEFAULT_REGISTRY_BRANDING,
       companyName: "Rebtech",
       registryTagline: "Rebtech skill registry",
-      registryPublicUrl: "https://skills.rebtech.se"
+      registryPublicUrl: "https://skills.rebtech.se",
+      logoUrl: "https://skills.rebtech.se/logo.svg",
     });
   });
 
+  it("ignores unsupported logo config values", () => {
+    expect(
+      mergeRegistryBranding({
+        logoUrl: "javascript:alert(1)",
+      }).logoUrl
+    ).toBe("");
+  });
+
   it("falls back to defaults when the config file is missing", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "skill-library-branding-missing-"));
+    const dir = await mkdtemp(
+      join(tmpdir(), "skill-library-branding-missing-")
+    );
     const configPath = join(dir, "missing-registry.config.json");
 
-    await expect(loadRegistryBrandingConfig(configPath)).resolves.toEqual(DEFAULT_REGISTRY_BRANDING);
+    await expect(loadRegistryBrandingConfig(configPath)).resolves.toEqual(
+      DEFAULT_REGISTRY_BRANDING
+    );
   });
 
   it("loads branding from a JSON file", async () => {
@@ -36,14 +53,14 @@ describe("registry-config", () => {
       configPath,
       JSON.stringify({
         appName: "Rebtech Skills",
-        registryTagline: "Rebtech skill registry"
+        registryTagline: "Rebtech skill registry",
       })
     );
 
     await expect(loadRegistryBrandingConfig(configPath)).resolves.toEqual({
       ...DEFAULT_REGISTRY_BRANDING,
       appName: "Rebtech Skills",
-      registryTagline: "Rebtech skill registry"
+      registryTagline: "Rebtech skill registry",
     });
   });
 });

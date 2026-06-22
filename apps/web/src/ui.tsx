@@ -10,9 +10,9 @@ import {
 import {
   DEFAULT_REGISTRY_BRANDING,
   type InstallTargetKind,
+  type PackageReport,
   type RegistryBrandingConfig,
 } from "@skill-library/domain";
-import type { PackageReport } from "@skill-library/domain";
 import type { AppTab, SkillLibraryAppProps } from "./types.js";
 import { browserToken } from "./lib/browser.js";
 import { isLocalDev } from "./lib/browser.js";
@@ -23,6 +23,7 @@ import { useAuthSession } from "./hooks/use-auth-session.js";
 import { useCatalog } from "./hooks/use-catalog.js";
 import { useSkillUrl } from "./hooks/use-skill-url.js";
 import { StatusStyles } from "./components/chrome.js";
+import { useWorkspace } from "./hooks/use-workspace.js";
 import { AppRail, AppTopbar } from "./components/app-shell.js";
 import {
   CategoryFilter,
@@ -107,6 +108,12 @@ export function SkillLibraryApp({
     () => api ?? createWebApiClient({ registryUrl, token: activeToken }),
     [api, registryUrl, activeToken]
   );
+
+  const { activeWorkspace, handleWorkspaceLogoChange } = useWorkspace({
+    apiClient,
+    workspaceId,
+    setNotice,
+  });
 
   const {
     session,
@@ -255,6 +262,7 @@ export function SkillLibraryApp({
     session?.role === "admin";
   const hasSession = session !== null;
   const useTokenAuth = activeToken !== undefined;
+  const effectiveLogoUrl = activeWorkspace?.logoUrl || branding.logoUrl;
 
   // Show login screen when not authenticated (no SSO session and no API token)
   // In dev mode (localhost), always allow access via token fallback
@@ -264,6 +272,7 @@ export function SkillLibraryApp({
         <StatusStyles branding={branding} />
         <LoginScreen
           branding={branding}
+          logoUrl={effectiveLogoUrl}
           onSignIn={handleSignIn}
           signingIn={signingIn}
           checkingSession={sessionLoading}
@@ -316,6 +325,7 @@ export function SkillLibraryApp({
       >
         <AppRail
           branding={branding}
+          logoUrl={effectiveLogoUrl}
           activeTab={activeTab}
           hasSession={hasSession}
           session={session}
@@ -443,7 +453,11 @@ export function SkillLibraryApp({
               members={teamMembers}
               loading={teamLoading}
               currentUser={session}
+              workspace={activeWorkspace}
+              branding={branding}
+              effectiveLogoUrl={effectiveLogoUrl}
               canManageRoles={isAdmin}
+              onWorkspaceLogoChange={handleWorkspaceLogoChange}
               onRoleChange={handleRoleChange}
               onDeleteUser={handleDeleteUser}
               onRefresh={loadTeamMembers}
