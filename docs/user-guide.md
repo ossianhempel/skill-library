@@ -94,4 +94,4 @@ A workspace is the catalog namespace inside one registry deployment. Most compan
 
 ## Branding
 
-Company deployments customize UI copy in gitignored `registry.config.json` (from `registry.config.example.json`). See [forking.md](forking.md).
+Company deployments customize UI copy and an instance-wide logo fallback in gitignored `registry.config.json` (from `registry.config.example.json`). Admins can replace the active workspace logo on the **Team** tab. The placeholder initials remain the fallback when no logo is configured. See [forking.md](forking.md).

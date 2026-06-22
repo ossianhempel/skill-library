@@ -6,11 +6,11 @@ Skill Library is designed to be forked for private or company deployments. The u
 
 **App changes always start in the OSS source repo** (`~/Developer/skill-library` → GitHub), then flow into forks via `./scripts/sync-from-upstream.sh`.
 
-| Change type | Where to edit |
-|-------------|---------------|
-| App code, bugs, features, schema | OSS source repo first |
-| Company CI/CD, secrets scripts, Azure docs, `AGENTS.md` | Fork only (`fork-sync.conf` paths) |
-| Instance branding (`registry.config.json`) | Local gitignored file — never committed |
+| Change type                                             | Where to edit                           |
+| ------------------------------------------------------- | --------------------------------------- |
+| App code, bugs, features, schema                        | OSS source repo first                   |
+| Company CI/CD, secrets scripts, Azure docs, `AGENTS.md` | Fork only (`fork-sync.conf` paths)      |
+| Instance branding (`registry.config.json`)              | Local gitignored file — never committed |
 
 Do not patch app code directly in a company fork except in an emergency — and if you do, land the same fix in OSS immediately, then re-sync the fork so both repos stay aligned and you keep exercising the real update path.
 
@@ -26,12 +26,12 @@ Do not patch app code directly in a company fork except in an emergency — and 
 
 Forks drift from OSS over time. You do **not** need to watch the GitHub repo by hand — use **detect → review → sync → deploy**:
 
-| Step | What | How often |
-|------|------|-----------|
+| Step       | What                                | How often                                                      |
+| ---------- | ----------------------------------- | -------------------------------------------------------------- |
 | **Detect** | Learn that upstream has new commits | Automated (CI schedule) or `./scripts/check-upstream-drift.sh` |
-| **Review** | Skim incoming fixes/features | `./scripts/sync-from-upstream.sh --dry-run` |
-| **Sync** | Merge upstream into your fork | `./scripts/sync-from-upstream.sh --verify --push` |
-| **Deploy** | Ship the updated image | Your fork CI/CD (or manual deploy script) |
+| **Review** | Skim incoming fixes/features        | `./scripts/sync-from-upstream.sh --dry-run`                    |
+| **Sync**   | Merge upstream into your fork       | `./scripts/sync-from-upstream.sh --verify --push`              |
+| **Deploy** | Ship the updated image              | Your fork CI/CD (or manual deploy script)                      |
 
 **Do not auto-merge upstream into production.** Merges can still conflict on fork-local files (pipelines, `AGENTS.md`). Instance branding lives in gitignored `registry.config.json`, so upstream syncs do not touch it. Automate **detection and notification**; keep **merge and deploy** human-reviewed unless you add your own conflict-resolution policy.
 
@@ -60,7 +60,7 @@ Add a **separate pipeline** (or a scheduled stage) in your fork that only checks
 trigger: none
 
 schedules:
-  - cron: "0 8 * * 1"   # Mondays 08:00 UTC
+  - cron: "0 8 * * 1" # Mondays 08:00 UTC
     displayName: Weekly upstream drift check
     branches:
       include:
@@ -127,11 +127,11 @@ Open a PR in your fork, review conflicts and `pnpm verify` output, then merge an
 
 ### Common merge conflicts
 
-| File | Resolution |
-|------|------------|
-| `azure-pipelines.yml` | Keep fork pipeline |
-| `AGENTS.md` | Keep fork agent notes; optionally copy useful upstream doc changes by hand |
-| App code (`apps/`, `packages/`) | Prefer upstream unless you have a fork-only hotfix to port back to OSS |
+| File                            | Resolution                                                                 |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| `azure-pipelines.yml`           | Keep fork pipeline                                                         |
+| `AGENTS.md`                     | Keep fork agent notes; optionally copy useful upstream doc changes by hand |
+| App code (`apps/`, `packages/`) | Prefer upstream unless you have a fork-only hotfix to port back to OSS     |
 
 ## Sync latest upstream
 
@@ -153,11 +153,11 @@ The sync script:
 
 Typical fork-only paths:
 
-| Path | Purpose |
-|------|---------|
-| `azure-pipelines.yml` | Company CI/CD |
-| `AGENTS.md` | Agent instructions for your environment |
-| `fork-sync.conf` | Sync settings (not in upstream) |
+| Path                   | Purpose                                    |
+| ---------------------- | ------------------------------------------ |
+| `azure-pipelines.yml`  | Company CI/CD                              |
+| `AGENTS.md`            | Agent instructions for your environment    |
+| `fork-sync.conf`       | Sync settings (not in upstream)            |
 | `registry.config.json` | Instance branding (gitignored — see below) |
 
 Keep company hostnames, tenant IDs, and resource names in your fork or a separate deploy repo — not in upstream OSS.
@@ -166,10 +166,10 @@ Keep company hostnames, tenant IDs, and resource names in your fork or a separat
 
 Company-specific UI copy and defaults use the same pattern as `.env` / `.env.example`:
 
-| File | In git? | Purpose |
-|------|---------|---------|
-| `registry.config.example.json` | Yes (upstream) | Template with placeholder values; updated when new branding keys ship |
-| `registry.config.json` | **No** (gitignored) | Your live config — branding, workspace id, public URL |
+| File                           | In git?             | Purpose                                                               |
+| ------------------------------ | ------------------- | --------------------------------------------------------------------- |
+| `registry.config.example.json` | Yes (upstream)      | Template with placeholder values; updated when new branding keys ship |
+| `registry.config.json`         | **No** (gitignored) | Your live config — branding, workspace id, public URL                 |
 
 **First-time setup:**
 
@@ -186,12 +186,15 @@ Customize these fields in `registry.config.json`:
 
 - `registryTagline` — header kicker (for example `Rebtech skill registry`)
 - `appName` / `documentTitle` — product name shown in the UI and browser tab
+- `appShortName` / `logoUrl` — placeholder initials and optional instance-wide logo fallback
 - `companyName` — your organization name
 - `defaultWorkspaceId` — default workspace slug/id for publish and install prompts (match existing data if upgrading)
 - `registryPublicUrl` — public registry URL used in generated CLI install commands
 - `loginSubtitle`, `overviewHeading`, `overviewDescription`, and other UI strings
 
 The server merges your file over built-in defaults and exposes the result at `GET /api/config`; the web UI loads it on startup. If the file is missing, the app runs with code defaults and logs a warning.
+
+Admins can also set a workspace-specific logo from **Team → Workspace branding**. That stored workspace logo overrides `logoUrl` for the active workspace and supports `http(s)` URLs, root-relative paths, and base64 image data URLs for PNG, JPEG, GIF, WebP, or SVG images.
 
 **Containers:** place `registry.config.json` on the build host before `docker build` (it is copied into the image), mount it as a volume, or set `SKILL_LIBRARY_CONFIG_PATH` to a mounted path.
 

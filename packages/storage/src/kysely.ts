@@ -29,7 +29,9 @@ export interface KyselyEngineConfig {
  * connection string scheme decides; otherwise PGlite. Mirrors the precedence the
  * legacy `resolveDatabaseMode` used, widened to three engines.
  */
-export function resolveDatabaseEngine(config: KyselyEngineConfig): DatabaseEngine {
+export function resolveDatabaseEngine(
+  config: KyselyEngineConfig
+): DatabaseEngine {
   if (config.databaseEngine) {
     if (!isDatabaseEngine(config.databaseEngine)) {
       throw new Error(
@@ -79,24 +81,30 @@ export function createKyselyInstance(config: KyselyEngineConfig): {
   engine: DatabaseEngine;
 } {
   const engine = resolveDatabaseEngine(config);
-  return { db: new Kysely<DatabaseSchema>({ dialect: createDialect(engine, config) }), engine };
+  return {
+    db: new Kysely<DatabaseSchema>({ dialect: createDialect(engine, config) }),
+    engine,
+  };
 }
 
 function createDialect(engine: DatabaseEngine, config: KyselyEngineConfig) {
   switch (engine) {
     case "pglite":
       return new PGliteDialect({
-        pglite: config.pgliteInstance ?? new PGlite(config.pgliteDataDir)
+        pglite: config.pgliteInstance ?? new PGlite(config.pgliteDataDir),
       });
     case "postgres":
-      return new PostgresDialect({ pool: new Pool({ connectionString: config.databaseUrl }) });
+      return new PostgresDialect({
+        pool: new Pool({ connectionString: config.databaseUrl }),
+      });
     case "mssql":
       return new MssqlDialect({
         tarn: { ...Tarn, options: { min: 0, max: 10 } },
         tedious: {
           ...Tedious,
-          connectionFactory: () => new Tedious.Connection(buildTediousConfig(config.databaseUrl))
-        }
+          connectionFactory: () =>
+            new Tedious.Connection(buildTediousConfig(config.databaseUrl)),
+        },
       });
   }
 }
@@ -110,9 +118,13 @@ function createDialect(engine: DatabaseEngine, config: KyselyEngineConfig) {
  *   - `?encrypt=false` — disable TLS (non-Azure servers without TLS)
  *   - `?trustServerCertificate=true` — accept self-signed certs (local containers)
  */
-export function buildTediousConfig(databaseUrl: string | undefined): Tedious.ConnectionConfiguration {
+export function buildTediousConfig(
+  databaseUrl: string | undefined
+): Tedious.ConnectionConfiguration {
   if (!databaseUrl) {
-    throw new Error("A sqlserver:// connection string is required for the mssql engine.");
+    throw new Error(
+      "A sqlserver:// connection string is required for the mssql engine."
+    );
   }
 
   const url = new URL(databaseUrl);
@@ -123,15 +135,16 @@ export function buildTediousConfig(databaseUrl: string | undefined): Tedious.Con
       port: url.port ? Number(url.port) : 1433,
       database: url.pathname.replace(/^\//, "") || undefined,
       encrypt: url.searchParams.get("encrypt") !== "false",
-      trustServerCertificate: url.searchParams.get("trustServerCertificate") === "true"
+      trustServerCertificate:
+        url.searchParams.get("trustServerCertificate") === "true",
     },
     authentication: {
       type: "default",
       options: {
         userName: decodeURIComponent(url.username),
-        password: decodeURIComponent(url.password)
-      }
-    }
+        password: decodeURIComponent(url.password),
+      },
+    },
   };
 }
 
@@ -162,12 +175,17 @@ export interface DatabaseSchema {
 
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
 // Timestamp columns with a DB default (now()/sysdatetimeoffset()): optional on insert.
-type GeneratedTimestamp = ColumnType<Date, Date | string | undefined, Date | string>;
+type GeneratedTimestamp = ColumnType<
+  Date,
+  Date | string | undefined,
+  Date | string
+>;
 
 interface WorkspacesTable {
   id: string;
   slug: string;
   name: string;
+  logo_url: string | null;
   reporting_policy: Workspace["reportingPolicy"];
   visibility: Workspace["visibility"];
   created_at: GeneratedTimestamp;

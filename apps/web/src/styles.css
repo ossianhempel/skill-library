@@ -120,6 +120,23 @@ button {
   place-items: center;
   font-weight: 800;
   letter-spacing: 0;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.mark--image {
+  padding: 4px;
+}
+
+.mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.login-mark {
+  margin: 0 auto 20px;
 }
 
 .rail button,
@@ -1436,6 +1453,76 @@ p {
   font-size: var(--font-size-sm);
 }
 
+.workspace-branding-form {
+  border: 1px solid var(--line);
+  background: rgba(251, 250, 244, 0.9);
+  padding: var(--space-14) var(--space-16);
+  display: grid;
+  grid-template-columns: 68px minmax(220px, 1fr) auto;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.workspace-logo-preview {
+  width: 56px;
+  height: 56px;
+}
+
+.workspace-branding-fields {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.workspace-branding-fields label {
+  display: grid;
+  gap: var(--space-6);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.workspace-branding-fields input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: #fffdf7;
+  color: var(--ink);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  text-transform: none;
+}
+
+.workspace-branding-fields input:focus {
+  outline: 2px solid rgba(49, 92, 75, 0.22);
+  border-color: var(--accent);
+}
+
+.admin-field-hint,
+.field-error {
+  margin: 0;
+  font-size: var(--font-size-xs);
+}
+
+.admin-field-hint {
+  color: var(--muted);
+}
+
+.field-error {
+  color: var(--signal);
+  font-weight: 700;
+}
+
+.workspace-branding-actions {
+  display: flex;
+  gap: var(--space-8);
+  align-items: center;
+}
+
+.workspace-branding-actions button {
+  white-space: nowrap;
+}
+
 .lifecycle-copy {
   margin: -4px 0 12px;
   color: var(--muted);
@@ -1640,6 +1727,15 @@ p {
 }
 
 @media (max-width: 720px) {
+  .workspace-branding-form {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .workspace-branding-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
   .admin-table-head,
   .admin-table-row {
     grid-template-columns: 1fr auto;

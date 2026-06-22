@@ -354,7 +354,14 @@ export class SqlRegistryStore implements RegistryStore {
   async getWorkspace(workspaceId: string): Promise<Workspace | undefined> {
     const row = await this.kysely
       .selectFrom("workspaces")
-      .select(["id", "slug", "name", "reporting_policy", "visibility"])
+      .select([
+        "id",
+        "slug",
+        "name",
+        "logo_url",
+        "reporting_policy",
+        "visibility",
+      ])
       .where("id", "=", workspaceId)
       .executeTakeFirst();
 
@@ -370,12 +377,14 @@ export class SqlRegistryStore implements RegistryStore {
         id: workspace.id,
         slug: workspace.slug,
         name: workspace.name,
+        logo_url: workspace.logoUrl ?? null,
         reporting_policy: workspace.reportingPolicy,
         visibility: workspace.visibility,
       },
       {
         slug: workspace.slug,
         name: workspace.name,
+        logo_url: workspace.logoUrl ?? null,
         reporting_policy: workspace.reportingPolicy,
         visibility: workspace.visibility,
       }
@@ -1283,6 +1292,7 @@ interface WorkspaceRow {
   id: string;
   slug: string;
   name: string;
+  logo_url?: string | null;
   reporting_policy: Workspace["reportingPolicy"];
   visibility: Workspace["visibility"];
 }
@@ -1436,6 +1446,7 @@ function fromWorkspaceRow(row: WorkspaceRow): Workspace {
     id: row.id,
     slug: row.slug,
     name: row.name,
+    logoUrl: row.logo_url ?? undefined,
     reportingPolicy: row.reporting_policy,
     visibility: row.visibility,
   };

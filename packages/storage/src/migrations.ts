@@ -16,18 +16,24 @@ import type { DatabaseEngine, DatabaseSchema } from "./kysely.js";
  * is a safe no-op. Auth tables (user/session/account/verification) are NOT
  * created here — they are owned by Better Auth's own migrations.
  */
-export async function runRegistryMigrations(db: Kysely<DatabaseSchema>, engine: DatabaseEngine): Promise<void> {
+export async function runRegistryMigrations(
+  db: Kysely<DatabaseSchema>,
+  engine: DatabaseEngine
+): Promise<void> {
   const t = engineColumnTypes(engine);
 
   // SQL Server has no `CREATE TABLE IF NOT EXISTS`, so idempotency comes from an
   // introspection check rather than the `.ifNotExists()` clause (which is pg/pglite only).
-  const existing = new Set((await db.introspection.getTables()).map((table) => table.name));
+  const existing = new Set(
+    (await db.introspection.getTables()).map((table) => table.name)
+  );
 
   // SQL Server forbids multiple cascade paths to the same table. install_reports and
   // usage_events reach skill_packages/workspaces both directly and via skill_versions,
   // so their secondary FKs use NO ACTION on mssql (the primary chain stays cascade).
   // Postgres/PGlite allow the diamond and keep full cascade.
-  const fkSecondary: "cascade" | "no action" = engine === "mssql" ? "no action" : "cascade";
+  const fkSecondary: "cascade" | "no action" =
+    engine === "mssql" ? "no action" : "cascade";
 
   if (!existing.has("workspaces")) {
     await db.schema
@@ -35,28 +41,45 @@ export async function runRegistryMigrations(db: Kysely<DatabaseSchema>, engine: 
       .addColumn("id", t.keyText, (c) => c.primaryKey())
       .addColumn("slug", t.keyText, (c) => c.notNull().unique())
       .addColumn("name", t.freeText, (c) => c.notNull())
+      .addColumn("logo_url", t.freeText)
       .addColumn("reporting_policy", t.keyText, (c) =>
-        c.notNull().check(sql`reporting_policy in ('disabled', 'opt-in', 'required')`)
+        c
+          .notNull()
+          .check(sql`reporting_policy in ('disabled', 'opt-in', 'required')`)
       )
       .addColumn("visibility", t.keyText, (c) =>
-        c.notNull().defaultTo(sql.lit("private")).check(sql`visibility in ('public', 'private')`)
+        c
+          .notNull()
+          .defaultTo(sql.lit("private"))
+          .check(sql`visibility in ('public', 'private')`)
       )
       .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
       .execute();
+  }
+
+  if (existing.has("workspaces")) {
+    await addColumnIfMissing(db, "workspaces", "logo_url", t.freeText);
   }
 
   if (!existing.has("skill_packages")) {
     await db.schema
       .createTable("skill_packages")
       .addColumn("id", t.keyText, (c) => c.primaryKey())
-      .addColumn("workspace_id", t.keyText, (c) => c.notNull().references("workspaces.id").onDelete("cascade"))
+      .addColumn("workspace_id", t.keyText, (c) =>
+        c.notNull().references("workspaces.id").onDelete("cascade")
+      )
       .addColumn("slug", t.keyText, (c) => c.notNull())
       .addColumn("name", t.freeText, (c) => c.notNull())
       .addColumn("description", t.freeText, (c) => c.notNull())
-      .addColumn("categories", t.json, (c) => c.notNull().defaultTo(t.emptyJsonArray))
+      .addColumn("categories", t.json, (c) =>
+        c.notNull().defaultTo(t.emptyJsonArray)
+      )
       .addColumn("created_at", t.timestamp, (c) => c.notNull())
       .addColumn("updated_at", t.timestamp, (c) => c.notNull())
-      .addUniqueConstraint("skill_packages_workspace_slug_unique", ["workspace_id", "slug"])
+      .addUniqueConstraint("skill_packages_workspace_slug_unique", [
+        "workspace_id",
+        "slug",
+      ])
       .execute();
   }
 
@@ -74,18 +97,29 @@ export async function runRegistryMigrations(db: Kysely<DatabaseSchema>, engine: 
     await db.schema
       .createTable("skill_versions")
       .addColumn("id", t.keyText, (c) => c.primaryKey())
-      .addColumn("package_id", t.keyText, (c) => c.notNull().references("skill_packages.id").onDelete("cascade"))
+      .addColumn("package_id", t.keyText, (c) =>
+        c.notNull().references("skill_packages.id").onDelete("cascade")
+      )
       .addColumn("version", t.keyText, (c) => c.notNull())
       .addColumn("lifecycle_state", t.keyText, (c) =>
-        c.notNull().check(sql`lifecycle_state in ('draft', 'published', 'approved', 'hidden', 'deprecated')`)
+        c
+          .notNull()
+          .check(
+            sql`lifecycle_state in ('draft', 'published', 'approved', 'hidden', 'deprecated')`
+          )
       )
       .addColumn("artifact_digest", t.keyText, (c) => c.notNull())
       .addColumn("validation", t.json, (c) => c.notNull())
       .addColumn("provenance", t.json, (c) => c.notNull())
       .addColumn("created_at", t.timestamp, (c) => c.notNull())
       .addColumn("approved_at", t.timestamp)
-      .addColumn("replacement_version_id", t.keyText, (c) => c.references("skill_versions.id"))
-      .addUniqueConstraint("skill_versions_package_version_unique", ["package_id", "version"])
+      .addColumn("replacement_version_id", t.keyText, (c) =>
+        c.references("skill_versions.id")
+      )
+      .addUniqueConstraint("skill_versions_package_version_unique", [
+        "package_id",
+        "version",
+      ])
       .execute();
   }
 
@@ -93,7 +127,9 @@ export async function runRegistryMigrations(db: Kysely<DatabaseSchema>, engine: 
     await db.schema
       .createTable("lifecycle_events")
       .addColumn("id", t.keyText, (c) => c.primaryKey())
-      .addColumn("version_id", t.keyText, (c) => c.notNull().references("skill_versions.id").onDelete("cascade"))
+      .addColumn("version_id", t.keyText, (c) =>
+        c.notNull().references("skill_versions.id").onDelete("cascade")
+      )
       .addColumn("from_state", t.keyText)
       .addColumn("to_state", t.keyText, (c) => c.notNull())
       .addColumn("actor_id", t.keyText)
@@ -105,12 +141,19 @@ export async function runRegistryMigrations(db: Kysely<DatabaseSchema>, engine: 
     await db.schema
       .createTable("install_reports")
       .addColumn("install_id", t.keyText, (c) => c.notNull())
-      .addColumn("package_id", t.keyText, (c) => c.notNull().references("skill_packages.id").onDelete("cascade"))
-      .addColumn("version_id", t.keyText, (c) => c.notNull().references("skill_versions.id").onDelete(fkSecondary))
+      .addColumn("package_id", t.keyText, (c) =>
+        c.notNull().references("skill_packages.id").onDelete("cascade")
+      )
+      .addColumn("version_id", t.keyText, (c) =>
+        c.notNull().references("skill_versions.id").onDelete(fkSecondary)
+      )
       .addColumn("state", t.keyText, (c) => c.notNull())
       .addColumn("reported_at", t.timestamp, (c) => c.notNull())
       .addColumn("target_kind", t.keyText, (c) => c.notNull())
-      .addPrimaryKeyConstraint("install_reports_pk", ["install_id", "reported_at"])
+      .addPrimaryKeyConstraint("install_reports_pk", [
+        "install_id",
+        "reported_at",
+      ])
       .execute();
   }
 
@@ -118,13 +161,39 @@ export async function runRegistryMigrations(db: Kysely<DatabaseSchema>, engine: 
     await db.schema
       .createTable("usage_events")
       .addColumn("id", t.keyText, (c) => c.primaryKey())
-      .addColumn("workspace_id", t.keyText, (c) => c.notNull().references("workspaces.id").onDelete("cascade"))
-      .addColumn("package_id", t.keyText, (c) => c.references("skill_packages.id").onDelete(fkSecondary))
-      .addColumn("version_id", t.keyText, (c) => c.references("skill_versions.id").onDelete(fkSecondary))
+      .addColumn("workspace_id", t.keyText, (c) =>
+        c.notNull().references("workspaces.id").onDelete("cascade")
+      )
+      .addColumn("package_id", t.keyText, (c) =>
+        c.references("skill_packages.id").onDelete(fkSecondary)
+      )
+      .addColumn("version_id", t.keyText, (c) =>
+        c.references("skill_versions.id").onDelete(fkSecondary)
+      )
       .addColumn("event_type", t.keyText, (c) => c.notNull())
       .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
       .execute();
   }
+}
+
+async function addColumnIfMissing(
+  db: Kysely<DatabaseSchema>,
+  tableName: string,
+  columnName: string,
+  dataType: RawBuilder<unknown>
+): Promise<void> {
+  const table = (await db.introspection.getTables()).find(
+    (entry) => entry.name === tableName
+  );
+
+  if (table?.columns.some((column) => column.name === columnName)) {
+    return;
+  }
+
+  await db.schema
+    .alterTable(tableName)
+    .addColumn(columnName, dataType)
+    .execute();
 }
 
 /**
@@ -134,9 +203,14 @@ export async function runRegistryMigrations(db: Kysely<DatabaseSchema>, engine: 
  * created_at/updated_at/ip_address/user_agent snake_case — mapped via Better Auth `fields`).
  * Idempotent via introspection. Orphan cleanups run after creation (no-ops on a fresh DB).
  */
-export async function runAuthMigrations(db: Kysely<DatabaseSchema>, engine: DatabaseEngine): Promise<void> {
+export async function runAuthMigrations(
+  db: Kysely<DatabaseSchema>,
+  engine: DatabaseEngine
+): Promise<void> {
   const t = engineColumnTypes(engine);
-  const existing = new Set((await db.introspection.getTables()).map((table) => table.name));
+  const existing = new Set(
+    (await db.introspection.getTables()).map((table) => table.name)
+  );
 
   if (!existing.has("user")) {
     await db.schema
@@ -144,9 +218,13 @@ export async function runAuthMigrations(db: Kysely<DatabaseSchema>, engine: Data
       .addColumn("id", t.keyText, (c) => c.primaryKey())
       .addColumn("name", t.freeText, (c) => c.notNull())
       .addColumn("email", t.keyText, (c) => c.notNull().unique())
-      .addColumn("emailVerified", t.bool, (c) => c.notNull().defaultTo(t.falseDefault))
+      .addColumn("emailVerified", t.bool, (c) =>
+        c.notNull().defaultTo(t.falseDefault)
+      )
       .addColumn("image", t.freeText)
-      .addColumn("role", t.keyText, (c) => c.notNull().defaultTo(sql.lit("user")))
+      .addColumn("role", t.keyText, (c) =>
+        c.notNull().defaultTo(sql.lit("user"))
+      )
       .addColumn("agent_api_token", t.keyText, (c) => c.unique())
       .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
       .addColumn("updated_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
@@ -163,7 +241,9 @@ export async function runAuthMigrations(db: Kysely<DatabaseSchema>, engine: Data
       .addColumn("updated_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
       .addColumn("ip_address", t.freeText)
       .addColumn("user_agent", t.freeText)
-      .addColumn("userId", t.keyText, (c) => c.notNull().references("user.id").onDelete("cascade"))
+      .addColumn("userId", t.keyText, (c) =>
+        c.notNull().references("user.id").onDelete("cascade")
+      )
       .execute();
   }
 
@@ -173,7 +253,9 @@ export async function runAuthMigrations(db: Kysely<DatabaseSchema>, engine: Data
       .addColumn("id", t.keyText, (c) => c.primaryKey())
       .addColumn("accountId", t.keyText, (c) => c.notNull())
       .addColumn("providerId", t.keyText, (c) => c.notNull())
-      .addColumn("userId", t.keyText, (c) => c.notNull().references("user.id").onDelete("cascade"))
+      .addColumn("userId", t.keyText, (c) =>
+        c.notNull().references("user.id").onDelete("cascade")
+      )
       .addColumn("accessToken", t.freeText)
       .addColumn("refreshToken", t.freeText)
       .addColumn("idToken", t.freeText)
@@ -202,12 +284,18 @@ export async function runAuthMigrations(db: Kysely<DatabaseSchema>, engine: Data
   await db
     .deleteFrom("session")
     .where("userId", "in", (eb) =>
-      eb.selectFrom("user").leftJoin("account", "account.userId", "user.id").select("user.id").where("account.id", "is", null)
+      eb
+        .selectFrom("user")
+        .leftJoin("account", "account.userId", "user.id")
+        .select("user.id")
+        .where("account.id", "is", null)
     )
     .execute();
   await db
     .deleteFrom("user")
-    .where("id", "not in", (eb) => eb.selectFrom("account").select("account.userId"))
+    .where("id", "not in", (eb) =>
+      eb.selectFrom("account").select("account.userId")
+    )
     .execute();
 }
 
@@ -233,7 +321,7 @@ export function engineColumnTypes(engine: DatabaseEngine): ColumnTypeMap {
       bool: sql`bit`,
       now: sql`sysdatetimeoffset()`,
       falseDefault: sql`0`,
-      emptyJsonArray: sql`'[]'`
+      emptyJsonArray: sql`'[]'`,
     };
   }
 
@@ -246,6 +334,6 @@ export function engineColumnTypes(engine: DatabaseEngine): ColumnTypeMap {
     bool: sql`boolean`,
     now: sql`now()`,
     falseDefault: sql`false`,
-    emptyJsonArray: sql`'[]'::jsonb`
+    emptyJsonArray: sql`'[]'::jsonb`,
   };
 }

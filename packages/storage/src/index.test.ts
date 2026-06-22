@@ -56,6 +56,11 @@ describe("PGlite registry store", () => {
           categories: ["review", "quality"],
         }),
       ]);
+      await expect(store.getWorkspace("workspace-1")).resolves.toEqual(
+        expect.objectContaining({
+          logoUrl: "https://cdn.example.com/acme.svg",
+        })
+      );
 
       await expect(
         store.getLatestApprovedVersion("package-1")
@@ -131,6 +136,7 @@ describe("PGlite registry store", () => {
     try {
       await store.migrate();
       await seedStore(store as SqlRegistryStore);
+      const today = new Date().toISOString().slice(0, 10);
 
       await store.recordUsageEvent({
         id: "usage-download-1",
@@ -138,7 +144,7 @@ describe("PGlite registry store", () => {
         packageId: "package-1",
         versionId: "version-2",
         eventType: "download",
-        createdAt: "2026-06-07T12:00:00.000Z",
+        createdAt: `${today}T12:00:00.000Z`,
       });
       await store.recordUsageEvent({
         id: "usage-download-2",
@@ -146,7 +152,7 @@ describe("PGlite registry store", () => {
         packageId: "package-1",
         versionId: "version-2",
         eventType: "download",
-        createdAt: "2026-06-07T12:30:00.000Z",
+        createdAt: `${today}T12:30:00.000Z`,
       });
 
       await expect(
@@ -334,6 +340,7 @@ async function seedStore(store: SqlRegistryStore) {
     id: "workspace-1",
     slug: "acme",
     name: "Acme",
+    logoUrl: "https://cdn.example.com/acme.svg",
     reportingPolicy: "opt-in",
     visibility: "public",
   };

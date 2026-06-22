@@ -13,9 +13,11 @@ import type { RegistryBrandingConfig } from "@skill-library/domain";
 import type { AppTab, SessionUser } from "../types.js";
 import { formatRoleLabel } from "../lib/format.js";
 import { NavButton } from "./chrome.js";
+import { LogoMark } from "./logo-mark.js";
 
 export function AppRail({
   branding,
+  logoUrl,
   activeTab,
   hasSession,
   session,
@@ -25,6 +27,7 @@ export function AppRail({
   handleTokenChange,
 }: {
   branding: RegistryBrandingConfig;
+  logoUrl?: string;
   activeTab: AppTab;
   hasSession: boolean;
   session: SessionUser | null;
@@ -35,7 +38,7 @@ export function AppRail({
 }) {
   return (
     <aside className="rail" aria-label="Workspace">
-      <div className="mark">{branding.appShortName}</div>
+      <LogoMark logoUrl={logoUrl} fallbackText={branding.appShortName} />
       <NavButton
         icon={<Archive size={19} />}
         label="Overview"

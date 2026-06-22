@@ -6,6 +6,7 @@ import type {
   SkillPackage,
   SkillVersion,
   ValidationResult,
+  Workspace,
 } from "@skill-library/domain";
 
 export interface SessionUser {
@@ -41,6 +42,11 @@ export interface CatalogSkill {
 }
 
 export interface WebApiClient {
+  workspaceDetail(workspaceId: string): Promise<Workspace | undefined>;
+  updateWorkspace(
+    workspaceId: string,
+    input: { logoUrl?: string }
+  ): Promise<Workspace>;
   search(workspaceId: string, query?: string): Promise<SkillPackage[]>;
   latestApprovedVersion(packageId: string): Promise<SkillVersion | undefined>;
   packageVersions(packageId: string): Promise<SkillVersion[]>;

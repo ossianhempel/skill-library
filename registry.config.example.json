@@ -1,6 +1,7 @@
 {
   "appName": "Skill Library",
   "appShortName": "SL",
+  "logoUrl": "",
   "registryTagline": "Your company skill registry",
   "companyName": "Your company",
   "defaultWorkspaceId": "main",

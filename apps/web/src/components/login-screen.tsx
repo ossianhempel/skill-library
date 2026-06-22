@@ -1,13 +1,16 @@
 import { Loader2, Shield } from "lucide-react";
 import type { RegistryBrandingConfig } from "@skill-library/domain";
+import { LogoMark } from "./logo-mark.js";
 
 export function LoginScreen({
   branding,
+  logoUrl,
   onSignIn,
   signingIn = false,
   checkingSession = false,
 }: {
   branding: RegistryBrandingConfig;
+  logoUrl?: string;
   onSignIn: () => void;
   signingIn?: boolean;
   checkingSession?: boolean;
@@ -20,9 +23,11 @@ export function LoginScreen({
   return (
     <main className="login-shell">
       <div className="login-card">
-        <div className="mark" style={{ margin: "0 auto 20px" }}>
-          {branding.appShortName}
-        </div>
+        <LogoMark
+          logoUrl={logoUrl}
+          fallbackText={branding.appShortName}
+          className="mark login-mark"
+        />
         <h1
           style={{
             fontSize: "2.2rem",

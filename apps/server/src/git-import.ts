@@ -10,6 +10,12 @@ import {
 } from "@skill-library/validation";
 
 const execFileAsync = promisify(execFile);
+const GIT_ENV_KEYS = new Set([
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_PREFIX",
+]);
 
 export interface GitImportRequest {
   repositoryPath: string;
@@ -35,14 +41,18 @@ export async function importPackageTreeFromGit(
   const extractDir = await mkdtemp(join(tmpdir(), "skill-library-git-import-"));
   const archivePath = join(extractDir, "archive.tar");
 
-  await execFileAsync("git", [
-    "-C",
-    input.repositoryPath,
-    "archive",
-    "--format=tar",
-    `--output=${archivePath}`,
-    commit,
-  ]);
+  await execFileAsync(
+    "git",
+    [
+      "-C",
+      input.repositoryPath,
+      "archive",
+      "--format=tar",
+      `--output=${archivePath}`,
+      commit,
+    ],
+    { env: gitCommandEnv() }
+  );
   await tar.extract({ file: archivePath, cwd: extractDir });
   const packageRoot = resolveSubdirectoryWithin(extractDir, input.subdirectory);
 
@@ -84,23 +94,20 @@ export function resolveSubdirectoryWithin(
 }
 
 async function resolveCommit(repositoryPath: string, ref: string) {
-  const { stdout } = await execFileAsync("git", [
-    "-C",
-    repositoryPath,
-    "rev-parse",
-    ref,
-  ]);
+  const { stdout } = await execFileAsync(
+    "git",
+    ["-C", repositoryPath, "rev-parse", ref],
+    { env: gitCommandEnv() }
+  );
   return stdout.trim();
 }
 
 async function resolveSourceUrl(repositoryPath: string) {
-  const { stdout } = await execFileAsync("git", [
-    "-C",
-    repositoryPath,
-    "remote",
-    "get-url",
-    "origin",
-  ]).catch(() => ({ stdout: repositoryPath }));
+  const { stdout } = await execFileAsync(
+    "git",
+    ["-C", repositoryPath, "remote", "get-url", "origin"],
+    { env: gitCommandEnv() }
+  ).catch(() => ({ stdout: repositoryPath }));
   return stdout.trim() || repositoryPath;
 }
 
@@ -108,14 +115,11 @@ async function resolveAuthorName(
   repositoryPath: string,
   commit: string
 ): Promise<string | undefined> {
-  const { stdout } = await execFileAsync("git", [
-    "-C",
-    repositoryPath,
-    "log",
-    "-1",
-    "--format=%an",
-    commit,
-  ]).catch(() => ({ stdout: "" }));
+  const { stdout } = await execFileAsync(
+    "git",
+    ["-C", repositoryPath, "log", "-1", "--format=%an", commit],
+    { env: gitCommandEnv() }
+  ).catch(() => ({ stdout: "" }));
   return stdout.trim() || undefined;
 }
 
@@ -123,13 +127,16 @@ async function resolveAuthorEmail(
   repositoryPath: string,
   commit: string
 ): Promise<string | undefined> {
-  const { stdout } = await execFileAsync("git", [
-    "-C",
-    repositoryPath,
-    "log",
-    "-1",
-    "--format=%ae",
-    commit,
-  ]).catch(() => ({ stdout: "" }));
+  const { stdout } = await execFileAsync(
+    "git",
+    ["-C", repositoryPath, "log", "-1", "--format=%ae", commit],
+    { env: gitCommandEnv() }
+  ).catch(() => ({ stdout: "" }));
   return stdout.trim() || undefined;
+}
+
+function gitCommandEnv(): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !GIT_ENV_KEYS.has(key))
+  );
 }
