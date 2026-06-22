@@ -13,17 +13,12 @@ import {
   createRegistryStore,
   type SqlRegistryStore,
 } from "@skill-library/storage";
+import { gitCommandEnv } from "./git-import.js";
 import { createHttpApp } from "./http.js";
 import { defaultRegistryBrandingConfig } from "./registry-config.js";
 
 const tmpDirs: string[] = [];
 const execFileAsync = promisify(execFile);
-const GIT_ENV_KEYS = new Set([
-  "GIT_DIR",
-  "GIT_WORK_TREE",
-  "GIT_INDEX_FILE",
-  "GIT_PREFIX",
-]);
 
 afterEach(async () => {
   await Promise.all(
@@ -1210,12 +1205,6 @@ async function createGitSkillRepo() {
   });
 
   return repoPath;
-}
-
-function gitCommandEnv(): NodeJS.ProcessEnv {
-  return Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !GIT_ENV_KEYS.has(key))
-  );
 }
 
 async function seedStore(store: SqlRegistryStore) {

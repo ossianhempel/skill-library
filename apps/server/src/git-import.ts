@@ -10,11 +10,22 @@ import {
 } from "@skill-library/validation";
 
 const execFileAsync = promisify(execFile);
-const GIT_ENV_KEYS = new Set([
+const LOCAL_GIT_ENV_KEYS = new Set([
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+  "GIT_CONFIG",
+  "GIT_CONFIG_COUNT",
+  "GIT_CONFIG_PARAMETERS",
+  "GIT_COMMON_DIR",
   "GIT_DIR",
-  "GIT_WORK_TREE",
+  "GIT_GRAFT_FILE",
+  "GIT_IMPLICIT_WORK_TREE",
   "GIT_INDEX_FILE",
+  "GIT_NO_REPLACE_OBJECTS",
+  "GIT_OBJECT_DIRECTORY",
   "GIT_PREFIX",
+  "GIT_REPLACE_REF_BASE",
+  "GIT_SHALLOW_FILE",
+  "GIT_WORK_TREE",
 ]);
 
 export interface GitImportRequest {
@@ -135,8 +146,10 @@ async function resolveAuthorEmail(
   return stdout.trim() || undefined;
 }
 
-function gitCommandEnv(): NodeJS.ProcessEnv {
+export function gitCommandEnv(
+  env: NodeJS.ProcessEnv = process.env
+): NodeJS.ProcessEnv {
   return Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !GIT_ENV_KEYS.has(key))
+    Object.entries(env).filter(([key]) => !LOCAL_GIT_ENV_KEYS.has(key))
   );
 }
