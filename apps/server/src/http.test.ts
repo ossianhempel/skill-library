@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { SkillPackage, SkillVersion, Workspace } from "@skill-library/domain";
 import { createRegistryStore, type SqlRegistryStore } from "@skill-library/storage";
 import { createHttpApp } from "./http.js";
@@ -13,19 +13,16 @@ const tmpDirs: string[] = [];
 const execFileAsync = promisify(execFile);
 
 afterEach(async () => {
-  vi.useRealTimers();
   await Promise.all(tmpDirs.map((dir) => rm(dir, { recursive: true, force: true })));
   tmpDirs.length = 0;
 });
 
 // Download history is a rolling DOWNLOAD_HISTORY_DAYS window measured from *now*,
-// so tests that seed usage events at absolute fixture dates must pin the clock to
-// match, or the histogram quietly comes back all zeros. Only Date is faked --
-// PGlite needs real setTimeout/setInterval to make progress.
-function freezeClockAtFixtureDate(iso = "2026-06-07T13:00:00.000Z") {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date(iso));
-}
+// so tests seeding usage events at absolute fixture dates inject a fixed clock
+// rather than depending on real time, which would rot once the window moved past
+// the fixture date.
+const FIXTURE_NOW = "2026-06-07T13:00:00.000Z";
+const fixtureClock = () => new Date(FIXTURE_NOW);
 
 describe("HTTP registry API", () => {
   it("serves public branding config", async () => {
@@ -461,8 +458,7 @@ describe("HTTP registry API", () => {
   });
 
   it("serves maintainer package and workspace reports with latest install state per install", async () => {
-    freezeClockAtFixtureDate();
-    const { app, store } = await createSeededApp();
+    const { app, store } = await createSeededApp({}, fixtureClock);
 
     try {
       await app.request("/api/packages/package-1");
@@ -549,8 +545,7 @@ describe("HTTP registry API", () => {
   });
 
   it("serves catalog stats to viewers without exposing install reports", async () => {
-    freezeClockAtFixtureDate();
-    const { app, store } = await createSeededApp();
+    const { app, store } = await createSeededApp({}, fixtureClock);
 
     try {
       await store.recordUsageEvent({
@@ -874,8 +869,11 @@ describe("HTTP registry API", () => {
   });
 });
 
-async function createSeededApp(brandingOverrides: Partial<ReturnType<typeof defaultRegistryBrandingConfig>> = {}) {
-  const store = await createRegistryStore({ dataDir: await makeTmpDir() });
+async function createSeededApp(
+  brandingOverrides: Partial<ReturnType<typeof defaultRegistryBrandingConfig>> = {},
+  now?: () => Date
+) {
+  const store = await createRegistryStore({ dataDir: await makeTmpDir(), now });
   await store.migrate();
   await seedStore(store as SqlRegistryStore);
 
