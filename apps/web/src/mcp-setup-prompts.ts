@@ -1,10 +1,22 @@
 import type { RegistryBrandingConfig } from "@skill-library/domain";
 
-export const MCP_TOOL_NAMES = ["search", "packageDetail", "validatePackage", "installPlan", "submitStatusReport"] as const;
+export const MCP_TOOL_NAMES = [
+  "search",
+  "packageDetail",
+  "validatePackage",
+  "installPlan",
+  "submitStatusReport",
+] as const;
 
-export const MCP_SETUP_REPO_URL = "https://github.com/ossianhempel/skill-library.git";
+export const MCP_SETUP_REPO_URL =
+  "https://github.com/ossianhempel/skill-library.git";
 
-export type McpSetupTarget = "claude-code" | "claude-desktop" | "codex" | "cursor" | "chatgpt";
+export type McpSetupTarget =
+  | "claude-code"
+  | "claude-desktop"
+  | "codex"
+  | "cursor"
+  | "chatgpt";
 
 export interface McpSetupTargetOption {
   id: McpSetupTarget;
@@ -14,10 +26,14 @@ export interface McpSetupTargetOption {
 
 export const MCP_SETUP_TARGETS: McpSetupTargetOption[] = [
   { id: "claude-code", label: "Claude Code", hint: "CLI + project .mcp.json" },
-  { id: "claude-desktop", label: "Claude Desktop", hint: "claude_desktop_config.json" },
+  {
+    id: "claude-desktop",
+    label: "Claude Desktop",
+    hint: "claude_desktop_config.json",
+  },
   { id: "codex", label: "Codex", hint: "~/.codex/config.toml" },
   { id: "cursor", label: "Cursor", hint: ".cursor/mcp.json" },
-  { id: "chatgpt", label: "ChatGPT", hint: "Desktop connectors" }
+  { id: "chatgpt", label: "ChatGPT", hint: "Desktop connectors" },
 ];
 
 export interface McpSetupAgentAuth {
@@ -34,19 +50,26 @@ export interface McpSetupContext {
   agentAuth?: McpSetupAgentAuth;
 }
 
-export function buildMcpSetupContext(branding: RegistryBrandingConfig, workspaceId: string, registryUrl?: string): McpSetupContext {
+export function buildMcpSetupContext(
+  branding: RegistryBrandingConfig,
+  workspaceId: string,
+  registryUrl?: string
+): McpSetupContext {
   return {
     registryUrl: registryUrl?.trim() || branding.registryPublicUrl,
     workspaceId,
     appName: branding.appName,
-    companyName: branding.companyName
+    companyName: branding.companyName,
   };
 }
 
-export function withMcpSetupAgentAuth(context: McpSetupContext, agentAuth: McpSetupAgentAuth): McpSetupContext {
+export function withMcpSetupAgentAuth(
+  context: McpSetupContext,
+  agentAuth: McpSetupAgentAuth
+): McpSetupContext {
   return {
     ...context,
-    agentAuth
+    agentAuth,
   };
 }
 
@@ -61,7 +84,9 @@ export async function fetchMcpSetupAgentAuth(input: {
 
   if (input.hasSession) {
     try {
-      const response = await request(`${baseUrl}/api/me/agent-token`, { credentials: "include" });
+      const response = await request(`${baseUrl}/api/me/agent-token`, {
+        credentials: "include",
+      });
 
       if (response.ok) {
         return (await response.json()) as McpSetupAgentAuth;
@@ -77,14 +102,17 @@ export async function fetchMcpSetupAgentAuth(input: {
     return {
       token: input.activeToken.trim(),
       role: "user",
-      actorId: "local-dev"
+      actorId: "local-dev",
     };
   }
 
   return undefined;
 }
 
-export function buildMcpSetupPrompt(target: McpSetupTarget, context: McpSetupContext): string {
+export function buildMcpSetupPrompt(
+  target: McpSetupTarget,
+  context: McpSetupContext
+): string {
   const shared = buildSharedSetupBrief(context);
   const platform = buildPlatformSteps(target, context);
   return `${shared}\n\n${platform}`;
@@ -108,11 +136,11 @@ function buildSharedSetupBrief(context: McpSetupContext): string {
     ? [
         "- Your personal MCP bearer token is included below. Use it exactly as written for SKILL_LIBRARY_MCP_TOKEN.",
         "- MCP auth does **not** use Microsoft SSO / Entra login.",
-        "- Treat the token like a password. Do not commit it to git or paste it into public channels."
+        "- Treat the token like a password. Do not commit it to git or paste it into public channels.",
       ]
     : [
         "- MCP auth uses a **bearer API token** (SKILL_LIBRARY_MCP_TOKEN). It does **not** use Microsoft SSO / Entra login.",
-        "- Browser SSO on the web app is separate from MCP. Ask me for my API token if I have not provided one yet."
+        "- Browser SSO on the web app is separate from MCP. Ask me for my API token if I have not provided one yet.",
       ];
 
   return [
@@ -141,11 +169,14 @@ function buildSharedSetupBrief(context: McpSetupContext): string {
     "3. Report success only after both steps return valid JSON-RPC results (not auth errors).",
     context.agentAuth
       ? "4. If auth fails, tell me to sign out and sign back in, then copy a fresh setup prompt from the registry Overview page."
-      : "4. If auth fails, stop and tell me to create or rotate an API token — do not try Microsoft login for MCP."
+      : "4. If auth fails, stop and tell me to create or rotate an API token — do not try Microsoft login for MCP.",
   ].join("\n");
 }
 
-function buildPlatformSteps(target: McpSetupTarget, context: McpSetupContext): string {
+function buildPlatformSteps(
+  target: McpSetupTarget,
+  context: McpSetupContext
+): string {
   const mcpEntry = buildStdioMcpJson(context);
   const mcpPath = "<absolute-path-to>/packages/mcp/dist/stdio.js";
 
@@ -168,7 +199,7 @@ function buildPlatformSteps(target: McpSetupTarget, context: McpSetupContext): s
         mcpEntry,
         "```",
         "",
-        "Restart Claude Code after saving. Then run /mcp or ask me to list MCP tools to confirm skill-library is connected."
+        "Restart Claude Code after saving. Then run /mcp or ask me to list MCP tools to confirm skill-library is connected.",
       ].join("\n");
 
     case "claude-desktop":
@@ -181,7 +212,7 @@ function buildPlatformSteps(target: McpSetupTarget, context: McpSetupContext): s
         "```",
         "",
         "Replace <absolute-path-to> with the built stdio.js path. Fully quit and reopen Claude Desktop.",
-        "In a new chat, ask: \"List skill-library MCP tools\" to confirm the connection."
+        'In a new chat, ask: "List skill-library MCP tools" to confirm the connection.',
       ].join("\n");
 
     case "codex":
@@ -209,7 +240,7 @@ function buildPlatformSteps(target: McpSetupTarget, context: McpSetupContext): s
         "  -- node <absolute-path-to>/packages/mcp/dist/stdio.js",
         "```",
         "",
-        "Restart Codex, run `codex mcp list`, then validate with tools/list."
+        "Restart Codex, run `codex mcp list`, then validate with tools/list.",
       ].join("\n");
 
     case "cursor":
@@ -221,7 +252,7 @@ function buildPlatformSteps(target: McpSetupTarget, context: McpSetupContext): s
         mcpEntry,
         "```",
         "",
-        "Reload Cursor MCP (Settings → MCP → refresh). Confirm skill-library appears and tools/list succeeds."
+        "Reload Cursor MCP (Settings → MCP → refresh). Confirm skill-library appears and tools/list succeeds.",
       ].join("\n");
 
     case "chatgpt":
@@ -232,7 +263,7 @@ function buildPlatformSteps(target: McpSetupTarget, context: McpSetupContext): s
         `This registry ships a **local stdio** MCP and does **not** expose a hosted HTTP endpoint, so ChatGPT cannot connect to ${context.appName} today.`,
         "",
         "Tell me this directly — do not fabricate a stdio config for ChatGPT. Recommend I use Claude Code, Cursor, Codex, or Claude Desktop for native stdio MCP instead.",
-        "(If a hosted HTTP MCP endpoint is added later, ChatGPT can connect by pasting that URL as a custom connector — no clone or build needed.)"
+        "(If a hosted HTTP MCP endpoint is added later, ChatGPT can connect by pasting that URL as a custom connector — no clone or build needed.)",
       ].join("\n");
   }
 }
@@ -249,10 +280,10 @@ function buildStdioMcpJson(context: McpSetupContext): string {
             SKILL_LIBRARY_REGISTRY_URL: context.registryUrl,
             SKILL_LIBRARY_MCP_TOKEN: mcpToken(context),
             SKILL_LIBRARY_MCP_ROLE: mcpRole(context),
-            SKILL_LIBRARY_MCP_ACTOR: mcpActor(context)
-          }
-        }
-      }
+            SKILL_LIBRARY_MCP_ACTOR: mcpActor(context),
+          },
+        },
+      },
     },
     null,
     2

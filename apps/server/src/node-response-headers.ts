@@ -1,4 +1,6 @@
-export function nodeResponseHeaders(appResponse: Response): Record<string, string | string[]> {
+export function nodeResponseHeaders(
+  appResponse: Response
+): Record<string, string | string[]> {
   const headers: Record<string, string | string[]> = {};
 
   appResponse.headers.forEach((value, name) => {

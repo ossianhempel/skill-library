@@ -49,11 +49,11 @@ The registry server should call `createRegistryStore`, run `migrate`, and keep a
 
 The query layer is engine-portable. One shared Kysely instance, with a dialect chosen from config, feeds both the registry store and Better Auth, and each owns its own cross-dialect migrations. The store absorbs the T-SQL divergences (upsert via `MERGE` vs `ON CONFLICT`, `OFFSET/FETCH` vs `LIMIT`, `nvarchar(max)` JSON vs `jsonb`, `datetimeoffset` vs `timestamptz`, `bit` vs `boolean`, `JSON_VALUE` vs `->>`) behind the same method signatures.
 
-| Engine | Selected by | Driver | Use |
-|--------|-------------|--------|-----|
-| PGlite | default (no `databaseUrl`) | `@electric-sql/pglite` | Zero-config bundled default; single-writer, one replica |
-| PostgreSQL | `postgres://` / `postgresql://` | `pg` | External managed/self-hosted Postgres for HA |
-| Azure SQL Server | `sqlserver://` | `tedious` + `tarn` | Orgs that mandate Microsoft SQL Server (T-SQL); TLS on by default |
+| Engine           | Selected by                     | Driver                 | Use                                                               |
+| ---------------- | ------------------------------- | ---------------------- | ----------------------------------------------------------------- |
+| PGlite           | default (no `databaseUrl`)      | `@electric-sql/pglite` | Zero-config bundled default; single-writer, one replica           |
+| PostgreSQL       | `postgres://` / `postgresql://` | `pg`                   | External managed/self-hosted Postgres for HA                      |
+| Azure SQL Server | `sqlserver://`                  | `tedious` + `tarn`     | Orgs that mandate Microsoft SQL Server (T-SQL); TLS on by default |
 
 Adding a further engine (e.g. MySQL or SQLite) is a matter of wiring its first-party Kysely dialect into the factory and the migration type helper — no new query code path.
 

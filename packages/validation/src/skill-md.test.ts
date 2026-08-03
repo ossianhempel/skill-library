@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { SKILL_MD_BODY_SIZE_WARNING_CHARS, validateSkillMd } from "./skill-md.js";
+import {
+  SKILL_MD_BODY_SIZE_WARNING_CHARS,
+  validateSkillMd,
+} from "./skill-md.js";
 
 describe("validateSkillMd", () => {
   it("accepts valid frontmatter with matching directory name", () => {
@@ -24,7 +27,7 @@ description: Review code changes for bugs and test gaps.
     expect(issues).toContainEqual(
       expect.objectContaining({
         ruleId: "skill-md-missing-frontmatter",
-        severity: "error"
+        severity: "error",
       })
     );
   });
@@ -43,7 +46,7 @@ description: Invalid name format.
     expect(issues).toContainEqual(
       expect.objectContaining({
         ruleId: "skill-md-invalid-name-format",
-        severity: "error"
+        severity: "error",
       })
     );
   });
@@ -62,7 +65,7 @@ description: Name does not match folder.
     expect(issues).toContainEqual(
       expect.objectContaining({
         ruleId: "skill-md-name-directory-mismatch",
-        severity: "error"
+        severity: "error",
       })
     );
   });
@@ -80,7 +83,7 @@ name: demo
     expect(issues).toContainEqual(
       expect.objectContaining({
         ruleId: "skill-md-missing-description",
-        severity: "error"
+        severity: "error",
       })
     );
   });
@@ -99,7 +102,7 @@ description: Valid frontmatter with no body.
     expect(issues).toContainEqual(
       expect.objectContaining({
         ruleId: "skill-md-body-empty",
-        severity: "warning"
+        severity: "warning",
       })
     );
   });
@@ -120,7 +123,7 @@ ${"x".repeat(SKILL_MD_BODY_SIZE_WARNING_CHARS + 1)}
     expect(issues).toContainEqual(
       expect.objectContaining({
         ruleId: "skill-md-body-large",
-        severity: "warning"
+        severity: "warning",
       })
     );
   });

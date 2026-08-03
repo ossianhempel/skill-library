@@ -34,7 +34,7 @@ curl http://localhost:3000/health
 Expected response includes:
 
 ```json
-{"ok":true,"mode":"pglite"}
+{ "ok": true, "mode": "pglite" }
 ```
 
 ## Validate Examples

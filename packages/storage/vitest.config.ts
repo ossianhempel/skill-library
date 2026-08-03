@@ -6,6 +6,6 @@ export default defineConfig({
     // several seconds, and the default 5s limit flakes under the parallel package test
     // run (`pnpm -r test`). Give the PGlite-backed suites headroom.
     testTimeout: 30000,
-    hookTimeout: 30000
-  }
+    hookTimeout: 30000,
+  },
 });

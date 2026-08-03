@@ -21,17 +21,29 @@ export interface PackageTreeEntry {
 }
 
 /** Decode an entry's content to raw bytes, honoring its encoding. */
-function entryBuffer(entry: Pick<Required<PackageTreeEntry>, "content" | "encoding">): Buffer {
+function entryBuffer(
+  entry: Pick<Required<PackageTreeEntry>, "content" | "encoding">
+): Buffer {
   if (typeof entry.content !== "string") {
     return Buffer.from(entry.content);
   }
-  return Buffer.from(entry.content, entry.encoding === "base64" ? "base64" : "utf8");
+  return Buffer.from(
+    entry.content,
+    entry.encoding === "base64" ? "base64" : "utf8"
+  );
 }
 
-export function validatePackageTree(entries: PackageTreeEntry[]): ValidationResult {
+export function validatePackageTree(
+  entries: PackageTreeEntry[]
+): ValidationResult {
   const normalized = entries.map(normalizeEntry);
-  const issues: ValidationResult["issues"] = normalized.flatMap((entry) => validatePath(entry.path));
-  const safeEntries = normalized.filter((entry) => !validatePath(entry.path).some((issue) => issue.severity === "error"));
+  const issues: ValidationResult["issues"] = normalized.flatMap((entry) =>
+    validatePath(entry.path)
+  );
+  const safeEntries = normalized.filter(
+    (entry) =>
+      !validatePath(entry.path).some((issue) => issue.severity === "error")
+  );
   const skillRoot = findSkillRoot(safeEntries.map((entry) => entry.path));
 
   if (!skillRoot) {
@@ -39,11 +51,14 @@ export function validatePackageTree(entries: PackageTreeEntry[]): ValidationResu
       ruleId: "required-skill-md",
       severity: "error",
       message: "Package must contain exactly one skill root with SKILL.md.",
-      path: "SKILL.md"
+      path: "SKILL.md",
     });
   } else {
-    const skillMdPath = skillRoot === "." ? "SKILL.md" : `${skillRoot}/SKILL.md`;
-    const skillMdEntry = safeEntries.find((entry) => entry.path === skillMdPath && entry.kind === "file");
+    const skillMdPath =
+      skillRoot === "." ? "SKILL.md" : `${skillRoot}/SKILL.md`;
+    const skillMdEntry = safeEntries.find(
+      (entry) => entry.path === skillMdPath && entry.kind === "file"
+    );
 
     if (skillMdEntry) {
       const content = entryBuffer(skillMdEntry).toString("utf8");
@@ -51,7 +66,9 @@ export function validatePackageTree(entries: PackageTreeEntry[]): ValidationResu
     }
   }
 
-  const files = safeEntries.map(toArtifactFile).sort((left, right) => left.path.localeCompare(right.path));
+  const files = safeEntries
+    .map(toArtifactFile)
+    .sort((left, right) => left.path.localeCompare(right.path));
   const digest = digestFiles(files);
 
   return {
@@ -59,11 +76,13 @@ export function validatePackageTree(entries: PackageTreeEntry[]): ValidationResu
     digest,
     skillRoot,
     files,
-    issues
+    issues,
   };
 }
 
-export async function readPackageDirectory(rootDir: string): Promise<PackageTreeEntry[]> {
+export async function readPackageDirectory(
+  rootDir: string
+): Promise<PackageTreeEntry[]> {
   const entries: PackageTreeEntry[] = [];
 
   await collectDirectoryEntries(rootDir, rootDir, entries);
@@ -71,7 +90,9 @@ export async function readPackageDirectory(rootDir: string): Promise<PackageTree
   return entries;
 }
 
-export async function readPackageZip(archivePath: string): Promise<PackageTreeEntry[]> {
+export async function readPackageZip(
+  archivePath: string
+): Promise<PackageTreeEntry[]> {
   return new Promise((resolve, reject) => {
     yauzl.open(archivePath, { lazyEntries: true }, (openError, zipFile) => {
       if (openError) {
@@ -89,7 +110,10 @@ export async function readPackageZip(archivePath: string): Promise<PackageTreeEn
       zipFile.readEntry();
       zipFile.on("entry", (entry) => {
         if (entry.fileName.endsWith("/")) {
-          entries.push({ path: entry.fileName.replace(/\/$/, ""), kind: "directory" });
+          entries.push({
+            path: entry.fileName.replace(/\/$/, ""),
+            kind: "directory",
+          });
           zipFile.readEntry();
           return;
         }
@@ -101,7 +125,9 @@ export async function readPackageZip(archivePath: string): Promise<PackageTreeEn
           }
 
           if (!stream) {
-            reject(new Error(`Unable to read archive entry: ${entry.fileName}`));
+            reject(
+              new Error(`Unable to read archive entry: ${entry.fileName}`)
+            );
             return;
           }
 
@@ -109,7 +135,11 @@ export async function readPackageZip(archivePath: string): Promise<PackageTreeEn
           stream.on("data", (chunk: Buffer) => chunks.push(chunk));
           stream.on("error", reject);
           stream.on("end", () => {
-            entries.push({ path: entry.fileName, content: Buffer.concat(chunks), kind: "file" });
+            entries.push({
+              path: entry.fileName,
+              content: Buffer.concat(chunks),
+              kind: "file",
+            });
             zipFile.readEntry();
           });
         });
@@ -120,10 +150,14 @@ export async function readPackageZip(archivePath: string): Promise<PackageTreeEn
   });
 }
 
-export async function packPackageZip(entries: PackageTreeEntry[]): Promise<Buffer> {
+export async function packPackageZip(
+  entries: PackageTreeEntry[]
+): Promise<Buffer> {
   const zip = new yazl.ZipFile();
 
-  for (const entry of entries.map(normalizeEntry).sort((left, right) => left.path.localeCompare(right.path))) {
+  for (const entry of entries
+    .map(normalizeEntry)
+    .sort((left, right) => left.path.localeCompare(right.path))) {
     if (entry.kind === "directory") {
       zip.addEmptyDirectory(entry.path);
       continue;
@@ -147,11 +181,15 @@ function normalizeEntry(entry: PackageTreeEntry): Required<PackageTreeEntry> {
     path: entry.path.replaceAll("\\", "/").replace(/^\/+/, ""),
     content: entry.content ?? "",
     encoding: entry.encoding ?? "utf8",
-    kind: entry.kind ?? "file"
+    kind: entry.kind ?? "file",
   };
 }
 
-async function collectDirectoryEntries(rootDir: string, currentDir: string, entries: PackageTreeEntry[]) {
+async function collectDirectoryEntries(
+  rootDir: string,
+  currentDir: string,
+  entries: PackageTreeEntry[]
+) {
   const dirEntries = await readdir(currentDir, { withFileTypes: true });
 
   for (const dirEntry of dirEntries) {
@@ -165,7 +203,11 @@ async function collectDirectoryEntries(rootDir: string, currentDir: string, entr
     }
 
     if (dirEntry.isFile()) {
-      entries.push({ path, content: await readFile(absolutePath), kind: "file" });
+      entries.push({
+        path,
+        content: await readFile(absolutePath),
+        kind: "file",
+      });
     }
   }
 }
@@ -179,7 +221,7 @@ function validatePath(path: string) {
       ruleId: "invalid-path",
       severity: "error" as const,
       message: "Package entries must have a file-relative path.",
-      path
+      path,
     });
   }
 
@@ -188,7 +230,7 @@ function validatePath(path: string) {
       ruleId: "path-traversal",
       severity: "error" as const,
       message: "Package entries cannot traverse outside the skill root.",
-      path
+      path,
     });
   }
 
@@ -210,8 +252,11 @@ function toArtifactFile(entry: Required<PackageTreeEntry>): ArtifactFile {
   return {
     path: entry.path,
     size: entry.kind === "directory" ? 0 : content.byteLength,
-    digest: entry.kind === "directory" ? "" : createHash("sha256").update(content).digest("hex"),
-    kind: entry.kind
+    digest:
+      entry.kind === "directory"
+        ? ""
+        : createHash("sha256").update(content).digest("hex"),
+    kind: entry.kind,
   };
 }
 

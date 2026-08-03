@@ -7,7 +7,7 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-  "test:time-travel": "TIME_TRAVEL_DAYS=${TIME_TRAVEL_DAYS:-400} NODE_OPTIONS=\"--import file://$PWD/scripts/time-travel.mjs\" pnpm -r test",
+    "test:time-travel": "TIME_TRAVEL_DAYS=${TIME_TRAVEL_DAYS:-400} NODE_OPTIONS=\"--import file://$PWD/scripts/time-travel.mjs\" pnpm -r test",
     "verify": "pnpm build && pnpm test",
     "lint:max-lines:staged": "node scripts/check-staged-file-loc.js",
     "prepare": "husky",

@@ -8,7 +8,7 @@ For humans: see [deployment.md](./deployment.md) for topology notes and [operati
 
 ## Copy this prompt
 
-```text
+````text
 Deploy Skill Library (self-hosted skill registry) on this machine.
 
 ## USER INPUTS — fill these in before running
@@ -67,7 +67,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
    MICROSOFT_TENANT_ID=""                    # from USER INPUTS
    DATABASE_URL=""                           # from USER INPUTS, optional
    PLATFORM="docker-compose"                 # from USER INPUTS
-   ```
+````
 
 1. Preflight
    - Confirm Docker (and Docker Compose plugin) are installed: `docker --version` and `docker compose version`.
@@ -75,6 +75,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
    - If PUBLIC_URL uses HTTPS behind a reverse proxy, ensure the proxy forwards `X-Forwarded-Host` and `X-Forwarded-Proto`, or set BETTER_AUTH_URL to the public HTTPS URL.
 
 2. Fetch code
+
    ```sh
    sudo mkdir -p "$DEPLOY_DIR"
    sudo chown "$(whoami)" "$DEPLOY_DIR"
@@ -83,6 +84,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
    ```
 
 3. Generate secrets (do not reuse example values)
+
    ```sh
    BETTER_AUTH_SECRET="$(openssl rand -hex 32)"
    MAINTAINER_TOKEN="$(openssl rand -hex 24)"
@@ -90,6 +92,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
    ```
 
 4. Create .env in DEPLOY_DIR (mode 600)
+
    ```sh
    cat > .env <<EOF
    PORT=${HOST_PORT}
@@ -105,6 +108,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
    ```
 
    If DATABASE_URL is set, append:
+
    ```sh
    echo "DATABASE_URL=${DATABASE_URL}" >> .env
    ```
@@ -112,6 +116,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
 5. Deploy
 
    ### PLATFORM = docker-compose (default)
+
    ```sh
    cd "$DEPLOY_DIR"
    docker compose up --build -d
@@ -119,6 +124,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
    ```
 
    If DATABASE_URL is set:
+
    ```sh
    docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build -d
    ```
@@ -131,6 +137,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
    - Deploy and wait for healthy status.
 
    ### PLATFORM = azure-container-apps
+
    Summary for a new Azure deploy:
    1. `az group create` (or use existing `AZURE_RESOURCE_GROUP`)
    2. Create ACR, storage account + file share, Log Analytics, Container Apps environment
@@ -141,6 +148,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
    7. Verify `curl ${PUBLIC_URL}/health`
 
    ### PLATFORM = plain-docker (no compose)
+
    ```sh
    cd "$DEPLOY_DIR"
    docker build -t skill-library:local .
@@ -154,6 +162,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
    ```
 
 6. Verify (all must pass)
+
    ```sh
    curl -fsS "http://127.0.0.1:${HOST_PORT}/health"
    curl -fsS -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:${HOST_PORT}/"
@@ -166,7 +175,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
    - / returns 200
    - /api/auth/get-session returns 200 (session may be null before login)
 
-7. Azure check (if MICROSOFT_* were provided)
+7. Azure check (if MICROSOFT\_\* were provided)
    - Confirm App Registration redirect URI is `${PUBLIC_URL}/api/auth/callback/microsoft`
    - Open PUBLIC_URL in a browser, click "Sign in with Microsoft", complete login
    - First SSO user becomes admin automatically
@@ -187,6 +196,7 @@ Persistent data must survive container restarts (database + artifacts under /dat
 ## Report back to the user
 
 Return a short summary with:
+
 - PUBLIC_URL and whether HTTPS is configured
 - Container name / compose project status
 - Health check output
@@ -195,7 +205,8 @@ Return a short summary with:
 - Anything still blocked (missing Azure creds, DNS, TLS, firewall)
 
 Do not stop at "image built" — confirm the health endpoint responds and the container stays up.
-```
+
+````
 
 ---
 
@@ -210,6 +221,6 @@ cp .env.example .env
 # Edit BETTER_AUTH_SECRET to a random value; keep BETTER_AUTH_URL=http://localhost:3000
 docker compose up --build
 curl http://localhost:3000/health
-```
+````
 
 Browser SSO will not work until Microsoft credentials are set. CLI/MCP still work via `SKILL_LIBRARY_API_KEYS`.
