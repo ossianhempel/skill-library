@@ -1,7 +1,8 @@
 import { betterAuth } from "better-auth";
 import type { RegistryStore } from "@skill-library/storage";
 
-const developmentAuthSecret = "fallback-development-secret-key-must-be-changed-in-production";
+const developmentAuthSecret =
+  "fallback-development-secret-key-must-be-changed-in-production";
 
 export function resolveBetterAuthSecret(): string {
   const secret = process.env.BETTER_AUTH_SECRET?.trim();
@@ -24,7 +25,8 @@ function resolveTrustedOrigins(): string[] {
     origins.add(process.env.BETTER_AUTH_URL.trim());
   }
 
-  for (const entry of process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? []) {
+  for (const entry of process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ??
+    []) {
     const trimmed = entry.trim();
 
     if (trimmed) {
@@ -39,7 +41,9 @@ export function getBetterAuthInstance(store: RegistryStore) {
   const trustedOrigins = resolveTrustedOrigins();
 
   if (!store.kysely || !store.engine) {
-    throw new Error("Better Auth requires a SQL-backed RegistryStore (Kysely instance unavailable).");
+    throw new Error(
+      "Better Auth requires a SQL-backed RegistryStore (Kysely instance unavailable)."
+    );
   }
 
   // Better Auth's native Kysely adapter shares the store's single Kysely instance; `type`
@@ -67,32 +71,33 @@ export function getBetterAuthInstance(store: RegistryStore) {
         role: {
           type: "string",
           defaultValue: "user",
-          input: false
+          input: false,
         },
         agent_api_token: {
           type: "string",
           required: false,
-          input: false
-        }
-      }
+          input: false,
+        },
+      },
     },
     verification: {
-      fields: { createdAt: "created_at", updatedAt: "updated_at" }
+      fields: { createdAt: "created_at", updatedAt: "updated_at" },
     },
     session: {
       fields: {
         createdAt: "created_at",
         updatedAt: "updated_at",
         ipAddress: "ip_address",
-        userAgent: "user_agent"
-      }
+        userAgent: "user_agent",
+      },
     },
     socialProviders: {
       microsoft: {
         clientId: process.env.MICROSOFT_CLIENT_ID || "mock-client-id",
-        clientSecret: process.env.MICROSOFT_CLIENT_SECRET || "mock-client-secret",
+        clientSecret:
+          process.env.MICROSOFT_CLIENT_SECRET || "mock-client-secret",
         tenantId: process.env.MICROSOFT_TENANT_ID || "common",
-      }
+      },
     },
     secret: resolveBetterAuthSecret(),
     databaseHooks: {
@@ -106,10 +111,10 @@ export function getBetterAuthInstance(store: RegistryStore) {
             }
 
             return { data: user };
-          }
-        }
-      }
-    }
+          },
+        },
+      },
+    },
   });
 }
 

@@ -3,7 +3,10 @@ import type { Actor } from "@skill-library/domain";
 import type { RegistryStore } from "@skill-library/storage";
 import { parseRole } from "./auth.js";
 
-export async function getOrCreateAgentToken(store: RegistryStore, userId: string): Promise<string | undefined> {
+export async function getOrCreateAgentToken(
+  store: RegistryStore,
+  userId: string
+): Promise<string | undefined> {
   const existing = await store.getAgentToken(userId);
 
   if (existing) {
@@ -14,7 +17,10 @@ export async function getOrCreateAgentToken(store: RegistryStore, userId: string
   return store.setAgentToken(userId, token);
 }
 
-export async function actorFromUserAgentToken(store: RegistryStore, authorization: string | null): Promise<Actor | undefined> {
+export async function actorFromUserAgentToken(
+  store: RegistryStore,
+  authorization: string | null
+): Promise<Actor | undefined> {
   const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
 
   if (!token) {
@@ -35,6 +41,6 @@ export async function actorFromUserAgentToken(store: RegistryStore, authorizatio
 
   return {
     id: row.id,
-    role
+    role,
   };
 }

@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { SkillPackage, SkillVersion, Workspace } from "@skill-library/domain";
+import type {
+  SkillPackage,
+  SkillVersion,
+  Workspace,
+} from "@skill-library/domain";
 import { createKyselyInstance } from "./kysely.js";
 import { createRegistryStore, type RegistryStore } from "./index.js";
 
@@ -28,7 +32,7 @@ const workspace: Workspace = {
   slug: "team",
   name: "Team",
   reportingPolicy: "opt-in",
-  visibility: "private"
+  visibility: "private",
 };
 
 const pkg: SkillPackage = {
@@ -39,10 +43,14 @@ const pkg: SkillPackage = {
   description: "Deploy skill",
   categories: ["ops", "ci"],
   createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
+  updatedAt: new Date().toISOString(),
 };
 
-function version(id: string, state: SkillVersion["lifecycleState"], approvedAt?: string): SkillVersion {
+function version(
+  id: string,
+  state: SkillVersion["lifecycleState"],
+  approvedAt?: string
+): SkillVersion {
   return {
     id,
     packageId: pkg.id,
@@ -53,7 +61,7 @@ function version(id: string, state: SkillVersion["lifecycleState"], approvedAt?:
     provenance: { source: "test" } as never,
     createdAt: new Date().toISOString(),
     approvedAt,
-    replacementVersionId: undefined
+    replacementVersionId: undefined,
   };
 }
 
@@ -70,13 +78,21 @@ describe.skipIf(!ADMIN_URL)("PostgreSQL registry store (live)", () => {
   beforeAll(async () => {
     // Provision a clean database via the admin (`postgres`) connection. WITH (FORCE)
     // drops it even if a prior run left connections open.
-    const { db: admin } = createKyselyInstance({ databaseUrl: ADMIN_URL, databaseEngine: "postgres" });
-    await sql`drop database if exists ${sql.ref(DB_NAME)} with (force)`.execute(admin);
+    const { db: admin } = createKyselyInstance({
+      databaseUrl: ADMIN_URL,
+      databaseEngine: "postgres",
+    });
+    await sql`drop database if exists ${sql.ref(DB_NAME)} with (force)`.execute(
+      admin
+    );
     await sql`create database ${sql.ref(DB_NAME)}`.execute(admin);
     await admin.destroy();
 
     dataDir = await mkdtemp(join(tmpdir(), "sl-pg-"));
-    store = await createRegistryStore({ databaseUrl: swapDatabase(ADMIN_URL!, DB_NAME), dataDir });
+    store = await createRegistryStore({
+      databaseUrl: swapDatabase(ADMIN_URL!, DB_NAME),
+      dataDir,
+    });
     await store.migrate();
     await store.migrate(); // idempotent
   }, 60000);
@@ -123,7 +139,7 @@ describe.skipIf(!ADMIN_URL)("PostgreSQL registry store (live)", () => {
       versionId: "1.0.0",
       state: "current",
       reportedAt: new Date().toISOString(),
-      targetKind: "claude-global"
+      targetKind: "claude-global",
     });
     await store.recordUsageEvent({
       id: "ue-1",
@@ -131,10 +147,14 @@ describe.skipIf(!ADMIN_URL)("PostgreSQL registry store (live)", () => {
       packageId: pkg.id,
       versionId: "1.0.0",
       eventType: "download",
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     });
 
-    const downloads = await store.countUsageEvents({ workspaceId: workspace.id, packageId: pkg.id, eventType: "download" });
+    const downloads = await store.countUsageEvents({
+      workspaceId: workspace.id,
+      packageId: pkg.id,
+      eventType: "download",
+    });
     expect(downloads).toBe(1);
 
     const report = await store.getPackageReport(pkg.id);
@@ -144,7 +164,9 @@ describe.skipIf(!ADMIN_URL)("PostgreSQL registry store (live)", () => {
 
     // Cross-dialect download history: cast(created_at as date) + group-by over the pg driver.
     expect(report?.downloadHistory).toHaveLength(14);
-    expect(report?.downloadHistory.reduce((total, point) => total + point.count, 0)).toBe(1);
+    expect(
+      report?.downloadHistory.reduce((total, point) => total + point.count, 0)
+    ).toBe(1);
     expect(report?.lastModifiedAt).toBeTruthy();
 
     const catalogStats = await store.getWorkspaceCatalogStats(workspace.id);
@@ -154,9 +176,15 @@ describe.skipIf(!ADMIN_URL)("PostgreSQL registry store (live)", () => {
   });
 
   it("creates auth tables and exercises user + agent-token paths over the pg driver (U5/U6)", async () => {
-    await store.kysely!
-      .insertInto("user")
-      .values({ id: "u-1", name: "Ada", email: "ada@example.com", emailVerified: false, role: "admin" })
+    await store
+      .kysely!.insertInto("user")
+      .values({
+        id: "u-1",
+        name: "Ada",
+        email: "ada@example.com",
+        emailVerified: false,
+        role: "admin",
+      })
       .execute();
 
     expect(await store.countUsers()).toBe(1);
@@ -164,11 +192,14 @@ describe.skipIf(!ADMIN_URL)("PostgreSQL registry store (live)", () => {
     const token = "sl_pg_u6_token";
     expect(await store.setAgentToken("u-1", token)).toBe(token);
     expect(await store.getAgentToken("u-1")).toBe(token);
-    expect(await store.findUserByAgentToken(token)).toEqual({ id: "u-1", role: "admin" });
+    expect(await store.findUserByAgentToken(token)).toEqual({
+      id: "u-1",
+      role: "admin",
+    });
 
     // The team-roster JSON-path join (provenance->>'actorId') over the real pg driver.
-    await store.kysely!
-      .insertInto("skill_versions")
+    await store
+      .kysely!.insertInto("skill_versions")
       .values({
         id: "v-by-u1",
         package_id: pkg.id,
@@ -177,12 +208,14 @@ describe.skipIf(!ADMIN_URL)("PostgreSQL registry store (live)", () => {
         artifact_digest: "sha256:abc",
         validation: JSON.stringify({ ok: true }),
         provenance: JSON.stringify({ source: "test", actorId: "u-1" }),
-        created_at: new Date()
+        created_at: new Date(),
       })
       .execute();
 
     const members = await store.listTeamMembers();
-    expect(members.find((member) => member.id === "u-1")?.skillsSubmitted).toBe(1);
+    expect(members.find((member) => member.id === "u-1")?.skillsSubmitted).toBe(
+      1
+    );
 
     const updated = await store.updateUserRole("u-1", "maintainer");
     expect(updated?.role).toBe("maintainer");

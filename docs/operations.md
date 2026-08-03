@@ -15,7 +15,7 @@ GET /health
 Expected response:
 
 ```json
-{"ok":true,"mode":"pglite"}
+{ "ok": true, "mode": "pglite" }
 ```
 
 `mode` is `postgres` when `DATABASE_URL` is configured.

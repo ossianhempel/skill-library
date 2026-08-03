@@ -6,7 +6,7 @@ import {
   buildMcpSetupContext,
   buildMcpSetupPrompt,
   fetchMcpSetupAgentAuth,
-  withMcpSetupAgentAuth
+  withMcpSetupAgentAuth,
 } from "./mcp-setup-prompts.js";
 
 describe("mcp-setup-prompts", () => {
@@ -16,7 +16,7 @@ describe("mcp-setup-prompts", () => {
       appName: "Rebtech Skills",
       companyName: "Rebtech",
       registryPublicUrl: "https://skills.rebtech.se",
-      defaultWorkspaceId: "workspace-1"
+      defaultWorkspaceId: "workspace-1",
     },
     "workspace-1",
     "https://skills.rebtech.se"
@@ -28,7 +28,7 @@ describe("mcp-setup-prompts", () => {
       "claude-desktop",
       "codex",
       "cursor",
-      "chatgpt"
+      "chatgpt",
     ]);
   });
 
@@ -38,7 +38,9 @@ describe("mcp-setup-prompts", () => {
     expect(prompt).toContain("does **not** use Microsoft SSO");
     expect(prompt).toContain("SKILL_LIBRARY_MCP_TOKEN");
     expect(prompt).toContain("local stdio process");
-    expect(prompt).toContain("Ask me for my API token if I have not provided one yet");
+    expect(prompt).toContain(
+      "Ask me for my API token if I have not provided one yet"
+    );
   });
 
   it("embeds the signed-in user's personal MCP token when provided", () => {
@@ -47,7 +49,7 @@ describe("mcp-setup-prompts", () => {
       withMcpSetupAgentAuth(context, {
         token: "sl_test_token_123",
         role: "maintainer",
-        actorId: "user-abc"
+        actorId: "user-abc",
       })
     );
 
@@ -89,16 +91,23 @@ describe("mcp-setup-prompts", () => {
       registryUrl: "https://skills.rebtech.se",
       hasSession: true,
       request: async () =>
-        new Response(JSON.stringify({ token: "sl_test_token_123", role: "user", actorId: "user-abc" }), {
-          status: 200,
-          headers: { "content-type": "application/json" }
-        })
+        new Response(
+          JSON.stringify({
+            token: "sl_test_token_123",
+            role: "user",
+            actorId: "user-abc",
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }
+        ),
     });
 
     expect(auth).toEqual({
       token: "sl_test_token_123",
       role: "user",
-      actorId: "user-abc"
+      actorId: "user-abc",
     });
   });
 
@@ -106,13 +115,13 @@ describe("mcp-setup-prompts", () => {
     const auth = await fetchMcpSetupAgentAuth({
       registryUrl: "http://localhost:3000",
       hasSession: false,
-      activeToken: "maintainer-secret"
+      activeToken: "maintainer-secret",
     });
 
     expect(auth).toEqual({
       token: "maintainer-secret",
       role: "user",
-      actorId: "local-dev"
+      actorId: "local-dev",
     });
   });
 });

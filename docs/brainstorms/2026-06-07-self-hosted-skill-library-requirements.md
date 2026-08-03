@@ -1,7 +1,7 @@
 # Self-hosted skill library for company agent workflows
 
 > **Brainstorm:** docs/brainstorms/2026-06-07-self-hosted-skill-library-requirements.md
-> **Status:** Requirements  ·  **Depth:** Standard
+> **Status:** Requirements · **Depth:** Standard
 
 ## Problem
 

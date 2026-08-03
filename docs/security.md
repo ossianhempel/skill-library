@@ -9,11 +9,11 @@ Route-level permission checks use the same role model for both.
 
 ## Roles
 
-| UI label | Role value | Rank |
-|----------|------------|------|
-| Viewer | `user` | 1 |
-| Editor | `maintainer` | 2 |
-| Admin | `admin` | 3 |
+| UI label | Role value   | Rank |
+| -------- | ------------ | ---- |
+| Viewer   | `user`       | 1    |
+| Editor   | `maintainer` | 2    |
+| Admin    | `admin`      | 3    |
 
 Higher ranks inherit lower-rank permissions.
 

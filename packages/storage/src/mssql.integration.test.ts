@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { SkillPackage, SkillVersion, Workspace } from "@skill-library/domain";
+import type {
+  SkillPackage,
+  SkillVersion,
+  Workspace,
+} from "@skill-library/domain";
 import { createKyselyInstance } from "./kysely.js";
 import { createRegistryStore, type RegistryStore } from "./index.js";
 
@@ -25,7 +29,7 @@ const workspace: Workspace = {
   slug: "team",
   name: "Team",
   reportingPolicy: "opt-in",
-  visibility: "private"
+  visibility: "private",
 };
 
 const pkg: SkillPackage = {
@@ -36,10 +40,14 @@ const pkg: SkillPackage = {
   description: "Deploy skill",
   categories: ["ops", "ci"],
   createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
+  updatedAt: new Date().toISOString(),
 };
 
-function version(id: string, state: SkillVersion["lifecycleState"], approvedAt?: string): SkillVersion {
+function version(
+  id: string,
+  state: SkillVersion["lifecycleState"],
+  approvedAt?: string
+): SkillVersion {
   return {
     id,
     packageId: pkg.id,
@@ -50,7 +58,7 @@ function version(id: string, state: SkillVersion["lifecycleState"], approvedAt?:
     provenance: { source: "test" } as never,
     createdAt: new Date().toISOString(),
     approvedAt,
-    replacementVersionId: undefined
+    replacementVersionId: undefined,
   };
 }
 
@@ -64,7 +72,10 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
     const storeUrl = `${ADMIN_URL}/${DB_NAME}?trustServerCertificate=true`;
 
     // Provision a clean database via the admin/master connection.
-    const { db: admin } = createKyselyInstance({ databaseUrl: adminUrl, databaseEngine: "mssql" });
+    const { db: admin } = createKyselyInstance({
+      databaseUrl: adminUrl,
+      databaseEngine: "mssql",
+    });
     await sql`drop database if exists ${sql.ref(DB_NAME)}`.execute(admin);
     await sql`create database ${sql.ref(DB_NAME)}`.execute(admin);
     await admin.destroy();
@@ -125,7 +136,7 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
       versionId: "1.0.0",
       state: "current",
       reportedAt: new Date().toISOString(),
-      targetKind: "claude-global"
+      targetKind: "claude-global",
     });
     await store.recordUsageEvent({
       id: "ue-1",
@@ -133,7 +144,7 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
       packageId: pkg.id,
       versionId: "1.0.0",
       eventType: "download",
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     });
     // No throw on the insert-ignore paths is the assertion; re-recording is a no-op.
     await store.recordUsageEvent({
@@ -142,13 +153,17 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
       packageId: pkg.id,
       versionId: "1.0.0",
       eventType: "download",
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     });
     expect(true).toBe(true);
   });
 
   it("computes usage counts and package reports (analytics on T-SQL)", async () => {
-    const downloads = await store.countUsageEvents({ workspaceId: workspace.id, packageId: pkg.id, eventType: "download" });
+    const downloads = await store.countUsageEvents({
+      workspaceId: workspace.id,
+      packageId: pkg.id,
+      eventType: "download",
+    });
     expect(downloads).toBe(1);
 
     const report = await store.getPackageReport(pkg.id);
@@ -158,7 +173,9 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
 
     // Cross-dialect download history: CAST(created_at AS date) + GROUP BY on T-SQL.
     expect(report?.downloadHistory).toHaveLength(14);
-    expect(report?.downloadHistory.reduce((total, point) => total + point.count, 0)).toBe(1);
+    expect(
+      report?.downloadHistory.reduce((total, point) => total + point.count, 0)
+    ).toBe(1);
     expect(report?.lastModifiedAt).toBeTruthy();
 
     const catalogStats = await store.getWorkspaceCatalogStats(workspace.id);
@@ -173,14 +190,24 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
   it("creates Better Auth tables and round-trips a user on T-SQL (U5)", async () => {
     // runAuthMigrations created user/session/account/verification cross-dialect; exercise
     // the bit boolean and datetimeoffset-defaulted columns through the shared Kysely instance.
-    await store.kysely!
-      .insertInto("user")
-      .values({ id: "u-1", name: "Ada", email: "ada@example.com", emailVerified: false, role: "admin" })
+    await store
+      .kysely!.insertInto("user")
+      .values({
+        id: "u-1",
+        name: "Ada",
+        email: "ada@example.com",
+        emailVerified: false,
+        role: "admin",
+      })
       .execute();
 
     expect(await store.countUsers()).toBe(1);
 
-    const row = await store.kysely!.selectFrom("user").selectAll().where("id", "=", "u-1").executeTakeFirstOrThrow();
+    const row = await store
+      .kysely!.selectFrom("user")
+      .selectAll()
+      .where("id", "=", "u-1")
+      .executeTakeFirstOrThrow();
     expect(row.email).toBe("ada@example.com");
     expect(Boolean(row.emailVerified)).toBe(false);
   });
@@ -191,7 +218,10 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
     const token = "sl_mssql_u6_token";
     expect(await store.setAgentToken("u-1", token)).toBe(token);
     expect(await store.getAgentToken("u-1")).toBe(token);
-    expect(await store.findUserByAgentToken(token)).toEqual({ id: "u-1", role: "admin" });
+    expect(await store.findUserByAgentToken(token)).toEqual({
+      id: "u-1",
+      role: "admin",
+    });
 
     // Missing user / unknown token both yield undefined, not a throw.
     expect(await store.setAgentToken("nobody", "x")).toBeUndefined();
@@ -201,8 +231,8 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
   it("counts submissions via the JSON-path join (JSON_VALUE on T-SQL) (U6)", async () => {
     // A version whose provenance.actorId matches the user exercises the dialect-aware
     // JSON extract: JSON_VALUE(provenance, '$.actorId') on SQL Server vs ->> on Postgres.
-    await store.kysely!
-      .insertInto("skill_versions")
+    await store
+      .kysely!.insertInto("skill_versions")
       .values({
         id: "v-by-u1",
         package_id: pkg.id,
@@ -211,7 +241,7 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
         artifact_digest: "sha256:abc",
         validation: JSON.stringify({ ok: true }),
         provenance: JSON.stringify({ source: "test", actorId: "u-1" }),
-        created_at: new Date()
+        created_at: new Date(),
       })
       .execute();
 

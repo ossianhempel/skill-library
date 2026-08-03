@@ -855,7 +855,11 @@ export class SqlRegistryStore implements RegistryStore {
       .select((eb) => [day.as("day"), eb.fn.countAll().as("count")])
       .where("workspace_id", "=", filter.workspaceId)
       .where("event_type", "=", "download")
-      .where("created_at", ">=", new Date(downloadHistoryStartIso(days, this.now)));
+      .where(
+        "created_at",
+        ">=",
+        new Date(downloadHistoryStartIso(days, this.now))
+      );
 
     if (filter.packageId) {
       query = query.where("package_id", "=", filter.packageId);

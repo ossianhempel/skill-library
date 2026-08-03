@@ -15,7 +15,10 @@ export async function actorFromHeaders(
   }
 
   if (store) {
-    const userTokenActor = await actorFromUserAgentToken(store, headers.get("authorization"));
+    const userTokenActor = await actorFromUserAgentToken(
+      store,
+      headers.get("authorization")
+    );
 
     if (userTokenActor) {
       return userTokenActor;
@@ -30,7 +33,7 @@ export async function actorFromHeaders(
         const role = parseRole(user.role ?? null);
         return {
           id: session.user.id,
-          role: role ?? "user"
+          role: role ?? "user",
         };
       }
     } catch (error) {
@@ -68,7 +71,9 @@ export function parseRole(value: string | null): WorkspaceRole | undefined {
   return undefined;
 }
 
-export function actorFromBearerToken(authorization: string | null): Actor | undefined {
+export function actorFromBearerToken(
+  authorization: string | null
+): Actor | undefined {
   const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
 
   if (!token) {
@@ -92,7 +97,7 @@ export function configuredApiKeys(): Map<string, Actor> {
 
     keys.set(token, {
       role,
-      id: idValue || role
+      id: idValue || role,
     });
   }
 
