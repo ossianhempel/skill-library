@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SkillPackage, SkillVersion, Workspace } from "@skill-library/domain";
 import { createRegistryStore, type SqlRegistryStore } from "@skill-library/storage";
 import { createHttpApp } from "./http.js";
@@ -13,9 +13,19 @@ const tmpDirs: string[] = [];
 const execFileAsync = promisify(execFile);
 
 afterEach(async () => {
+  vi.useRealTimers();
   await Promise.all(tmpDirs.map((dir) => rm(dir, { recursive: true, force: true })));
   tmpDirs.length = 0;
 });
+
+// Download history is a rolling DOWNLOAD_HISTORY_DAYS window measured from *now*,
+// so tests that seed usage events at absolute fixture dates must pin the clock to
+// match, or the histogram quietly comes back all zeros. Only Date is faked --
+// PGlite needs real setTimeout/setInterval to make progress.
+function freezeClockAtFixtureDate(iso = "2026-06-07T13:00:00.000Z") {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(iso));
+}
 
 describe("HTTP registry API", () => {
   it("serves public branding config", async () => {
@@ -451,6 +461,7 @@ describe("HTTP registry API", () => {
   });
 
   it("serves maintainer package and workspace reports with latest install state per install", async () => {
+    freezeClockAtFixtureDate();
     const { app, store } = await createSeededApp();
 
     try {
@@ -516,7 +527,7 @@ describe("HTTP registry API", () => {
           views: 1,
           downloads: 1,
           downloadHistory: expect.arrayContaining([
-            expect.objectContaining({ date: expect.any(String), count: expect.any(Number) })
+            expect.objectContaining({ date: "2026-06-07", count: 1 })
           ]),
           lastModifiedAt: expect.any(String),
           installs: {
@@ -538,6 +549,7 @@ describe("HTTP registry API", () => {
   });
 
   it("serves catalog stats to viewers without exposing install reports", async () => {
+    freezeClockAtFixtureDate();
     const { app, store } = await createSeededApp();
 
     try {
@@ -561,7 +573,7 @@ describe("HTTP registry API", () => {
             packageId: "package-1",
             downloads: 1,
             downloadHistory: expect.arrayContaining([
-              expect.objectContaining({ date: expect.any(String), count: expect.any(Number) })
+              expect.objectContaining({ date: "2026-06-07", count: 1 })
             ]),
             lastModifiedAt: expect.any(String)
           })
@@ -776,7 +788,9 @@ describe("HTTP registry API", () => {
           artifact_digest: "sha256:two",
           validation: JSON.stringify({ ok: true, files: [], issues: [] }),
           provenance: JSON.stringify({ kind: "upload", actorId: "user-1", importedAt: "2026-06-07T12:00:00.000Z" }),
-          created_at: new Date()
+          // Match the fixture date rather than real now: skill_versions is ordered
+          // by created_at, so a real-now row here would sort against fixed fixtures.
+          created_at: new Date("2026-06-07T12:00:00.000Z")
         })
         .execute();
 

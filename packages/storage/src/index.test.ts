@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   SkillPackage,
   SkillVersion,
@@ -17,11 +17,22 @@ import {
 const tmpDirs: string[] = [];
 
 afterEach(async () => {
+  vi.useRealTimers();
   await Promise.all(
     tmpDirs.map((dir) => rm(dir, { recursive: true, force: true }))
   );
   tmpDirs.length = 0;
 });
+
+// The fixtures below use absolute timestamps around 2026-06-07, but download
+// history and catalog stats only look back DOWNLOAD_HISTORY_DAYS from *now*.
+// Tests that assert on those counts must pin the clock to the fixture date, or
+// they silently start returning empty buckets once the window moves past it.
+// Only Date is faked -- PGlite needs real setTimeout/setInterval to make progress.
+function freezeClockAtFixtureDate(iso = "2026-06-07T13:00:00.000Z") {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(iso));
+}
 
 describe("storage configuration", () => {
   it("uses PGlite mode and /data-style child paths by default", () => {
@@ -125,6 +136,7 @@ describe("PGlite registry store", () => {
   });
 
   it("builds download history and catalog stats for package reporting", async () => {
+    freezeClockAtFixtureDate();
     const dataDir = await makeTmpDir();
     const store = await createRegistryStore({ dataDir });
 
