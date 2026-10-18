@@ -12,6 +12,7 @@ import {
   Link2,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
   TerminalSquare,
 } from "lucide-react";
 import {
@@ -29,6 +30,7 @@ import {
 import { ValidationPanel } from "../validation-panel.js";
 import { SkillStatsMeta } from "../skill-stats.js";
 import { LifecycleBadge } from "./chrome.js";
+import { AddToClaudeSteps } from "./add-to-claude.js";
 
 export const SkillDetailPane = forwardRef<
   HTMLElement,
@@ -104,64 +106,81 @@ export const SkillDetailPane = forwardRef<
 
       <div className="install-section">
         <div className="panel-title">
-          <TerminalSquare size={17} />
-          How to use
+          <Sparkles size={17} />
+          Add this skill to Claude
         </div>
         {selected.latestApproved ? (
-          <div className="install-actions-stack">
-            <p className="install-hint">
-              Agent-ready prompt — paste it into Claude Code, Codex, Cursor, or
-              any agent to install this skill and verify it.
-            </p>
-            <div
-              className="install-target-toggle"
-              role="group"
-              aria-label="Install target"
-            >
-              {INSTALL_PROVIDER_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`install-target-option ${
-                    installTarget === option.id ? "active" : ""
-                  }`}
-                  aria-pressed={installTarget === option.id}
-                  title={option.hint}
-                  onClick={() => setInstallTarget(option.id)}
+          <>
+            <AddToClaudeSteps
+              downloadUrl={artifactDownloadUrl(
+                registryUrl,
+                selected,
+                "claude-app"
+              )}
+              fileName={`${selected.pkg.slug}.zip`}
+            />
+            <details className="developer-install">
+              <summary>
+                <TerminalSquare size={15} />
+                Using Claude Code, Codex, or Cursor? Install with a prompt
+                instead
+              </summary>
+              <div className="install-actions-stack">
+                <p className="install-hint">
+                  Paste this prompt into Claude Code, Codex, Cursor, or any
+                  coding agent to install this skill and verify it.
+                </p>
+                <div
+                  className="install-target-toggle"
+                  role="group"
+                  aria-label="Install target"
                 >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <code>
-              {buildInstallAgentPrompt({
-                packageSlug: selected.pkg.slug,
-                packageName: selected.pkg.name,
-                workspaceId,
-                registryUrl: resolvedRegistryUrl,
-                appName: branding.appName,
-                version: selected.latestApproved?.version,
-                target: installTarget,
-              })}
-            </code>
-            <div className="actions">
-              <button onClick={() => void copyInstallPrompt()}>
-                {copiedInstall ? (
-                  <ClipboardCheck size={17} />
-                ) : (
-                  <Copy size={17} />
-                )}
-                {copiedInstall ? "Copied" : "Copy prompt"}
-              </button>
-              <a
-                className="button secondary"
-                href={artifactDownloadUrl(registryUrl, selected)}
-              >
-                <Download size={17} />
-                Download ZIP
-              </a>
-            </div>
-          </div>
+                  {INSTALL_PROVIDER_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`install-target-option ${
+                        installTarget === option.id ? "active" : ""
+                      }`}
+                      aria-pressed={installTarget === option.id}
+                      title={option.hint}
+                      onClick={() => setInstallTarget(option.id)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <code>
+                  {buildInstallAgentPrompt({
+                    packageSlug: selected.pkg.slug,
+                    packageName: selected.pkg.name,
+                    workspaceId,
+                    registryUrl: resolvedRegistryUrl,
+                    appName: branding.appName,
+                    version: selected.latestApproved?.version,
+                    target: installTarget,
+                  })}
+                </code>
+                <div className="actions">
+                  <button onClick={() => void copyInstallPrompt()}>
+                    {copiedInstall ? (
+                      <ClipboardCheck size={17} />
+                    ) : (
+                      <Copy size={17} />
+                    )}
+                    {copiedInstall ? "Copied" : "Copy prompt"}
+                  </button>
+                  <a
+                    className="button secondary"
+                    href={artifactDownloadUrl(registryUrl, selected)}
+                  >
+                    <Download size={17} />
+                    Download ZIP
+                  </a>
+                </div>
+              </div>
+            </details>
+          </>
         ) : (
           <p className="install-warning">
             No approved version is available for installation.
@@ -190,63 +209,72 @@ export const SkillDetailPane = forwardRef<
         />
       </div>
 
-      <div className="split">
-        <div className="panel">
-          <div className="panel-title">
-            <FileCode2 size={17} />
-            Contents
-          </div>
-          <ul className="file-tree">
-            {selected.files.slice(0, 5).map((file) => (
-              <li key={file}>{file}</li>
-            ))}
-            {filesExpanded &&
-              selected.files.slice(5).map((file) => <li key={file}>{file}</li>)}
-          </ul>
-          {selected.files.length > 5 && (
-            <button
-              type="button"
-              className="toggle-files-button"
-              onClick={() => setFilesExpanded(!filesExpanded)}
-              aria-label={filesExpanded ? "Show less files" : "Show more files"}
-            >
-              <span>
-                {filesExpanded
-                  ? "Show less"
-                  : `Show ${selected.files.length - 5} more files`}
-              </span>
-              <ChevronDown
-                size={15}
-                style={{
-                  transform: filesExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                  transition: "transform 0.2s ease",
-                }}
-              />
-            </button>
-          )}
-        </div>
-
-        <div className="panel">
-          <div className="panel-title">
-            <CheckCircle2 size={17} />
-            Validation
-          </div>
-          <ValidationPanel validation={selected.activeVersion?.validation} />
-          <div className="version-line">
-            <span>Active version</span>
-            <strong>
-              {selected.activeVersion?.version ?? "No version selected"}
-            </strong>
-          </div>
-          {selected.latestApproved &&
-          selected.activeVersion?.id !== selected.latestApproved.id ? (
-            <div className="version-line">
-              <span>Approved install</span>
-              <strong>{selected.latestApproved.version}</strong>
+      <details className="technical-details">
+        <summary>Technical details: files and validation</summary>
+        <div className="split">
+          <div className="panel">
+            <div className="panel-title">
+              <FileCode2 size={17} />
+              Contents
             </div>
-          ) : null}
+            <ul className="file-tree">
+              {selected.files.slice(0, 5).map((file) => (
+                <li key={file}>{file}</li>
+              ))}
+              {filesExpanded &&
+                selected.files
+                  .slice(5)
+                  .map((file) => <li key={file}>{file}</li>)}
+            </ul>
+            {selected.files.length > 5 && (
+              <button
+                type="button"
+                className="toggle-files-button"
+                onClick={() => setFilesExpanded(!filesExpanded)}
+                aria-label={
+                  filesExpanded ? "Show less files" : "Show more files"
+                }
+              >
+                <span>
+                  {filesExpanded
+                    ? "Show less"
+                    : `Show ${selected.files.length - 5} more files`}
+                </span>
+                <ChevronDown
+                  size={15}
+                  style={{
+                    transform: filesExpanded
+                      ? "rotate(180deg)"
+                      : "rotate(0deg)",
+                    transition: "transform 0.2s ease",
+                  }}
+                />
+              </button>
+            )}
+          </div>
+
+          <div className="panel">
+            <div className="panel-title">
+              <CheckCircle2 size={17} />
+              Validation
+            </div>
+            <ValidationPanel validation={selected.activeVersion?.validation} />
+            <div className="version-line">
+              <span>Active version</span>
+              <strong>
+                {selected.activeVersion?.version ?? "No version selected"}
+              </strong>
+            </div>
+            {selected.latestApproved &&
+            selected.activeVersion?.id !== selected.latestApproved.id ? (
+              <div className="version-line">
+                <span>Approved install</span>
+                <strong>{selected.latestApproved.version}</strong>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </details>
 
       {canManageLifecycle && (
         <div className="lifecycle-panel">

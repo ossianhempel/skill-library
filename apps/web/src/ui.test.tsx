@@ -68,9 +68,7 @@ describe("SkillLibraryApp", () => {
     expect(screen.getByRole("main")).toBeTruthy();
     expect(screen.getByText("Rebtech skill registry")).toBeTruthy();
     expect(screen.getByText("Start here")).toBeTruthy();
-    expect(
-      screen.getByText("Find an approved skill or publish a new draft.")
-    ).toBeTruthy();
+    expect(screen.getByText("Find a skill and add it to Claude.")).toBeTruthy();
     expect(screen.getByText("Connect your agent")).toBeTruthy();
     expect(screen.getByText("Copy agent setup prompt")).toBeTruthy();
 
