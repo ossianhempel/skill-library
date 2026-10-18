@@ -56,12 +56,25 @@ Skill detail shows:
 - latest version
 - validation summary with specific rule IDs, messages, and file paths (errors and warnings)
 - bundled file preview list
-- generated CLI install prompt
+- numbered "Add this skill to Claude" steps with a Claude-ready download
+- generated CLI install prompt (collapsed, for coding agents)
 - ZIP fallback action
 
 ## Install
 
-The recommended install path is the local CLI:
+### Claude apps (claude.ai and Claude desktop)
+
+For people who use Claude but don't use a terminal. The skill page walks them through it:
+
+1. **Download for Claude** saves `<skill-name>.zip`. It calls the artifact download API with `layout=claude-app`, which repackages the artifact into the shape Claude's skill upload expects: one top-level folder named after the skill (the SKILL.md frontmatter `name`, falling back to the package slug) holding SKILL.md and its files.
+2. In Claude, open **Customize > Skills**, click **+ > Create skill > Upload a skill**, and pick the file.
+3. Turn the skill on.
+
+Skills need code execution enabled; on Team and Enterprise plans an owner controls this. See Claude's [Using Skills in Claude](https://support.claude.com/en/articles/12512180-using-skills-in-claude).
+
+### Coding agents (CLI)
+
+The recommended install path for Claude Code, Codex, Cursor, and similar agents is the local CLI:
 
 ```sh
 npx @skill-library/cli install <package-id> --workspace <workspace-id> --root <destination-root> --registry <registry-url>
