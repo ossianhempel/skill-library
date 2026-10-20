@@ -100,6 +100,17 @@ export function validateSkillMd(
   return issues;
 }
 
+/**
+ * Returns the frontmatter `name` of a SKILL.md when it is a valid skill name,
+ * or undefined. Callers use it as a folder name, so invalid names are dropped.
+ */
+export function readSkillName(content: string): string | undefined {
+  const parsed = parseFrontmatter(content);
+  const name = parsed ? readStringField(parsed.frontmatter, "name") : "";
+
+  return isValidNameFormat(name) ? name : undefined;
+}
+
 function parseFrontmatter(
   content: string
 ): { frontmatter: Record<string, unknown>; body: string } | undefined {

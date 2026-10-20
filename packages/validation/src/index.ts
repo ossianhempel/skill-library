@@ -6,6 +6,9 @@ import yazl from "yazl";
 import type { ArtifactFile, ValidationResult } from "@skill-library/domain";
 import { validateSkillMd } from "./skill-md.js";
 
+export { readSkillName } from "./skill-md.js";
+export { packForClaudeApp } from "./claude-app-zip.js";
+
 // Rule catalog: docs/validation-rules.md
 
 export interface PackageTreeEntry {
@@ -94,60 +97,77 @@ export async function readPackageZip(
   archivePath: string
 ): Promise<PackageTreeEntry[]> {
   return new Promise((resolve, reject) => {
-    yauzl.open(archivePath, { lazyEntries: true }, (openError, zipFile) => {
-      if (openError) {
-        reject(openError);
-        return;
-      }
+    yauzl.open(archivePath, { lazyEntries: true }, (openError, zipFile) =>
+      collectZipEntries(openError, zipFile, resolve, reject)
+    );
+  });
+}
 
-      if (!zipFile) {
-        reject(new Error(`Unable to open archive: ${archivePath}`));
-        return;
-      }
+export async function readPackageZipBuffer(
+  archive: Buffer
+): Promise<PackageTreeEntry[]> {
+  return new Promise((resolve, reject) => {
+    yauzl.fromBuffer(archive, { lazyEntries: true }, (openError, zipFile) =>
+      collectZipEntries(openError, zipFile, resolve, reject)
+    );
+  });
+}
 
-      const entries: PackageTreeEntry[] = [];
+function collectZipEntries(
+  openError: Error | null,
+  zipFile: yauzl.ZipFile | undefined,
+  resolve: (entries: PackageTreeEntry[]) => void,
+  reject: (error: Error) => void
+) {
+  if (openError) {
+    reject(openError);
+    return;
+  }
 
-      zipFile.readEntry();
-      zipFile.on("entry", (entry) => {
-        if (entry.fileName.endsWith("/")) {
-          entries.push({
-            path: entry.fileName.replace(/\/$/, ""),
-            kind: "directory",
-          });
-          zipFile.readEntry();
-          return;
-        }
+  if (!zipFile) {
+    reject(new Error("Unable to open archive"));
+    return;
+  }
 
-        zipFile.openReadStream(entry, (streamError, stream) => {
-          if (streamError) {
-            reject(streamError);
-            return;
-          }
+  const entries: PackageTreeEntry[] = [];
 
-          if (!stream) {
-            reject(
-              new Error(`Unable to read archive entry: ${entry.fileName}`)
-            );
-            return;
-          }
-
-          const chunks: Buffer[] = [];
-          stream.on("data", (chunk: Buffer) => chunks.push(chunk));
-          stream.on("error", reject);
-          stream.on("end", () => {
-            entries.push({
-              path: entry.fileName,
-              content: Buffer.concat(chunks),
-              kind: "file",
-            });
-            zipFile.readEntry();
-          });
-        });
+  zipFile.readEntry();
+  zipFile.on("entry", (entry) => {
+    if (entry.fileName.endsWith("/")) {
+      entries.push({
+        path: entry.fileName.replace(/\/$/, ""),
+        kind: "directory",
       });
-      zipFile.on("error", reject);
-      zipFile.on("end", () => resolve(entries));
+      zipFile.readEntry();
+      return;
+    }
+
+    zipFile.openReadStream(entry, (streamError, stream) => {
+      if (streamError) {
+        reject(streamError);
+        return;
+      }
+
+      if (!stream) {
+        reject(new Error(`Unable to read archive entry: ${entry.fileName}`));
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      stream.on("data", (chunk: Buffer) => chunks.push(chunk));
+      stream.on("error", reject);
+      stream.on("end", () => {
+        entries.push({
+          path: entry.fileName,
+          content: Buffer.concat(chunks),
+          kind: "file",
+        });
+        zipFile.readEntry();
+      });
     });
   });
+  zipFile.on("error", reject);
+  zipFile.on("end", () => resolve(entries));
 }
 
 export async function packPackageZip(

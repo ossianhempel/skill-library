@@ -238,9 +238,9 @@ export const DEFAULT_REGISTRY_BRANDING: RegistryBrandingConfig = {
   documentTitle: "Skill Library",
   loginSubtitle:
     "Sign in with your company account to browse, publish, and manage skills.",
-  overviewHeading: "Find an approved skill or publish a new draft.",
+  overviewHeading: "Find a skill and add it to Claude.",
   overviewDescription:
-    "Most teams only need these two paths: browse what is ready to install, or send a new skill through validation and approval.",
+    "Skills teach Claude how your team works. Pick one, download it, and add it to Claude in a couple of minutes. Made something useful? Share it here.",
   searchPlaceholder: "Search approved skills",
   emptyCatalogTitle: "Your registry is empty.",
   emptyCatalogDescription:

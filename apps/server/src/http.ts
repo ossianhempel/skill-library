@@ -18,6 +18,7 @@ import {
   type BetterAuthInstance,
 } from "./better-auth.js";
 import { getOrCreateAgentToken } from "./agent-token.js";
+import { artifactDownloadResponse } from "./artifact-download.js";
 
 export function createHttpApp(
   store: RegistryStore,
@@ -529,13 +530,12 @@ export function createHttpApp(
     }
 
     await api.recordArtifactDownload(packageId, versionId);
-
-    return new Response(new Uint8Array(download.content), {
-      headers: {
-        "content-disposition": `attachment; filename="${download.artifact.digest.replace(":", "-")}.zip"`,
-        "content-type": "application/zip",
-      },
-    });
+    const slug = (await api.packageDetail(packageId))?.slug ?? "";
+    return artifactDownloadResponse(
+      download,
+      context.req.query("layout"),
+      slug
+    );
   });
 
   app.get("/api/workspaces/:workspaceId/usage-counts", async (context) => {
