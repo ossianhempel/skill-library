@@ -1,11 +1,14 @@
 import type { StoredArtifact } from "@skill-library/storage";
 import { packForClaudeApp } from "@skill-library/validation";
 
+const SAFE_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
 /**
  * Builds the artifact download response. `layout=claude-app` returns a ZIP the
  * Claude apps accept as an uploaded skill (one folder named after the skill),
- * saved as `<skill-name>.zip` so a non-technical user can find it in their
- * Downloads folder. Any other layout returns the stored artifact unchanged.
+ * saved as `<slug>.zip` so it matches the filename the web UI tells the user to
+ * look for in their Downloads folder. The folder inside keeps the SKILL.md
+ * name, which is what Claude checks. Any other layout returns the stored artifact unchanged.
  */
 export async function artifactDownloadResponse(
   download: { artifact: StoredArtifact; content: Buffer },
@@ -21,7 +24,8 @@ export async function artifactDownloadResponse(
 
   try {
     const { content, folder } = await packForClaudeApp(download.content, slug);
-    return zipResponse(content, `${folder}.zip`);
+    const filename = SAFE_SLUG_PATTERN.test(slug) ? slug : folder;
+    return zipResponse(content, `${filename}.zip`);
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : String(error) },

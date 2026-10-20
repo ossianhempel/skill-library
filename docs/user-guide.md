@@ -66,7 +66,7 @@ Skill detail shows:
 
 For people who use Claude but don't use a terminal. The skill page walks them through it:
 
-1. **Download for Claude** saves `<skill-name>.zip`. It calls the artifact download API with `layout=claude-app`, which repackages the artifact into the shape Claude's skill upload expects: one top-level folder named after the skill (the SKILL.md frontmatter `name`, falling back to the package slug) holding SKILL.md and its files.
+1. **Download for Claude** saves `<package-slug>.zip`. It calls the artifact download API with `layout=claude-app`, which repackages the artifact into the shape Claude's skill upload expects: one top-level folder named after the skill (the SKILL.md frontmatter `name`, falling back to the package slug) holding SKILL.md and its files.
 2. In Claude, open **Customize > Skills**, click **+ > Create skill > Upload a skill**, and pick the file.
 3. Turn the skill on.
 

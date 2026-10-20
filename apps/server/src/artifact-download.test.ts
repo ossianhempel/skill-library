@@ -54,6 +54,24 @@ describe("artifactDownloadResponse", () => {
     ]);
   });
 
+  it("names the file after the slug even when the skill name differs", async () => {
+    const response = await artifactDownloadResponse(
+      { artifact, content: await storedZip() },
+      "claude-app",
+      "team-review"
+    );
+    const entries = await readPackageZipBuffer(
+      Buffer.from(await response.arrayBuffer())
+    );
+
+    expect(response.headers.get("content-disposition")).toBe(
+      'attachment; filename="team-review.zip"'
+    );
+    expect(entries.map((entry) => entry.path)).toEqual([
+      "review-helper/SKILL.md",
+    ]);
+  });
+
   it("answers 422 when the artifact cannot be repackaged", async () => {
     const response = await artifactDownloadResponse(
       {
