@@ -15,6 +15,7 @@ import {
   type DatabaseSchema,
 } from "./kysely.js";
 import { runRegistryMigrations, runAuthMigrations } from "./migrations.js";
+import { fromWorkspaceRow } from "./workspace-row.js";
 import type {
   CatalogPackageStats,
   DownloadHistoryPoint,
@@ -90,12 +91,23 @@ export interface RegistryStore {
   ): Promise<CatalogPackageStats[]>;
 }
 
+/**
+ * Source of "now" for time-windowed reads. Injectable so that download history
+ * -- a rolling window measured from the current time -- can be tested against
+ * fixed fixture dates without faking global Date. Defaults to the system clock.
+ */
+export type Clock = () => Date;
+
+export const systemClock: Clock = () => new Date();
+
 export interface RegistryStoreConfig {
   databaseUrl?: string;
   dataDir?: string;
   pgliteDataDir?: string;
   artifactDir?: string;
   pgliteWriterLock?: PgliteWriterLockOptions;
+  /** Override the source of "now"; see {@link Clock}. Tests inject a fixed date. */
+  now?: Clock;
 }
 
 export interface RegistryStoragePaths {
@@ -182,9 +194,16 @@ export async function createRegistryStore(
       databaseUrl: config.databaseUrl,
       databaseEngine: "postgres",
     });
-    return new SqlRegistryStore(engine, paths, "postgres", kysely, async () => {
-      await kysely.destroy();
-    });
+    return new SqlRegistryStore(
+      engine,
+      paths,
+      "postgres",
+      kysely,
+      async () => {
+        await kysely.destroy();
+      },
+      config.now
+    );
   }
 
   if (engine === "mssql") {
@@ -192,9 +211,16 @@ export async function createRegistryStore(
       databaseUrl: config.databaseUrl,
       databaseEngine: "mssql",
     });
-    return new SqlRegistryStore(engine, paths, "mssql", kysely, async () => {
-      await kysely.destroy();
-    });
+    return new SqlRegistryStore(
+      engine,
+      paths,
+      "mssql",
+      kysely,
+      async () => {
+        await kysely.destroy();
+      },
+      config.now
+    );
   }
 
   console.warn(
@@ -215,12 +241,19 @@ export async function createRegistryStore(
     pgliteInstance: db,
   });
 
-  return new SqlRegistryStore("pglite", paths, "pglite", kysely, async () => {
-    if (!db.closed) {
-      await db.close();
-    }
-    await releasePgliteWriterLock();
-  });
+  return new SqlRegistryStore(
+    "pglite",
+    paths,
+    "pglite",
+    kysely,
+    async () => {
+      if (!db.closed) {
+        await db.close();
+      }
+      await releasePgliteWriterLock();
+    },
+    config.now
+  );
 }
 
 export class SqlRegistryStore implements RegistryStore {
@@ -229,7 +262,8 @@ export class SqlRegistryStore implements RegistryStore {
     readonly paths: RegistryStoragePaths,
     readonly engine: DatabaseEngine,
     readonly kysely: Kysely<DatabaseSchema>,
-    private readonly closeDb: () => Promise<void>
+    private readonly closeDb: () => Promise<void>,
+    private readonly now: Clock = systemClock
   ) {}
 
   async migrate(): Promise<void> {
@@ -831,7 +865,11 @@ export class SqlRegistryStore implements RegistryStore {
       .select((eb) => [day.as("day"), eb.fn.countAll().as("count")])
       .where("workspace_id", "=", filter.workspaceId)
       .where("event_type", "=", "download")
-      .where("created_at", ">=", new Date(downloadHistoryStartIso(days)));
+      .where(
+        "created_at",
+        ">=",
+        new Date(downloadHistoryStartIso(days, this.now))
+      );
 
     if (filter.packageId) {
       query = query.where("package_id", "=", filter.packageId);
@@ -845,7 +883,8 @@ export class SqlRegistryStore implements RegistryStore {
 
     return fillDownloadHistory(
       rows.map((row) => fromDownloadHistoryRow(row as DownloadHistoryRow)),
-      days
+      days,
+      this.now
     );
   }
 
@@ -979,10 +1018,12 @@ export class MemoryRegistryStore implements RegistryStore {
   private readonly versions = new Map<string, SkillVersion[]>();
   private readonly reports: InstallReport[] = [];
   private readonly usageEvents: UsageEvent[] = [];
+  private readonly now: Clock;
 
   constructor(config: RegistryStoreConfig = {}) {
     this.mode = resolveDatabaseMode(config);
     this.paths = resolveStoragePaths(config);
+    this.now = config.now ?? systemClock;
   }
 
   async migrate(): Promise<void> {}
@@ -1150,7 +1191,7 @@ export class MemoryRegistryStore implements RegistryStore {
     filter: UsageEventFilter,
     days: number = DOWNLOAD_HISTORY_DAYS
   ): Promise<DownloadHistoryPoint[]> {
-    const startMs = Date.parse(downloadHistoryStartIso(days));
+    const startMs = Date.parse(downloadHistoryStartIso(days, this.now));
     const counts = new Map<string, number>();
 
     for (const event of this.usageEvents) {
@@ -1172,7 +1213,8 @@ export class MemoryRegistryStore implements RegistryStore {
       [...counts.entries()]
         .map(([date, count]) => ({ date, count }))
         .sort((left, right) => left.date.localeCompare(right.date)),
-      days
+      days,
+      this.now
     );
   }
 
@@ -1288,15 +1330,6 @@ interface PackageRow {
   updated_at: string | Date;
 }
 
-interface WorkspaceRow {
-  id: string;
-  slug: string;
-  name: string;
-  logo_url?: string | null;
-  reporting_policy: Workspace["reportingPolicy"];
-  visibility: Workspace["visibility"];
-}
-
 interface VersionRow {
   id: string;
   package_id: string;
@@ -1386,8 +1419,10 @@ function resolveLastModifiedAt(versions: SkillVersion[]): string {
   return newest?.createdAt ?? new Date(0).toISOString();
 }
 
-function downloadHistoryStartIso(days: number): string {
-  const start = new Date();
+function downloadHistoryStartIso(days: number, now: Clock): string {
+  // Copy: the cursor below is mutated, and a Clock is allowed to hand back a
+  // shared Date instance (e.g. `() => fixedDate` in a test).
+  const start = new Date(now().getTime());
   start.setUTCHours(0, 0, 0, 0);
   start.setUTCDate(start.getUTCDate() - (days - 1));
 
@@ -1396,11 +1431,12 @@ function downloadHistoryStartIso(days: number): string {
 
 function fillDownloadHistory(
   points: DownloadHistoryPoint[],
-  days: number
+  days: number,
+  now: Clock
 ): DownloadHistoryPoint[] {
   const counts = new Map(points.map((point) => [point.date, point.count]));
   const filled: DownloadHistoryPoint[] = [];
-  const cursor = new Date();
+  const cursor = new Date(now().getTime());
   cursor.setUTCHours(0, 0, 0, 0);
   cursor.setUTCDate(cursor.getUTCDate() - (days - 1));
 
@@ -1438,17 +1474,6 @@ function fromPackageRow(row: PackageRow): SkillPackage {
     categories: parseJson(row.categories),
     createdAt: toIsoString(row.created_at),
     updatedAt: toIsoString(row.updated_at),
-  };
-}
-
-function fromWorkspaceRow(row: WorkspaceRow): Workspace {
-  return {
-    id: row.id,
-    slug: row.slug,
-    name: row.name,
-    logoUrl: row.logo_url ?? undefined,
-    reportingPolicy: row.reporting_policy,
-    visibility: row.visibility,
   };
 }
 

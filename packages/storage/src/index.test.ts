@@ -2,10 +2,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import type {
-  SkillPackage,
-  SkillVersion,
-  Workspace,
+import {
+  DOWNLOAD_HISTORY_DAYS,
+  type SkillPackage,
+  type SkillVersion,
+  type Workspace,
 } from "@skill-library/domain";
 import {
   createRegistryStore,
@@ -22,6 +23,13 @@ afterEach(async () => {
   );
   tmpDirs.length = 0;
 });
+
+// The fixtures below use absolute timestamps around 2026-06-07, but download
+// history and catalog stats only look back DOWNLOAD_HISTORY_DAYS from *now*.
+// Tests asserting on those counts inject a fixed clock instead of relying on
+// real time, so they cannot rot once the window moves past the fixture date.
+const FIXTURE_NOW = "2026-06-07T13:00:00.000Z";
+const fixtureClock = () => new Date(FIXTURE_NOW);
 
 describe("storage configuration", () => {
   it("uses PGlite mode and /data-style child paths by default", () => {
@@ -131,12 +139,11 @@ describe("PGlite registry store", () => {
 
   it("builds download history and catalog stats for package reporting", async () => {
     const dataDir = await makeTmpDir();
-    const store = await createRegistryStore({ dataDir });
+    const store = await createRegistryStore({ dataDir, now: fixtureClock });
 
     try {
       await store.migrate();
       await seedStore(store as SqlRegistryStore);
-      const today = new Date().toISOString().slice(0, 10);
 
       await store.recordUsageEvent({
         id: "usage-download-1",
@@ -144,7 +151,7 @@ describe("PGlite registry store", () => {
         packageId: "package-1",
         versionId: "version-2",
         eventType: "download",
-        createdAt: `${today}T12:00:00.000Z`,
+        createdAt: "2026-06-07T12:00:00.000Z",
       });
       await store.recordUsageEvent({
         id: "usage-download-2",
@@ -152,7 +159,7 @@ describe("PGlite registry store", () => {
         packageId: "package-1",
         versionId: "version-2",
         eventType: "download",
-        createdAt: `${today}T12:30:00.000Z`,
+        createdAt: "2026-06-07T12:30:00.000Z",
       });
 
       await expect(
@@ -184,6 +191,55 @@ describe("PGlite registry store", () => {
           lastModifiedAt: "2026-06-07T11:00:00.000Z",
         }),
       ]);
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("bounds download history to the injected clock's rolling window", async () => {
+    const dataDir = await makeTmpDir();
+    const store = await createRegistryStore({ dataDir, now: fixtureClock });
+
+    try {
+      await store.migrate();
+      await seedStore(store as SqlRegistryStore);
+
+      // With DOWNLOAD_HISTORY_DAYS = 14 and now = 2026-06-07, the window is the
+      // 14 calendar days 2026-05-25 .. 2026-06-07 inclusive.
+      const inWindow = "2026-05-25T00:00:00.000Z";
+      const justOutside = "2026-05-24T23:59:59.000Z";
+
+      await store.recordUsageEvent({
+        id: "usage-edge-in",
+        workspaceId: "workspace-1",
+        packageId: "package-1",
+        versionId: "version-2",
+        eventType: "download",
+        createdAt: inWindow,
+      });
+      await store.recordUsageEvent({
+        id: "usage-edge-out",
+        workspaceId: "workspace-1",
+        packageId: "package-1",
+        versionId: "version-2",
+        eventType: "download",
+        createdAt: justOutside,
+      });
+
+      const history = await store.getDownloadHistory({
+        workspaceId: "workspace-1",
+        packageId: "package-1",
+        eventType: "download",
+      });
+
+      expect(history).toHaveLength(DOWNLOAD_HISTORY_DAYS);
+      expect(history.at(0)?.date).toBe("2026-05-25");
+      expect(history.at(-1)?.date).toBe("2026-06-07");
+      // The oldest in-window day counts; the day before it is excluded entirely.
+      expect(history.find((point) => point.date === "2026-05-25")?.count).toBe(
+        1
+      );
+      expect(history.some((point) => point.date === "2026-05-24")).toBe(false);
     } finally {
       await store.close();
     }

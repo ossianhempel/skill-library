@@ -2,10 +2,10 @@
 
 Skill Library runs as **one container** with **one persistent volume** at `/data`.
 
-| Path | Contents |
-|------|----------|
-| `/data/db` | PGlite database (default) |
-| `/data/artifacts` | Immutable package files |
+| Path              | Contents                  |
+| ----------------- | ------------------------- |
+| `/data/db`        | PGlite database (default) |
+| `/data/artifacts` | Immutable package files   |
 
 No separate database container is required for the default setup.
 
@@ -42,16 +42,16 @@ curl http://localhost:3000/health
 
 ## Required environment variables
 
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `BETTER_AUTH_SECRET` | Yes | Session signing secret. Generate: `openssl rand -hex 32` |
-| `BETTER_AUTH_URL` | Yes | Public URL of the registry, no trailing slash. Must match browser URL for SSO. |
-| `MICROSOFT_CLIENT_ID` | For SSO | Azure App Registration |
-| `MICROSOFT_CLIENT_SECRET` | For SSO | Azure client secret |
-| `MICROSOFT_TENANT_ID` | For SSO | Org tenant ID (or `common`) |
-| `SKILL_LIBRARY_API_KEYS` | Recommended | CLI/MCP bearer tokens. Format: `token:role:actor-id,...` |
-| `PORT` | No | Host port. Default `3000`. |
-| `DATABASE_URL` | No | External engine. `postgres://` for PostgreSQL, `sqlserver://` for Azure SQL Server. Omit to use bundled PGlite. |
+| Variable                  | Required    | Notes                                                                                                           |
+| ------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`      | Yes         | Session signing secret. Generate: `openssl rand -hex 32`                                                        |
+| `BETTER_AUTH_URL`         | Yes         | Public URL of the registry, no trailing slash. Must match browser URL for SSO.                                  |
+| `MICROSOFT_CLIENT_ID`     | For SSO     | Azure App Registration                                                                                          |
+| `MICROSOFT_CLIENT_SECRET` | For SSO     | Azure client secret                                                                                             |
+| `MICROSOFT_TENANT_ID`     | For SSO     | Org tenant ID (or `common`)                                                                                     |
+| `SKILL_LIBRARY_API_KEYS`  | Recommended | CLI/MCP bearer tokens. Format: `token:role:actor-id,...`                                                        |
+| `PORT`                    | No          | Host port. Default `3000`.                                                                                      |
+| `DATABASE_URL`            | No          | External engine. `postgres://` for PostgreSQL, `sqlserver://` for Azure SQL Server. Omit to use bundled PGlite. |
 
 Azure redirect URI:
 
@@ -65,11 +65,11 @@ First user to sign in via Microsoft SSO receives the `admin` role automatically.
 
 The registry runs on three relational engines, selected entirely by the `DATABASE_URL` scheme — no code changes, no separate build:
 
-| Engine | `DATABASE_URL` | Notes |
-|--------|----------------|-------|
-| PGlite | _(unset)_ | Bundled default. Single-writer, one replica. See PGlite rules above. |
-| PostgreSQL | `postgres://user:pass@host:5432/db` | External managed/self-hosted Postgres. |
-| Azure SQL Server | `sqlserver://user:pass@host:1433/db` | Microsoft SQL Server / T-SQL. TLS on by default. |
+| Engine           | `DATABASE_URL`                       | Notes                                                                |
+| ---------------- | ------------------------------------ | -------------------------------------------------------------------- |
+| PGlite           | _(unset)_                            | Bundled default. Single-writer, one replica. See PGlite rules above. |
+| PostgreSQL       | `postgres://user:pass@host:5432/db`  | External managed/self-hosted Postgres.                               |
+| Azure SQL Server | `sqlserver://user:pass@host:1433/db` | Microsoft SQL Server / T-SQL. TLS on by default.                     |
 
 **Azure SQL Server.** Encryption is required by Azure and is on by default, so a bare `sqlserver://` URL connects with `encrypt=true` against Azure's CA-issued certificate. Two query parameters adjust TLS for other environments:
 
@@ -128,6 +128,7 @@ docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build -
 Entrypoint: `node apps/server/dist/serve.js`
 
 Serves:
+
 - Web UI (static assets + SPA)
 - API under `/api`
 - Better Auth under `/api/auth/*`

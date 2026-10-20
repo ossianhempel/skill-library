@@ -22,7 +22,13 @@ describe("runRegistryMigrations on PGlite", () => {
     // A workspace row inserts and reads back, proving the table + columns exist.
     await db
       .insertInto("workspaces")
-      .values({ id: "w1", slug: "team", name: "Team", reporting_policy: "opt-in", visibility: "private" })
+      .values({
+        id: "w1",
+        slug: "team",
+        name: "Team",
+        reporting_policy: "opt-in",
+        visibility: "private",
+      })
       .execute();
 
     const row = await db
@@ -39,22 +45,49 @@ describe("runRegistryMigrations on PGlite", () => {
     closers.push(() => db.destroy());
     await runRegistryMigrations(db, "pglite");
 
-    await db.insertInto("workspaces").values({ id: "w1", slug: "t", name: "T", reporting_policy: "disabled", visibility: "private" }).execute();
+    await db
+      .insertInto("workspaces")
+      .values({
+        id: "w1",
+        slug: "t",
+        name: "T",
+        reporting_policy: "disabled",
+        visibility: "private",
+      })
+      .execute();
     await db
       .insertInto("skill_packages")
-      .values({ id: "p1", workspace_id: "w1", slug: "pkg", name: "Pkg", description: "d", created_at: new Date(), updated_at: new Date() })
+      .values({
+        id: "p1",
+        workspace_id: "w1",
+        slug: "pkg",
+        name: "Pkg",
+        description: "d",
+        created_at: new Date(),
+        updated_at: new Date(),
+      })
       .execute();
 
-    const row = await db.selectFrom("skill_packages").select("categories").where("id", "=", "p1").executeTakeFirstOrThrow();
+    const row = await db
+      .selectFrom("skill_packages")
+      .select("categories")
+      .where("id", "=", "p1")
+      .executeTakeFirstOrThrow();
     // jsonb is returned pre-parsed by pg/pglite; mssql would return a raw string. Normalize.
-    const categories = typeof row.categories === "string" ? JSON.parse(row.categories || "[]") : row.categories;
+    const categories =
+      typeof row.categories === "string"
+        ? JSON.parse(row.categories || "[]")
+        : row.categories;
     expect(categories).toEqual([]);
   });
 });
 
 describe("engine column-type mapping", () => {
   it("maps SQL Server types: bounded key text, nvarchar(max) free/json, datetimeoffset", () => {
-    const { db } = createKyselyInstance({ databaseEngine: "mssql", databaseUrl: "sqlserver://u:p@host:1433/db" });
+    const { db } = createKyselyInstance({
+      databaseEngine: "mssql",
+      databaseUrl: "sqlserver://u:p@host:1433/db",
+    });
     closers.push(() => db.destroy());
     const t = engineColumnTypes("mssql");
 

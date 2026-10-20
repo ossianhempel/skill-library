@@ -7,14 +7,16 @@ import {
   acquirePgliteWriterLock,
   PgliteWriterLockError,
   pgliteWriterLockPath,
-  PGLITE_WRITER_LOCK_FILE
+  PGLITE_WRITER_LOCK_FILE,
 } from "./pglite-lock.js";
 import { createRegistryStore } from "./index.js";
 
 const tmpDirs: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(tmpDirs.map((dir) => rm(dir, { recursive: true, force: true })));
+  await Promise.all(
+    tmpDirs.map((dir) => rm(dir, { recursive: true, force: true }))
+  );
   tmpDirs.length = 0;
 });
 
@@ -45,9 +47,13 @@ describe("PGlite writer lock", () => {
     const release = await acquirePgliteWriterLock(dataDir, { staleMs: 60_000 });
 
     try {
-      await expect(acquirePgliteWriterLock(dataDir, { staleMs: 60_000 })).rejects.toMatchObject({
+      await expect(
+        acquirePgliteWriterLock(dataDir, { staleMs: 60_000 })
+      ).rejects.toMatchObject({
         name: "PgliteWriterLockError",
-        message: expect.stringContaining("PGlite single-writer lock is already held")
+        message: expect.stringContaining(
+          "PGlite single-writer lock is already held"
+        ),
       });
     } finally {
       await release();
@@ -66,7 +72,7 @@ describe("PGlite writer lock", () => {
           pid: 99999,
           hostname: "stale-host",
           startedAt: staleHeartbeat,
-          lastHeartbeat: staleHeartbeat
+          lastHeartbeat: staleHeartbeat,
         },
         null,
         2
@@ -75,11 +81,14 @@ describe("PGlite writer lock", () => {
 
     const release = await acquirePgliteWriterLock(dataDir, {
       staleMs: 60_000,
-      now: () => Date.now()
+      now: () => Date.now(),
     });
 
     try {
-      const payload = JSON.parse(await readFile(lockPath, "utf8")) as { pid: number; hostname: string };
+      const payload = JSON.parse(await readFile(lockPath, "utf8")) as {
+        pid: number;
+        hostname: string;
+      };
       expect(payload.pid).toBe(process.pid);
       expect(payload.hostname).toBe(hostname());
     } finally {
@@ -92,19 +101,24 @@ describe("PGlite writer lock", () => {
     const release = await acquirePgliteWriterLock(dataDir);
 
     await release();
-    await expect(acquirePgliteWriterLock(dataDir)).resolves.toEqual(expect.any(Function));
+    await expect(acquirePgliteWriterLock(dataDir)).resolves.toEqual(
+      expect.any(Function)
+    );
   });
 });
 
 describe("createRegistryStore PGlite guard integration", () => {
   it("rejects a second concurrent PGlite store against the same data directory", async () => {
     const dataDir = await makeTmpDir();
-    const first = await createRegistryStore({ dataDir, pgliteWriterLock: { staleMs: 60_000 } });
+    const first = await createRegistryStore({
+      dataDir,
+      pgliteWriterLock: { staleMs: 60_000 },
+    });
 
     try {
-      await expect(createRegistryStore({ dataDir, pgliteWriterLock: { staleMs: 60_000 } })).rejects.toBeInstanceOf(
-        PgliteWriterLockError
-      );
+      await expect(
+        createRegistryStore({ dataDir, pgliteWriterLock: { staleMs: 60_000 } })
+      ).rejects.toBeInstanceOf(PgliteWriterLockError);
     } finally {
       await first.close();
     }
@@ -118,12 +132,14 @@ describe("createRegistryStore PGlite guard integration", () => {
     // migrate()/first query on boot, not here.
     const store = await createRegistryStore({
       dataDir,
-      databaseUrl: "postgres://127.0.0.1:1/none"
+      databaseUrl: "postgres://127.0.0.1:1/none",
     });
 
     try {
       expect(store.mode).toBe("postgres");
-      await expect(readFile(join(dataDir, PGLITE_WRITER_LOCK_FILE), "utf8")).rejects.toThrow();
+      await expect(
+        readFile(join(dataDir, PGLITE_WRITER_LOCK_FILE), "utf8")
+      ).rejects.toThrow();
     } finally {
       await store.close();
     }

@@ -7,7 +7,11 @@ export const SKILL_MD_BODY_SIZE_WARNING_CHARS = 20_000;
 const NAME_PATTERN = /^[a-z0-9-]+$/;
 const DESCRIPTION_MAX_LENGTH = 1024;
 
-export function validateSkillMd(content: string, skillRoot: string, skillMdPath: string): ValidationIssue[] {
+export function validateSkillMd(
+  content: string,
+  skillRoot: string,
+  skillMdPath: string
+): ValidationIssue[] {
   const parsed = parseFrontmatter(content);
 
   if (!parsed) {
@@ -15,9 +19,10 @@ export function validateSkillMd(content: string, skillRoot: string, skillMdPath:
       {
         ruleId: "skill-md-missing-frontmatter",
         severity: "error",
-        message: "SKILL.md must begin with YAML frontmatter delimited by --- lines.",
-        path: skillMdPath
-      }
+        message:
+          "SKILL.md must begin with YAML frontmatter delimited by --- lines.",
+        path: skillMdPath,
+      },
     ];
   }
 
@@ -30,15 +35,16 @@ export function validateSkillMd(content: string, skillRoot: string, skillMdPath:
       ruleId: "skill-md-missing-name",
       severity: "error",
       message: "SKILL.md frontmatter must include a non-empty name field.",
-      path: skillMdPath
+      path: skillMdPath,
     });
   } else {
     if (!isValidNameFormat(name)) {
       issues.push({
         ruleId: "skill-md-invalid-name-format",
         severity: "error",
-        message: "name must be 1-64 lowercase letters, numbers, or hyphens without leading, trailing, or consecutive hyphens.",
-        path: skillMdPath
+        message:
+          "name must be 1-64 lowercase letters, numbers, or hyphens without leading, trailing, or consecutive hyphens.",
+        path: skillMdPath,
       });
     }
 
@@ -50,7 +56,7 @@ export function validateSkillMd(content: string, skillRoot: string, skillMdPath:
           ruleId: "skill-md-name-directory-mismatch",
           severity: "error",
           message: `name must match the skill directory (${expectedName}).`,
-          path: skillMdPath
+          path: skillMdPath,
         });
       }
     }
@@ -62,15 +68,16 @@ export function validateSkillMd(content: string, skillRoot: string, skillMdPath:
     issues.push({
       ruleId: "skill-md-missing-description",
       severity: "error",
-      message: "SKILL.md frontmatter must include a non-empty description field.",
-      path: skillMdPath
+      message:
+        "SKILL.md frontmatter must include a non-empty description field.",
+      path: skillMdPath,
     });
   } else if (description.length > DESCRIPTION_MAX_LENGTH) {
     issues.push({
       ruleId: "skill-md-invalid-description-length",
       severity: "error",
       message: `description must be between 1 and ${DESCRIPTION_MAX_LENGTH} characters.`,
-      path: skillMdPath
+      path: skillMdPath,
     });
   }
 
@@ -79,26 +86,41 @@ export function validateSkillMd(content: string, skillRoot: string, skillMdPath:
       ruleId: "skill-md-body-empty",
       severity: "warning",
       message: "SKILL.md body is empty after frontmatter.",
-      path: skillMdPath
+      path: skillMdPath,
     });
   } else if (body.length > SKILL_MD_BODY_SIZE_WARNING_CHARS) {
     issues.push({
       ruleId: "skill-md-body-large",
       severity: "warning",
       message: `SKILL.md body exceeds the recommended size (${SKILL_MD_BODY_SIZE_WARNING_CHARS} characters).`,
-      path: skillMdPath
+      path: skillMdPath,
     });
   }
 
   return issues;
 }
 
-function parseFrontmatter(content: string): { frontmatter: Record<string, unknown>; body: string } | undefined {
+/**
+ * Returns the frontmatter `name` of a SKILL.md when it is a valid skill name,
+ * or undefined. Callers use it as a folder name, so invalid names are dropped.
+ */
+export function readSkillName(content: string): string | undefined {
+  const parsed = parseFrontmatter(content);
+  const name = parsed ? readStringField(parsed.frontmatter, "name") : "";
+
+  return isValidNameFormat(name) ? name : undefined;
+}
+
+function parseFrontmatter(
+  content: string
+): { frontmatter: Record<string, unknown>; body: string } | undefined {
   if (!content.startsWith("---")) {
     return undefined;
   }
 
-  const closingMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n?)([\s\S]*)$/);
+  const closingMatch = content.match(
+    /^---\r?\n([\s\S]*?)\r?\n---(\r?\n?)([\s\S]*)$/
+  );
 
   if (!closingMatch) {
     return undefined;
@@ -112,17 +134,24 @@ function parseFrontmatter(content: string): { frontmatter: Record<string, unknow
     return undefined;
   }
 
-  if (!frontmatterValue || typeof frontmatterValue !== "object" || Array.isArray(frontmatterValue)) {
+  if (
+    !frontmatterValue ||
+    typeof frontmatterValue !== "object" ||
+    Array.isArray(frontmatterValue)
+  ) {
     return undefined;
   }
 
   return {
     frontmatter: frontmatterValue as Record<string, unknown>,
-    body: closingMatch[3] ?? ""
+    body: closingMatch[3] ?? "",
   };
 }
 
-function readStringField(frontmatter: Record<string, unknown>, field: string): string {
+function readStringField(
+  frontmatter: Record<string, unknown>,
+  field: string
+): string {
   const value = frontmatter[field];
 
   if (typeof value !== "string") {

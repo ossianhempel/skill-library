@@ -8,16 +8,16 @@ describe("nodeResponseHeaders", () => {
       headers: [
         ["content-type", "text/plain"],
         ["set-cookie", "session=a; Path=/; HttpOnly"],
-        ["set-cookie", "state=b; Path=/; HttpOnly"]
-      ]
+        ["set-cookie", "state=b; Path=/; HttpOnly"],
+      ],
     });
 
     expect(nodeResponseHeaders(appResponse)).toEqual({
       "content-type": "text/plain",
       "set-cookie": [
         "session=a; Path=/; HttpOnly",
-        "state=b; Path=/; HttpOnly"
-      ]
+        "state=b; Path=/; HttpOnly",
+      ],
     });
   });
 });

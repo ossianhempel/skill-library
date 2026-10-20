@@ -1,8 +1,6 @@
-import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
   SkillPackage,
@@ -13,12 +11,11 @@ import {
   createRegistryStore,
   type SqlRegistryStore,
 } from "@skill-library/storage";
-import { gitCommandEnv } from "./git-import.js";
 import { createHttpApp } from "./http.js";
 import { defaultRegistryBrandingConfig } from "./registry-config.js";
+import { createGitSkillRepo, skillMd } from "./test-git-repo.js";
 
 const tmpDirs: string[] = [];
-const execFileAsync = promisify(execFile);
 
 afterEach(async () => {
   await Promise.all(
@@ -26,6 +23,13 @@ afterEach(async () => {
   );
   tmpDirs.length = 0;
 });
+
+// Download history is a rolling DOWNLOAD_HISTORY_DAYS window measured from *now*,
+// so tests seeding usage events at absolute fixture dates inject a fixed clock
+// rather than depending on real time, which would rot once the window moved past
+// the fixture date.
+const FIXTURE_NOW = "2026-06-07T13:00:00.000Z";
+const fixtureClock = () => new Date(FIXTURE_NOW);
 
 describe("HTTP registry API", () => {
   it("serves public branding config", async () => {
@@ -496,7 +500,7 @@ describe("HTTP registry API", () => {
 
   it("creates draft versions from Git imports with commit provenance", async () => {
     const { app, store } = await createSeededApp();
-    const repoPath = await createGitSkillRepo();
+    const repoPath = await createGitSkillRepo(await makeTmpDir());
 
     try {
       const response = await app.request(
@@ -537,7 +541,7 @@ describe("HTTP registry API", () => {
 
   it("rejects Git import subdirectory path traversal", async () => {
     const { app, store } = await createSeededApp();
-    const repoPath = await createGitSkillRepo();
+    const repoPath = await createGitSkillRepo(await makeTmpDir());
 
     try {
       const response = await app.request(
@@ -592,7 +596,7 @@ describe("HTTP registry API", () => {
   });
 
   it("serves maintainer package and workspace reports with latest install state per install", async () => {
-    const { app, store } = await createSeededApp();
+    const { app, store } = await createSeededApp({}, fixtureClock);
 
     try {
       await app.request("/api/packages/package-1");
@@ -665,10 +669,7 @@ describe("HTTP registry API", () => {
           views: 1,
           downloads: 1,
           downloadHistory: expect.arrayContaining([
-            expect.objectContaining({
-              date: expect.any(String),
-              count: expect.any(Number),
-            }),
+            expect.objectContaining({ date: "2026-06-07", count: 1 }),
           ]),
           lastModifiedAt: expect.any(String),
           installs: {
@@ -695,7 +696,7 @@ describe("HTTP registry API", () => {
   });
 
   it("serves catalog stats to viewers without exposing install reports", async () => {
-    const { app, store } = await createSeededApp();
+    const { app, store } = await createSeededApp({}, fixtureClock);
 
     try {
       await store.recordUsageEvent({
@@ -723,10 +724,7 @@ describe("HTTP registry API", () => {
             packageId: "package-1",
             downloads: 1,
             downloadHistory: expect.arrayContaining([
-              expect.objectContaining({
-                date: expect.any(String),
-                count: expect.any(Number),
-              }),
+              expect.objectContaining({ date: "2026-06-07", count: 1 }),
             ]),
             lastModifiedAt: expect.any(String),
           }),
@@ -1027,7 +1025,9 @@ describe("HTTP registry API", () => {
             actorId: "user-1",
             importedAt: "2026-06-07T12:00:00.000Z",
           }),
-          created_at: new Date(),
+          // Match the fixture date rather than real now: skill_versions is ordered
+          // by created_at, so a real-now row here would sort against fixed fixtures.
+          created_at: new Date("2026-06-07T12:00:00.000Z"),
         })
         .execute();
 
@@ -1144,9 +1144,10 @@ describe("HTTP registry API", () => {
 async function createSeededApp(
   brandingOverrides: Partial<
     ReturnType<typeof defaultRegistryBrandingConfig>
-  > = {}
+  > = {},
+  now?: () => Date
 ) {
-  const store = await createRegistryStore({ dataDir: await makeTmpDir() });
+  const store = await createRegistryStore({ dataDir: await makeTmpDir(), now });
   await store.migrate();
   await seedStore(store as SqlRegistryStore);
 
@@ -1163,48 +1164,6 @@ async function makeTmpDir() {
   const dir = await mkdtemp(join(tmpdir(), "skill-library-http-"));
   tmpDirs.push(dir);
   return dir;
-}
-
-function skillMd(
-  name: string,
-  description: string,
-  body = "# Skill\n\nBody content.\n"
-): string {
-  return `---
-name: ${name}
-description: ${description}
----
-${body}`;
-}
-
-async function createGitSkillRepo() {
-  const repoPath = await makeTmpDir();
-  const skillPath = join(repoPath, "skills", "git-skill");
-
-  await mkdir(skillPath, { recursive: true });
-  await writeFile(
-    join(skillPath, "SKILL.md"),
-    skillMd("git-skill", "Imported from Git.", "# Git skill\n")
-  );
-  await execFileAsync("git", ["init"], { cwd: repoPath, env: gitCommandEnv() });
-  await execFileAsync("git", ["config", "user.email", "test@example.com"], {
-    cwd: repoPath,
-    env: gitCommandEnv(),
-  });
-  await execFileAsync("git", ["config", "user.name", "Test User"], {
-    cwd: repoPath,
-    env: gitCommandEnv(),
-  });
-  await execFileAsync("git", ["add", "."], {
-    cwd: repoPath,
-    env: gitCommandEnv(),
-  });
-  await execFileAsync("git", ["commit", "-m", "Add skill"], {
-    cwd: repoPath,
-    env: gitCommandEnv(),
-  });
-
-  return repoPath;
 }
 
 async function seedStore(store: SqlRegistryStore) {

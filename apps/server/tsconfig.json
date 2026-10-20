@@ -5,6 +5,10 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "references": [{ "path": "../../packages/domain" }, { "path": "../../packages/storage" }, { "path": "../../packages/validation" }],
+  "references": [
+    { "path": "../../packages/domain" },
+    { "path": "../../packages/storage" },
+    { "path": "../../packages/validation" }
+  ],
   "include": ["src/**/*.ts"]
 }

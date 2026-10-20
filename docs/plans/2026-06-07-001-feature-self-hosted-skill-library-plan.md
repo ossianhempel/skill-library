@@ -2,7 +2,7 @@
 
 > **Plan:** docs/plans/2026-06-07-001-feature-self-hosted-skill-library-plan.md
 > **Status:** In progress
-> **Type:** feature  ·  **Depth:** Deep
+> **Type:** feature · **Depth:** Deep
 
 ## Problem & Scope
 

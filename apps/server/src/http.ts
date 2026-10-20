@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { createRegistryApi, type RegistryApi } from "./index.js";
+import { parseWorkspaceSettings } from "./workspace-settings.js";
 import type { RegistryStore, TeamMemberRecord } from "@skill-library/storage";
 import type { PackageTreeEntry } from "@skill-library/validation";
-import { normalizeLogoUrlInput } from "@skill-library/domain";
 import type {
   LifecycleState,
   RegistryBrandingConfig,
@@ -19,6 +19,7 @@ import {
   type BetterAuthInstance,
 } from "./better-auth.js";
 import { getOrCreateAgentToken } from "./agent-token.js";
+import { artifactDownloadResponse } from "./artifact-download.js";
 
 export function createHttpApp(
   store: RegistryStore,
@@ -83,35 +84,15 @@ export function createHttpApp(
       return context.json({ error: "Admin role required" }, 403);
     }
 
-    const body = (await context.req.json()) as {
-      reportingPolicy?: string;
-      visibility?: string;
-      logoUrl?: unknown;
-    };
-    const reportingPolicy = parseReportingPolicy(body.reportingPolicy);
-    const visibility = parseVisibility(body.visibility);
-    const logo = normalizeLogoUrlInput(body.logoUrl);
+    const settings = parseWorkspaceSettings(await context.req.json());
 
-    if (
-      (body.reportingPolicy && !reportingPolicy) ||
-      (body.visibility && !visibility) ||
-      !logo.ok
-    ) {
-      return context.json(
-        {
-          error: logo.ok
-            ? "Request body includes invalid workspace settings."
-            : logo.error,
-        },
-        400
-      );
+    if (!settings.ok) {
+      return context.json({ error: settings.error }, 400);
     }
 
     const workspace = await api.updateWorkspace({
       workspaceId: context.req.param("workspaceId"),
-      reportingPolicy,
-      visibility,
-      logoUrl: logo.value,
+      ...settings.value,
     });
 
     if (!workspace) {
@@ -538,13 +519,12 @@ export function createHttpApp(
     }
 
     await api.recordArtifactDownload(packageId, versionId);
-
-    return new Response(new Uint8Array(download.content), {
-      headers: {
-        "content-disposition": `attachment; filename="${download.artifact.digest.replace(":", "-")}.zip"`,
-        "content-type": "application/zip",
-      },
-    });
+    const slug = (await api.packageDetail(packageId))?.slug ?? "";
+    return artifactDownloadResponse(
+      download,
+      context.req.query("layout"),
+      slug
+    );
   });
 
   app.get("/api/workspaces/:workspaceId/usage-counts", async (context) => {
@@ -784,26 +764,6 @@ function parseLifecycleState(
     value === "hidden" ||
     value === "deprecated"
   ) {
-    return value;
-  }
-
-  return undefined;
-}
-
-function parseReportingPolicy(
-  value: string | undefined
-): Workspace["reportingPolicy"] | undefined {
-  if (value === "disabled" || value === "opt-in" || value === "required") {
-    return value;
-  }
-
-  return undefined;
-}
-
-function parseVisibility(
-  value: string | undefined
-): Workspace["visibility"] | undefined {
-  if (value === "public" || value === "private") {
     return value;
   }
 

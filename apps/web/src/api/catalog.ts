@@ -103,7 +103,11 @@ export function summarizeReports(reports: PackageReport[]) {
   );
 }
 
-export function artifactDownloadUrl(registryUrl: string, skill: CatalogSkill) {
+export function artifactDownloadUrl(
+  registryUrl: string,
+  skill: CatalogSkill,
+  layout?: "claude-app"
+) {
   const version = skill.latestApproved;
 
   if (!version) {
@@ -117,6 +121,9 @@ export function artifactDownloadUrl(registryUrl: string, skill: CatalogSkill) {
   );
   url.searchParams.set("packageId", skill.pkg.id);
   url.searchParams.set("versionId", version.id);
+  if (layout) {
+    url.searchParams.set("layout", layout);
+  }
   return url.toString();
 }
 

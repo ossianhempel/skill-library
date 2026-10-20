@@ -2,7 +2,7 @@
 
 > **Plan:** docs/plans/2026-06-09-001-feature-open-spec-validation-plan.md
 > **Status:** Draft
-> **Type:** feature  ·  **Depth:** Standard
+> **Type:** feature · **Depth:** Standard
 
 ## Problem & Scope
 
@@ -55,22 +55,22 @@ Authors can publish skills that pass today’s validator yet fail in Cursor, Cod
 
 **New blocking rules** (errors — `ok: false`, no artifact ingest, no approval):
 
-| ruleId | Condition |
-|--------|-----------|
-| `skill-md-missing-frontmatter` | `SKILL.md` at detected skill root does not start with parseable YAML frontmatter delimited by `---`. |
-| `skill-md-missing-name` | Frontmatter lacks non-empty `name`. |
-| `skill-md-missing-description` | Frontmatter lacks non-empty `description`. |
-| `skill-md-invalid-name-format` | `name` violates spec: 1–64 chars, lowercase `a-z` / `0-9` / `-`, no leading/trailing hyphen, no `--`. |
-| `skill-md-invalid-description-length` | `description` empty or longer than 1024 characters. |
-| `skill-md-name-directory-mismatch` | Frontmatter `name` does not equal the skill root directory basename (when skill root is not `.`, compare to last path segment; when root is `.`, compare to the single directory implied by upload layout or require explicit folder — see D3). |
+| ruleId                                | Condition                                                                                                                                                                                                                                       |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `skill-md-missing-frontmatter`        | `SKILL.md` at detected skill root does not start with parseable YAML frontmatter delimited by `---`.                                                                                                                                            |
+| `skill-md-missing-name`               | Frontmatter lacks non-empty `name`.                                                                                                                                                                                                             |
+| `skill-md-missing-description`        | Frontmatter lacks non-empty `description`.                                                                                                                                                                                                      |
+| `skill-md-invalid-name-format`        | `name` violates spec: 1–64 chars, lowercase `a-z` / `0-9` / `-`, no leading/trailing hyphen, no `--`.                                                                                                                                           |
+| `skill-md-invalid-description-length` | `description` empty or longer than 1024 characters.                                                                                                                                                                                             |
+| `skill-md-name-directory-mismatch`    | Frontmatter `name` does not equal the skill root directory basename (when skill root is not `.`, compare to last path segment; when root is `.`, compare to the single directory implied by upload layout or require explicit folder — see D3). |
 
 **New non-blocking rules** (warnings — `ok` may still be true if no errors):
 
-| ruleId | Condition |
-|--------|-----------|
-| `skill-md-body-empty` | Markdown body after frontmatter is empty or whitespace-only. |
-| `skill-md-body-large` | Body exceeds recommended size (default threshold 5000 tokens approximated by character count with documented constant). |
-| `skill-md-slug-package-mismatch` | Optional: when publish metadata includes `packageSlug`, warn if it differs from frontmatter `name` (does not block). |
+| ruleId                           | Condition                                                                                                               |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `skill-md-body-empty`            | Markdown body after frontmatter is empty or whitespace-only.                                                            |
+| `skill-md-body-large`            | Body exceeds recommended size (default threshold 5000 tokens approximated by character count with documented constant). |
+| `skill-md-slug-package-mismatch` | Optional: when publish metadata includes `packageSlug`, warn if it differs from frontmatter `name` (does not block).    |
 
 Existing structural rules (`required-skill-md`, `invalid-path`, `path-traversal`) stay blocking.
 
@@ -87,19 +87,19 @@ Existing structural rules (`required-skill-md`, `invalid-path`, `path-traversal`
 
 ## Key Technical Decisions
 
-- **D1 — Spec source of truth:** Implement against [agentskills.io/specification](https://agentskills.io/specification) required frontmatter rules. _Rationale:_ Matches Cursor/Codex/Claude Agent Skills; already referenced in project brainstorm as “open-skill format.”_
+- **D1 — Spec source of truth:** Implement against [agentskills.io/specification](https://agentskills.io/specification) required frontmatter rules. _Rationale:_ Matches Cursor/Codex/Claude Agent Skills; already referenced in project brainstorm as “open-skill format.”\_
 
-- **D2 — Single validation pipeline:** Add a `validateSkillMd(content, skillRootPath)` step inside `validatePackageTree` after structural checks and skill-root detection; do not fork validation in server/web/CLI. _Rationale:_ D4 from original plan — one library, consistent results everywhere._
+- **D2 — Single validation pipeline:** Add a `validateSkillMd(content, skillRootPath)` step inside `validatePackageTree` after structural checks and skill-root detection; do not fork validation in server/web/CLI. _Rationale:_ D4 from original plan — one library, consistent results everywhere.\_
 
-- **D3 — Skill root `.` vs named folder:** When `skillRoot === "."`, derive expected `name` from the sole top-level directory if entries are nested (e.g. `review-helper/SKILL.md` → expected name `review-helper`). Reject ambiguous layouts (multiple top-level skill candidates). _Rationale:_ Web upload often flattens or preserves folder names; spec requires name ↔ directory match._
+- **D3 — Skill root `.` vs named folder:** When `skillRoot === "."`, derive expected `name` from the sole top-level directory if entries are nested (e.g. `review-helper/SKILL.md` → expected name `review-helper`). Reject ambiguous layouts (multiple top-level skill candidates). _Rationale:_ Web upload often flattens or preserves folder names; spec requires name ↔ directory match.\_
 
-- **D4 — Frontmatter parsing:** Add a lightweight YAML frontmatter parser dependency (e.g. `yaml` package) limited to the frontmatter block only; reject non-mapping root values. _Rationale:_ Hand-rolled parsing is error-prone for edge cases; full YAML lib is acceptable for frontmatter-only scope._
+- **D4 — Frontmatter parsing:** Add a lightweight YAML frontmatter parser dependency (e.g. `yaml` package) limited to the frontmatter block only; reject non-mapping root values. _Rationale:_ Hand-rolled parsing is error-prone for edge cases; full YAML lib is acceptable for frontmatter-only scope.\_
 
-- **D5 — Errors vs warnings:** Required spec violations are **errors**; body size/empty body and slug mismatch are **warnings** so teams can publish with reviewer awareness. _Rationale:_ Unblocks gradual adoption without silently accepting broken frontmatter._
+- **D5 — Errors vs warnings:** Required spec violations are **errors**; body size/empty body and slug mismatch are **warnings** so teams can publish with reviewer awareness. _Rationale:_ Unblocks gradual adoption without silently accepting broken frontmatter.\_
 
-- **D6 — No retroactive enforcement:** Do not re-run new rules against already-approved versions in storage. _Rationale:_ Versions are immutable; changing validity would confuse install reports without a migration story._
+- **D6 — No retroactive enforcement:** Do not re-run new rules against already-approved versions in storage. _Rationale:_ Versions are immutable; changing validity would confuse install reports without a migration story.\_
 
-- **D7 — Web preflight:** Add optional client-side validate call (`POST /api/validation/package-tree`) before upload when entries are staged, showing issues in Publish tab without waiting for draft creation. _Rationale:_ Faster author feedback; server remains authoritative on upload._
+- **D7 — Web preflight:** Add optional client-side validate call (`POST /api/validation/package-tree`) before upload when entries are staged, showing issues in Publish tab without waiting for draft creation. _Rationale:_ Faster author feedback; server remains authoritative on upload.\_
 
 Open questions:
 

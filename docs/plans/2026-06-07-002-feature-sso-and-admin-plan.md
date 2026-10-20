@@ -2,7 +2,7 @@
 
 > **Plan:** docs/plans/2026-06-07-002-feature-sso-and-admin-plan.md
 > **Status:** Draft
-> **Type:** feature  ·  **Depth:** Deep
+> **Type:** feature · **Depth:** Deep
 
 ## Problem & Scope
 
@@ -11,6 +11,7 @@ The self-hosted Skill Library currently relies on static API keys (`SKILL_LIBRAR
 This plan outlines the design and implementation of **Microsoft Entra ID SSO** and session management using **Better Auth**, alongside an **Admin Panel** for local user role management.
 
 ### In Scope
+
 - **Database Schema Updates**: Add Better Auth tables (`user`, `session`, `account`, `verification`) to Postgres and PGlite.
 - **Better Auth Integration**: Configure Better Auth with Microsoft Entra ID as a social provider.
 - **Custom Database Adapter**: Implement a custom database adapter for Better Auth that forwards queries to our unified `RegistryStore` database runner, enabling seamless compatibility with both external Postgres and WASM-based PGlite.
@@ -20,6 +21,7 @@ This plan outlines the design and implementation of **Microsoft Entra ID SSO** a
 - **Bootstrap Admin Logic**: Automatically promote the very first user who logs in via SSO to `admin` to bootstrap the system without seed scripts.
 
 ### Out of Scope
+
 - **Multi-Tenant SSO**: Designing the library to support multiple independent corporate domains simultaneously (we focus on a single organization tenant configuration).
 - **Interactive CLI Auth Flow**: Having the CLI open a browser to authenticate via OAuth; CLI tools will continue using API tokens.
 - **Custom Username/Password Registration**: User accounts are strictly created via Entra ID SSO.
@@ -50,6 +52,7 @@ This plan outlines the design and implementation of **Microsoft Entra ID SSO** a
 ### Behavioral Contract
 
 #### Backend Routes
+
 - **Better Auth Endpoints**:
   - `GET/POST /api/auth/*`: Handled by Better Auth middleware (handles login redirection, OAuth callbacks, session verification, and logouts).
 - **Admin Endpoints**:
@@ -58,6 +61,7 @@ This plan outlines the design and implementation of **Microsoft Entra ID SSO** a
   - `DELETE /api/admin/users/:userId`: Deletes a user. Restricted to `admin` role.
 
 #### Session Flow Diagram
+
 ```mermaid
 sequenceDiagram
     participant UI as Web Frontend (React)
@@ -82,19 +86,20 @@ sequenceDiagram
 ## Key Technical Decisions
 
 - **D1 — Better Auth Framework**: We will use Better Auth for session and social login management.
-  - *Rationale*: Better Auth handles the state-of-the-art security details of OAuth 2.0 / OIDC handshake, session rotation, CSRF protection, and cookies, saving hundreds of lines of custom security implementation.
+  - _Rationale_: Better Auth handles the state-of-the-art security details of OAuth 2.0 / OIDC handshake, session rotation, CSRF protection, and cookies, saving hundreds of lines of custom security implementation.
 - **D2 — Custom Database Adapter for unified storage**: We will implement a custom Better Auth database adapter that converts CRUD operations into SQL statements run against the `RegistryStore` database connection.
-  - *Rationale*: The Skill Library supports both PGlite (local WASM) and Postgres (external database URL) via its own database client abstraction. Implementing a custom adapter of ~60 lines of code lets Better Auth query the active database mode without needing complex multi-dialect Kysely or Drizzle connection configurations.
+  - _Rationale_: The Skill Library supports both PGlite (local WASM) and Postgres (external database URL) via its own database client abstraction. Implementing a custom adapter of ~60 lines of code lets Better Auth query the active database mode without needing complex multi-dialect Kysely or Drizzle connection configurations.
 - **D3 — Cookie-Based Web Session & Header-Based API Key Fallback**: The web application will use secure HTTP-only cookies, while CLI/MCP routes continue to check `Authorization: Bearer <key>`.
-  - *Rationale*: Cookies are the secure standard for browser authentication. CLI and MCP clients work best with static keys passed via headers.
+  - _Rationale_: Cookies are the secure standard for browser authentication. CLI and MCP clients work best with static keys passed via headers.
 - **D4 — User Database Persistence**: We will add the required Better Auth tables (`user`, `session`, `account`, `verification`) to our database.
-  - *Rationale*: Better Auth requires a database backing to manage session persistence and accounts.
+  - _Rationale_: Better Auth requires a database backing to manage session persistence and accounts.
 
 ---
 
 ## High-Level Design
 
 The additions are integrated into the existing packages:
+
 1. **`packages/storage`**: Adds migrations for the Better Auth tables and exposes the database client to the backend for custom adapter integration.
 2. **`apps/server`**:
    - `better-auth.ts` [NEW]: Initializes the Better Auth instance with the custom database adapter and Microsoft credentials.
@@ -116,6 +121,7 @@ The additions are integrated into the existing packages:
 - **Approach:**
   - Add a new migration to the `migrations` array in `packages/storage/src/index.ts` creating tables: `"user"`, `"session"`, `"account"`, and `"verification"`.
   - Tables and fields will be defined to match Better Auth's PostgreSQL requirements (double-quoting reserved keywords like `"user"`, `"session"` and case-sensitive camelCase columns):
+
     ```sql
     create table if not exists "user" (
       id text primary key,
@@ -162,6 +168,7 @@ The additions are integrated into the existing packages:
       updated_at timestamptz not null default now()
     );
     ```
+
 - **Test scenarios:**
   - Given a fresh database migration, when database migrations run, then the tables are created successfully.
 - **Verification:** Run `pnpm -F @skill-library/storage test`.
@@ -303,11 +310,11 @@ The additions are integrated into the existing packages:
 ## Risks & Mitigations
 
 - **Risk: Microsoft login callback unreachable locally**
-  - *Mitigation*: Support a local dev bypass configuration where header-based dev authentication remains active if `NODE_ENV === 'development'` is set, allowing developers to test the app without registering active Azure App registrations locally.
+  - _Mitigation_: Support a local dev bypass configuration where header-based dev authentication remains active if `NODE_ENV === 'development'` is set, allowing developers to test the app without registering active Azure App registrations locally.
 
 ---
 
 ## Alternatives Considered
 
 - **Alternative: NextAuth / Auth.js**
-  - *Rejected because*: NextAuth is heavily coupled to Next.js APIs. Better Auth has a clean, framework-agnostic core which is significantly easier to mount in raw Hono instances and run efficiently in lightweight containers.
+  - _Rejected because_: NextAuth is heavily coupled to Next.js APIs. Better Auth has a clean, framework-agnostic core which is significantly easier to mount in raw Hono instances and run efficiently in lightweight containers.

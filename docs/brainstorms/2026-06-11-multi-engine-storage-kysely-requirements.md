@@ -6,7 +6,7 @@ title: "Engine-portable storage via Kysely (add Azure SQL Server)"
 
 # Engine-portable storage via Kysely (add Azure SQL Server)
 
-> **Status:** Requirements  ·  **Depth:** Deep (feature)  ·  **Target:** upstream OSS (`ossianhempel/skill-library`)
+> **Status:** Requirements · **Depth:** Deep (feature) · **Target:** upstream OSS (`ossianhempel/skill-library`)
 
 ## Summary
 
@@ -16,7 +16,7 @@ Route all storage and auth SQL through [Kysely](https://kysely.dev) so the datab
 
 ## Problem Frame
 
-The app supports two *deployment targets* today — bundled PGlite and external PostgreSQL — but only ever speaks **one SQL dialect**, because PGlite is an embedded build of Postgres. That made adding PGlite nearly free and meant no dialect abstraction was ever needed.
+The app supports two _deployment targets_ today — bundled PGlite and external PostgreSQL — but only ever speaks **one SQL dialect**, because PGlite is an embedded build of Postgres. That made adding PGlite nearly free and meant no dialect abstraction was ever needed.
 
 Adopters whose organizations mandate a different engine (the first concrete case: a company that requires Azure Microsoft SQL Server) cannot run the registry at all. There is no connection-string swap that helps, because the SQL is hand-written and Postgres-specific in two places: the registry store queries and migrations in `packages/storage/src/index.ts`, and a custom Better Auth database adapter in `apps/server/src/better-auth-adapter.ts` that dynamically generates Postgres SQL (`$N` placeholders, `RETURNING *`, `LIMIT $n`, `ON CONFLICT`). The dialect lives in application code, so a new engine means editing application code — unless a dialect-aware layer is introduced.
 

@@ -6,10 +6,10 @@ Publishing starts with an uploaded package tree or a Git import. Both paths use 
 
 ## Who can publish and approve
 
-| Action | Minimum role |
-|--------|----------------|
+| Action                    | Minimum role                             |
+| ------------------------- | ---------------------------------------- |
 | Upload draft / Git import | Viewer (`user`) — any signed-in teammate |
-| Approve, hide, deprecate | Editor (`maintainer`) or Admin |
+| Approve, hide, deprecate  | Editor (`maintainer`) or Admin           |
 
 Drafts are visible to editors and admins for review. Only **approved** versions become install candidates in the public catalog.
 

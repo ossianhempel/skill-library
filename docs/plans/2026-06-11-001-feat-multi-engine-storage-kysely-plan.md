@@ -38,16 +38,16 @@ Kysely ships first-party dialects for PGlite, PostgreSQL, and MSSQL (via `tediou
 
 ### Dialect divergence the implementation must absorb
 
-| Concern | Postgres / PGlite | Azure SQL Server (T-SQL) |
-|---|---|---|
-| Parameter placeholders | `$1 … $N` | `@p1 … @pN` (Kysely-handled) |
-| Upsert | `INSERT … ON CONFLICT DO UPDATE` | `MERGE` |
-| Row return | `RETURNING *` | `OUTPUT INSERTED.*` |
-| Pagination | `LIMIT n OFFSET m` | `OFFSET m ROWS FETCH NEXT n ROWS ONLY` |
-| JSON column | `jsonb` | `nvarchar(max)` (+ app-side parse/stringify) |
-| Timestamp / now | `timestamptz` / `now()` | `datetimeoffset` / `sysdatetimeoffset()` |
-| Boolean | `boolean` | `bit` |
-| Date truncation | `created_at::date` | `CAST(created_at AS date)` |
+| Concern                | Postgres / PGlite                | Azure SQL Server (T-SQL)                     |
+| ---------------------- | -------------------------------- | -------------------------------------------- |
+| Parameter placeholders | `$1 … $N`                        | `@p1 … @pN` (Kysely-handled)                 |
+| Upsert                 | `INSERT … ON CONFLICT DO UPDATE` | `MERGE`                                      |
+| Row return             | `RETURNING *`                    | `OUTPUT INSERTED.*`                          |
+| Pagination             | `LIMIT n OFFSET m`               | `OFFSET m ROWS FETCH NEXT n ROWS ONLY`       |
+| JSON column            | `jsonb`                          | `nvarchar(max)` (+ app-side parse/stringify) |
+| Timestamp / now        | `timestamptz` / `now()`          | `datetimeoffset` / `sysdatetimeoffset()`     |
+| Boolean                | `boolean`                        | `bit`                                        |
+| Date truncation        | `created_at::date`               | `CAST(created_at AS date)`                   |
 
 ---
 
@@ -94,6 +94,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Dependencies:** none.
 
 **Files:**
+
 - `packages/storage/package.json` — add `kysely`, `tedious`, `tarn` (and `pg` stays as the Postgres driver; `@electric-sql/pglite` stays).
 - `packages/storage/src/kysely.ts` (new) — schema interface types + `createKyselyInstance(config)` dialect factory.
 - `packages/storage/src/index.ts` — rename/extend `resolveDatabaseMode` to `resolveDatabaseEngine` returning `pglite | postgres | mssql`.
@@ -104,6 +105,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Patterns to follow:** existing `resolveDatabaseMode` / `resolveStoragePaths` shape in `packages/storage/src/index.ts`.
 
 **Test scenarios:**
+
 - Covers R3. No `databaseUrl` → engine resolves `pglite`; `postgres://…` → `postgres`; `sqlserver://…` or explicit engine setting → `mssql`.
 - Happy path: factory returns an instance that runs `select 1` successfully on PGlite.
 - Error path: an unrecognized explicit engine value throws a clear configuration error naming the supported engines.
@@ -119,6 +121,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Dependencies:** U1.
 
 **Files:**
+
 - `packages/storage/src/migrations/` (new) — Kysely migration definitions for `workspaces`, `skill_packages`, `artifacts`, `skill_versions`, `lifecycle_events`, `install_reports`, `usage_events`.
 - `packages/storage/src/index.ts` — `migrate()` drives the Kysely Migrator instead of looping the DDL array.
 - `packages/storage/src/index.test.ts` — migration coverage.
@@ -128,6 +131,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Execution note:** start with a failing test asserting a fresh PGlite migrate creates all registry tables, then re-run is a no-op.
 
 **Test scenarios:**
+
 - Covers R9. Fresh PGlite database: `migrate()` creates all registry tables; a second `migrate()` is a safe no-op.
 - Covers R6. JSON-bearing columns (`categories`, `validation`, `provenance`) are declared with the engine-appropriate type.
 - Edge: column-type helper returns the SQL-Server type variant when the engine is `mssql` (assert builder output without a live SQL Server).
@@ -144,6 +148,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Dependencies:** U1, U2.
 
 **Files:**
+
 - `packages/storage/src/index.ts` — the CRUD methods on `SqlRegistryStore`.
 - `packages/storage/src/index.test.ts`.
 
@@ -154,6 +159,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Patterns to follow:** existing method signatures and row-mapper helpers in `packages/storage/src/index.ts`; keep the `RegistryStore` return shapes identical.
 
 **Test scenarios:**
+
 - Covers AE2. `upsertWorkspace` (and `upsertPackage`) called twice with the same id updates the existing row, producing no duplicate and no error.
 - Covers AE3. A package created with a non-empty `categories` array reads back as the identical array; `validation`/`provenance` objects round-trip on a version.
 - Happy path: `createVersion` returns the persisted row; `getLatestApprovedVersion` returns the right version.
@@ -171,12 +177,14 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Dependencies:** U1, U2, U3.
 
 **Files:**
+
 - `packages/storage/src/index.ts` — the reporting/analytics methods.
 - `packages/storage/src/index.test.ts`.
 
 **Approach:** The date-grouping queries (`created_at::date` grouping in `getDownloadHistory`, catalog stats) need a dialect-aware date-truncation expression (`::date` vs. `CAST(... AS date)`) and integer counts. Use Kysely's `sql` template with a small date-expression helper where the builder lacks a portable primitive. Preserve the gap-filling behavior in `fillDownloadHistory`.
 
 **Test scenarios:**
+
 - Happy path: `getDownloadHistory` returns one point per day across the window, gaps filled with zero counts.
 - Edge: `countUsageEvents` filters correctly by workspace, event type, package, and version combinations.
 - Happy path: `getWorkspaceCatalogStats` and `getPackageReport` aggregate install/usage counts to the expected totals.
@@ -192,6 +200,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Dependencies:** U1.
 
 **Files:**
+
 - `apps/server/src/better-auth.ts` — swap `database: createBetterAuthAdapter(store)` for the shared Kysely dialect/instance; add `agent_api_token` to `additionalFields`; change the admin-bootstrap hook to count via the shared instance rather than raw SQL.
 - `apps/server/src/better-auth-adapter.ts` — delete.
 - `apps/server/src/better-auth-adapter.test.ts` — delete.
@@ -203,6 +212,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Execution note:** before full cutover, smoke-test the known Better Auth MSSQL edge case ([better-auth#3143](https://github.com/better-auth/better-auth/issues/3143)) on a real SQL Server so a blocker surfaces early rather than at the end.
 
 **Test scenarios:**
+
 - Covers AE4. On PGlite, a Microsoft sign-in flow persists a session and links the account, with no custom adapter in the path.
 - Happy path: the first created user is assigned `admin`; subsequent users get `user`.
 - Happy path: `agent_api_token` is creatable and readable through the Better-Auth-managed `user` table.
@@ -219,6 +229,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Dependencies:** U3, U5.
 
 **Files:**
+
 - `packages/storage/src/index.ts` — add typed methods (e.g., `getAgentToken`/`setAgentToken`, `deleteUser`, `countUsers`); remove `query` from the `RegistryStore` interface and both implementations (or make it internal-only).
 - `apps/server/src/agent-token.ts` — use the typed token methods.
 - `apps/server/src/http.ts` — use `deleteUser` instead of raw `delete from "user"`.
@@ -228,6 +239,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Approach:** The agent token lives on the Better-Auth-owned `user` table (added as an additional field in U5); read/write it through the shared Kysely instance. Removing the raw `query` method is the enforcement mechanism that prevents Postgres-dialect SQL from re-entering application code.
 
 **Test scenarios:**
+
 - Happy path: `setAgentToken` then `getAgentToken` returns the same token; a second `getAgentToken` is stable (no regeneration).
 - Happy path: `actorFromUserAgentToken` resolves the actor for a valid bearer token and returns `undefined` for an unknown one.
 - Edge: `deleteUser` removes the user (and cascades) and is safe for a non-existent id.
@@ -244,6 +256,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Dependencies:** U1.
 
 **Files:**
+
 - `packages/storage/src/kysely.ts` — MSSQL `tedious` config (Azure requires `encrypt: true`), `tarn` pool sizing; parse `sqlserver://` connection details.
 - `.env.example` — document the SQL Server connection/engine selection alongside the existing `DATABASE_URL` comment.
 - `docs/architecture.md` and/or `docs/deploy-azure.md` — engine matrix and how to point at Azure SQL Server.
@@ -252,6 +265,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Approach:** Keep the abstraction engine-agnostic per R11 — no Rebtech hostnames/tenant IDs in the storage/auth layer. Azure SQL requires encryption on; default `tedious` options accordingly.
 
 **Test scenarios:**
+
 - Covers R3. A `sqlserver://` connection target resolves to the `mssql` engine with `encrypt` enabled in the constructed config (asserted without a live server).
 - Test expectation: booting against a real SQL Server is exercised in U8; this unit's behavioral coverage is the config/parsing path only.
 
@@ -266,6 +280,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Dependencies:** U2, U3, U4, U5, U6, U7.
 
 **Files:**
+
 - `packages/storage/src/` test harness — parametrize store tests by engine.
 - a containerized SQL Server setup (e.g., `docker-compose` service or testcontainers) gated behind an env flag.
 - CI config — a GitHub Actions workflow (upstream OSS) running PGlite + Postgres by default and a gated SQL Server job. Note the fork's `azure-pipelines.yml` separately if it must mirror.
@@ -274,6 +289,7 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 **Approach:** Default CI stays fast (PGlite + Postgres). The SQL Server job is opt-in via flag so contributors without a SQL Server aren't blocked. The matrix reuses the same store test suite across engines via the U1 factory.
 
 **Test scenarios:**
+
 - Covers AE1. On SQL Server: the app boots, runs both migration owners, and serves; with no DB configured the same code falls back to PGlite.
 - Covers AE2, AE3. On SQL Server: upsert-twice updates not duplicates; `categories` JSON round-trips; pagination returns the right page.
 - Covers AE4. On SQL Server: a Microsoft sign-in persists a session and links the account (validates issue #3143 is not a blocker).
@@ -286,14 +302,17 @@ Acceptance examples carried forward: AE1 (SQL Server boots+migrates+serves; no-c
 ## Scope Boundaries
 
 ### Deferred for later (from origin)
+
 - MySQL and SQLite engine support — cheap to add once the Kysely layer exists, but not part of this work.
 - A data-migration / export tool to move existing data between engines.
 
 ### Outside this product's identity (from origin)
+
 - Becoming a general multi-tenant database service, or supporting non-SQL stores.
 - Cross-engine live replication, heterogeneous sharding, or running multiple engines simultaneously in one deployment.
 
 ### Deferred to Follow-Up Work
+
 - Refactoring the separate non-SQL in-memory `RegistryStore` implementation — it does not use SQL and is unaffected; leave as-is.
 
 ---

@@ -4,11 +4,11 @@ The MCP package exposes registry tool contracts for agents without requiring the
 
 ## Deployment model
 
-| Surface | Hosted on registry? | Auth |
-|---------|---------------------|------|
-| Web UI | Yes (`https://your-registry/`) | Microsoft Entra SSO (cookies) |
-| HTTP API | Yes (`/api/*`) | Bearer API key or SSO session |
-| MCP | **No** — local stdio on the user's machine | Bearer API key (`SKILL_LIBRARY_MCP_TOKEN`) |
+| Surface  | Hosted on registry?                        | Auth                                       |
+| -------- | ------------------------------------------ | ------------------------------------------ |
+| Web UI   | Yes (`https://your-registry/`)             | Microsoft Entra SSO (cookies)              |
+| HTTP API | Yes (`/api/*`)                             | Bearer API key or SSO session              |
+| MCP      | **No** — local stdio on the user's machine | Bearer API key (`SKILL_LIBRARY_MCP_TOKEN`) |
 
 MCP is **not** exposed as a remote endpoint on `skills.rebtech.se` or other registry deployments today. Each user runs `packages/mcp/dist/stdio.js` locally; it calls the registry HTTP API with a bearer token. **Microsoft SSO does not apply to MCP.**
 

@@ -7,6 +7,7 @@ import {
 import type { AppTab, CatalogSkill, SessionUser } from "../types.js";
 import { FeaturedSkill } from "./catalog-list.js";
 import { Metric } from "./chrome.js";
+import { HowItWorks } from "./add-to-claude.js";
 
 export function OverviewTab({
   branding,
@@ -40,51 +41,57 @@ export function OverviewTab({
         <div className="actions">
           <button onClick={() => setActiveTab("catalog")}>
             <Search size={17} />
-            Browse catalog
+            Browse skills
           </button>
           <button className="secondary" onClick={() => setActiveTab("publish")}>
             <UploadCloud size={17} />
-            Publish draft
+            Share a skill
           </button>
         </div>
       </div>
-      <section
-        className="mcp-connect-panel"
-        aria-label="Connect your agent via MCP"
-      >
-        <div className="mcp-connect-copy">
-          <p className="kicker">Connect your agent</p>
-          <h3>Copy agent setup prompt</h3>
-          <p>
-            {session || activeToken
-              ? "Choose your agent below. The copied prompt embeds your personal MCP bearer token — paste it into Claude Code, Codex, Cursor, or another agent to configure local MCP and validate search."
-              : "Sign in first. The copied prompt will embed your personal MCP bearer token so your agent can authenticate without Microsoft SSO."}{" "}
-            Registry: <strong>{resolvedRegistryUrl}</strong>
-          </p>
-        </div>
-        <div className="mcp-connect-grid">
-          {MCP_SETUP_TARGETS.map((target) => (
-            <button
-              key={target.id}
-              type="button"
-              className={`mcp-connect-button ${copiedMcpTarget === target.id ? "copied" : ""}`}
-              aria-label={`Copy ${target.label} MCP setup prompt`}
-              onClick={() => void copyMcpSetupPrompt(target.id)}
-            >
-              <span className="mcp-connect-button-label">{target.label}</span>
-              <span className="mcp-connect-button-hint">{target.hint}</span>
-              <span className="mcp-connect-button-action">
-                {copiedMcpTarget === target.id ? (
-                  <ClipboardCheck size={16} />
-                ) : (
-                  <Copy size={16} />
-                )}
-                {copiedMcpTarget === target.id ? "Copied" : "Copy prompt"}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
+      <HowItWorks onBrowse={() => setActiveTab("catalog")} />
+      <details className="developer-connect">
+        <summary>
+          For developers: connect Claude Code, Codex, Cursor, or ChatGPT
+        </summary>
+        <section
+          className="mcp-connect-panel"
+          aria-label="Connect your agent via MCP"
+        >
+          <div className="mcp-connect-copy">
+            <p className="kicker">Connect your agent</p>
+            <h3>Copy agent setup prompt</h3>
+            <p>
+              {session || activeToken
+                ? "Choose your agent below. The copied prompt embeds your personal MCP bearer token — paste it into Claude Code, Codex, Cursor, or another agent to configure local MCP and validate search."
+                : "Sign in first. The copied prompt will embed your personal MCP bearer token so your agent can authenticate without Microsoft SSO."}{" "}
+              Registry: <strong>{resolvedRegistryUrl}</strong>
+            </p>
+          </div>
+          <div className="mcp-connect-grid">
+            {MCP_SETUP_TARGETS.map((target) => (
+              <button
+                key={target.id}
+                type="button"
+                className={`mcp-connect-button ${copiedMcpTarget === target.id ? "copied" : ""}`}
+                aria-label={`Copy ${target.label} MCP setup prompt`}
+                onClick={() => void copyMcpSetupPrompt(target.id)}
+              >
+                <span className="mcp-connect-button-label">{target.label}</span>
+                <span className="mcp-connect-button-hint">{target.hint}</span>
+                <span className="mcp-connect-button-action">
+                  {copiedMcpTarget === target.id ? (
+                    <ClipboardCheck size={16} />
+                  ) : (
+                    <Copy size={16} />
+                  )}
+                  {copiedMcpTarget === target.id ? "Copied" : "Copy prompt"}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      </details>
       <div className="metrics compact" aria-label="Registry metrics">
         <Metric label="Approved skills" value={catalog.length} />
         <Metric label="Installs" value={totals.installs} />
