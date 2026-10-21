@@ -14,11 +14,11 @@ import {
   type RegistryBrandingConfig,
 } from "@skill-library/domain";
 import type { AppTab, SkillLibraryAppProps } from "./types.js";
-import { browserToken } from "./lib/browser.js";
-import { isLocalDev } from "./lib/browser.js";
+import { browserToken, isLocalDev } from "./lib/browser.js";
 import { createWebApiClient } from "./api/client.js";
 import { summarizeReports } from "./api/catalog.js";
 import { buildInstallAgentPrompt } from "./lib/install-prompts.js";
+import { resolveRegistryBaseUrl } from "./lib/registry-url.js";
 import { useAuthSession } from "./hooks/use-auth-session.js";
 import { useCatalog } from "./hooks/use-catalog.js";
 import { useSkillUrl } from "./hooks/use-skill-url.js";
@@ -281,10 +281,7 @@ export function SkillLibraryApp({
     );
   }
 
-  const resolvedRegistryUrl =
-    registryUrl ||
-    branding.registryPublicUrl ||
-    (typeof window !== "undefined" ? window.location.origin : "");
+  const resolvedRegistryUrl = resolveRegistryBaseUrl(registryUrl, branding);
 
   async function copyMcpSetupPrompt(target: McpSetupTarget) {
     const agentAuth = await fetchMcpSetupAgentAuth({
