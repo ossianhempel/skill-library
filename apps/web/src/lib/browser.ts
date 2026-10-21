@@ -7,7 +7,7 @@ export function isLocalDev(): boolean {
 }
 
 export function browserToken(): string | undefined {
-  if (typeof window === "undefined") {
+  if (typeof window === "undefined" || !window.localStorage) {
     return undefined;
   }
   const token = window.localStorage.getItem("skill-library-token");

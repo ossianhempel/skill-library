@@ -15,6 +15,7 @@ import {
   type DatabaseSchema,
 } from "./kysely.js";
 import { runRegistryMigrations, runAuthMigrations } from "./migrations.js";
+import { fromWorkspaceRow } from "./workspace-row.js";
 import type {
   CatalogPackageStats,
   DownloadHistoryPoint,
@@ -387,7 +388,14 @@ export class SqlRegistryStore implements RegistryStore {
   async getWorkspace(workspaceId: string): Promise<Workspace | undefined> {
     const row = await this.kysely
       .selectFrom("workspaces")
-      .select(["id", "slug", "name", "reporting_policy", "visibility"])
+      .select([
+        "id",
+        "slug",
+        "name",
+        "logo_url",
+        "reporting_policy",
+        "visibility",
+      ])
       .where("id", "=", workspaceId)
       .executeTakeFirst();
 
@@ -403,12 +411,14 @@ export class SqlRegistryStore implements RegistryStore {
         id: workspace.id,
         slug: workspace.slug,
         name: workspace.name,
+        logo_url: workspace.logoUrl ?? null,
         reporting_policy: workspace.reportingPolicy,
         visibility: workspace.visibility,
       },
       {
         slug: workspace.slug,
         name: workspace.name,
+        logo_url: workspace.logoUrl ?? null,
         reporting_policy: workspace.reportingPolicy,
         visibility: workspace.visibility,
       }
@@ -1320,14 +1330,6 @@ interface PackageRow {
   updated_at: string | Date;
 }
 
-interface WorkspaceRow {
-  id: string;
-  slug: string;
-  name: string;
-  reporting_policy: Workspace["reportingPolicy"];
-  visibility: Workspace["visibility"];
-}
-
 interface VersionRow {
   id: string;
   package_id: string;
@@ -1472,16 +1474,6 @@ function fromPackageRow(row: PackageRow): SkillPackage {
     categories: parseJson(row.categories),
     createdAt: toIsoString(row.created_at),
     updatedAt: toIsoString(row.updated_at),
-  };
-}
-
-function fromWorkspaceRow(row: WorkspaceRow): Workspace {
-  return {
-    id: row.id,
-    slug: row.slug,
-    name: row.name,
-    reportingPolicy: row.reporting_policy,
-    visibility: row.visibility,
   };
 }
 

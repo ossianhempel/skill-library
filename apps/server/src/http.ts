@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { createRegistryApi, type RegistryApi } from "./index.js";
+import { parseWorkspaceSettings } from "./workspace-settings.js";
 import type { RegistryStore, TeamMemberRecord } from "@skill-library/storage";
 import type { PackageTreeEntry } from "@skill-library/validation";
 import type {
@@ -83,27 +84,15 @@ export function createHttpApp(
       return context.json({ error: "Admin role required" }, 403);
     }
 
-    const body = (await context.req.json()) as {
-      reportingPolicy?: string;
-      visibility?: string;
-    };
-    const reportingPolicy = parseReportingPolicy(body.reportingPolicy);
-    const visibility = parseVisibility(body.visibility);
+    const settings = parseWorkspaceSettings(await context.req.json());
 
-    if (
-      (body.reportingPolicy && !reportingPolicy) ||
-      (body.visibility && !visibility)
-    ) {
-      return context.json(
-        { error: "Request body includes invalid workspace settings." },
-        400
-      );
+    if (!settings.ok) {
+      return context.json({ error: settings.error }, 400);
     }
 
     const workspace = await api.updateWorkspace({
       workspaceId: context.req.param("workspaceId"),
-      reportingPolicy,
-      visibility,
+      ...settings.value,
     });
 
     if (!workspace) {
@@ -775,26 +764,6 @@ function parseLifecycleState(
     value === "hidden" ||
     value === "deprecated"
   ) {
-    return value;
-  }
-
-  return undefined;
-}
-
-function parseReportingPolicy(
-  value: string | undefined
-): Workspace["reportingPolicy"] | undefined {
-  if (value === "disabled" || value === "opt-in" || value === "required") {
-    return value;
-  }
-
-  return undefined;
-}
-
-function parseVisibility(
-  value: string | undefined
-): Workspace["visibility"] | undefined {
-  if (value === "public" || value === "private") {
     return value;
   }
 

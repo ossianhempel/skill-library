@@ -11,6 +11,7 @@ import {
   DEFAULT_REGISTRY_BRANDING,
   type SkillPackage,
   type SkillVersion,
+  type Workspace,
 } from "@skill-library/domain";
 import { SkillLibraryApp, type CatalogSkill, type WebApiClient } from "./ui.js";
 
@@ -129,6 +130,25 @@ describe("shareable skill URLs", () => {
     });
     const version = approvedVersion("pkg-rh");
     const api: WebApiClient = {
+      workspaceDetail: vi.fn(
+        async (workspaceId): Promise<Workspace> => ({
+          id: workspaceId,
+          slug: workspaceId,
+          name: workspaceId,
+          reportingPolicy: "opt-in",
+          visibility: "public",
+        })
+      ),
+      updateWorkspace: vi.fn(
+        async (workspaceId, input): Promise<Workspace> => ({
+          id: workspaceId,
+          slug: workspaceId,
+          name: workspaceId,
+          reportingPolicy: "opt-in",
+          visibility: "public",
+          logoUrl: input.logoUrl || undefined,
+        })
+      ),
       search: vi.fn(() => searchPromise),
       latestApprovedVersion: vi.fn(async () => version),
       packageVersions: vi.fn(async () => [version]),
@@ -296,6 +316,25 @@ function multiWorkspaceApi(): WebApiClient {
   };
 
   return {
+    workspaceDetail: vi.fn(
+      async (workspaceId): Promise<Workspace> => ({
+        id: workspaceId,
+        slug: workspaceId,
+        name: workspaceId,
+        reportingPolicy: "opt-in",
+        visibility: "public",
+      })
+    ),
+    updateWorkspace: vi.fn(
+      async (workspaceId, input): Promise<Workspace> => ({
+        id: workspaceId,
+        slug: workspaceId,
+        name: workspaceId,
+        reportingPolicy: "opt-in",
+        visibility: "public",
+        logoUrl: input.logoUrl || undefined,
+      })
+    ),
     search: vi.fn(async (workspaceId: string) =>
       (packagesByWorkspace[workspaceId] ?? []).slice()
     ),

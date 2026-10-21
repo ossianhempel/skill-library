@@ -1,8 +1,6 @@
-import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
   SkillPackage,
@@ -15,9 +13,9 @@ import {
 } from "@skill-library/storage";
 import { createHttpApp } from "./http.js";
 import { defaultRegistryBrandingConfig } from "./registry-config.js";
+import { createGitSkillRepo, skillMd } from "./test-git-repo.js";
 
 const tmpDirs: string[] = [];
-const execFileAsync = promisify(execFile);
 
 afterEach(async () => {
   await Promise.all(
@@ -502,7 +500,7 @@ describe("HTTP registry API", () => {
 
   it("creates draft versions from Git imports with commit provenance", async () => {
     const { app, store } = await createSeededApp();
-    const repoPath = await createGitSkillRepo();
+    const repoPath = await createGitSkillRepo(await makeTmpDir());
 
     try {
       const response = await app.request(
@@ -543,7 +541,7 @@ describe("HTTP registry API", () => {
 
   it("rejects Git import subdirectory path traversal", async () => {
     const { app, store } = await createSeededApp();
-    const repoPath = await createGitSkillRepo();
+    const repoPath = await createGitSkillRepo(await makeTmpDir());
 
     try {
       const response = await app.request(
@@ -908,8 +906,18 @@ describe("HTTP registry API", () => {
         body: JSON.stringify({
           reportingPolicy: "required",
           visibility: "public",
+          logoUrl: "https://cdn.example.com/team-logo.svg",
         }),
       });
+      const invalidLogo = await app.request(
+        "/api/workspaces/private-workspace",
+        {
+          method: "PATCH",
+          headers: adminHeaders(),
+          body: JSON.stringify({ logoUrl: "javascript:alert(1)" }),
+        }
+      );
+      const detail = await app.request("/api/workspaces/private-workspace");
       const publicCatalog = await app.request(
         "/api/workspaces/private-workspace/packages"
       );
@@ -923,6 +931,13 @@ describe("HTTP registry API", () => {
         workspace: expect.objectContaining({
           reportingPolicy: "required",
           visibility: "public",
+          logoUrl: "https://cdn.example.com/team-logo.svg",
+        }),
+      });
+      expect(invalidLogo.status).toBe(400);
+      await expect(detail.json()).resolves.toEqual({
+        workspace: expect.objectContaining({
+          logoUrl: "https://cdn.example.com/team-logo.svg",
         }),
       });
       expect(publicCatalog.status).toBe(200);
@@ -1149,40 +1164,6 @@ async function makeTmpDir() {
   const dir = await mkdtemp(join(tmpdir(), "skill-library-http-"));
   tmpDirs.push(dir);
   return dir;
-}
-
-function skillMd(
-  name: string,
-  description: string,
-  body = "# Skill\n\nBody content.\n"
-): string {
-  return `---
-name: ${name}
-description: ${description}
----
-${body}`;
-}
-
-async function createGitSkillRepo() {
-  const repoPath = await makeTmpDir();
-  const skillPath = join(repoPath, "skills", "git-skill");
-
-  await mkdir(skillPath, { recursive: true });
-  await writeFile(
-    join(skillPath, "SKILL.md"),
-    skillMd("git-skill", "Imported from Git.", "# Git skill\n")
-  );
-  await execFileAsync("git", ["init"], { cwd: repoPath });
-  await execFileAsync("git", ["config", "user.email", "test@example.com"], {
-    cwd: repoPath,
-  });
-  await execFileAsync("git", ["config", "user.name", "Test User"], {
-    cwd: repoPath,
-  });
-  await execFileAsync("git", ["add", "."], { cwd: repoPath });
-  await execFileAsync("git", ["commit", "-m", "Add skill"], { cwd: repoPath });
-
-  return repoPath;
 }
 
 async function seedStore(store: SqlRegistryStore) {

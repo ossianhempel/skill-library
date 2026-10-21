@@ -64,6 +64,11 @@ describe("PGlite registry store", () => {
           categories: ["review", "quality"],
         }),
       ]);
+      await expect(store.getWorkspace("workspace-1")).resolves.toEqual(
+        expect.objectContaining({
+          logoUrl: "https://cdn.example.com/acme.svg",
+        })
+      );
 
       await expect(
         store.getLatestApprovedVersion("package-1")
@@ -391,6 +396,7 @@ async function seedStore(store: SqlRegistryStore) {
     id: "workspace-1",
     slug: "acme",
     name: "Acme",
+    logoUrl: "https://cdn.example.com/acme.svg",
     reportingPolicy: "opt-in",
     visibility: "public",
   };

@@ -185,6 +185,7 @@ interface WorkspacesTable {
   id: string;
   slug: string;
   name: string;
+  logo_url: string | null;
   reporting_policy: Workspace["reportingPolicy"];
   visibility: Workspace["visibility"];
   created_at: GeneratedTimestamp;

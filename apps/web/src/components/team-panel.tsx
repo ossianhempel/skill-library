@@ -1,17 +1,24 @@
 import { ChevronDown, Loader2, RefreshCw, User, Users } from "lucide-react";
 import {
+  type RegistryBrandingConfig,
   WORKSPACE_ROLE_DESCRIPTIONS,
   WORKSPACE_ROLE_LABELS,
+  type Workspace,
   type WorkspaceRole,
 } from "@skill-library/domain";
 import type { AdminUser, SessionUser } from "../types.js";
 import { formatRoleLabel } from "../lib/format.js";
+import { WorkspaceLogoSettings } from "./workspace-logo-settings.js";
 
 export function TeamPanel({
   members,
   loading,
   currentUser,
+  workspace,
+  branding,
+  effectiveLogoUrl,
   canManageRoles,
+  onWorkspaceLogoChange,
   onRoleChange,
   onDeleteUser,
   onRefresh,
@@ -20,7 +27,11 @@ export function TeamPanel({
   members: AdminUser[];
   loading: boolean;
   currentUser: SessionUser;
+  workspace: Workspace | null;
+  branding: RegistryBrandingConfig;
+  effectiveLogoUrl?: string;
   canManageRoles: boolean;
+  onWorkspaceLogoChange: (logoUrl: string) => Promise<void>;
   onRoleChange: (userId: string, role: string) => void;
   onDeleteUser: (userId: string, name: string) => void;
   onRefresh: () => void;
@@ -106,6 +117,14 @@ export function TeamPanel({
           )}
         </div>
       </section>
+
+      <WorkspaceLogoSettings
+        workspace={workspace}
+        branding={branding}
+        effectiveLogoUrl={effectiveLogoUrl}
+        canManage={canManageRoles}
+        onWorkspaceLogoChange={onWorkspaceLogoChange}
+      />
 
       <section className="admin-section" aria-label="Team members">
         <h3 className="admin-section-title">Team members</h3>

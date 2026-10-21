@@ -99,6 +99,7 @@ export interface UpdateWorkspaceInput {
   workspaceId: string;
   reportingPolicy?: Workspace["reportingPolicy"];
   visibility?: Workspace["visibility"];
+  logoUrl?: string;
 }
 
 export function createRegistryApi(store: RegistryStore): RegistryApi {
@@ -131,6 +132,10 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         ...current,
         reportingPolicy: input.reportingPolicy ?? current.reportingPolicy,
         visibility: input.visibility ?? current.visibility,
+        logoUrl:
+          input.logoUrl === undefined
+            ? current.logoUrl
+            : input.logoUrl || undefined,
       };
 
       await store.upsertWorkspace(workspace);

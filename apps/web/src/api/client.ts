@@ -4,6 +4,7 @@ import type {
   SkillPackage,
   SkillVersion,
   ValidationResult,
+  Workspace,
 } from "@skill-library/domain";
 import type { WebApiClient } from "../types.js";
 
@@ -19,6 +20,28 @@ export function createWebApiClient({
   const baseUrl = registryUrl.replace(/\/$/, "");
 
   return {
+    async workspaceDetail(workspaceId) {
+      try {
+        return (
+          await jsonRequest<{ workspace: Workspace }>(
+            request,
+            `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}`,
+            authHeaders(token)
+          )
+        ).workspace;
+      } catch {
+        return undefined;
+      }
+    },
+    async updateWorkspace(workspaceId, input) {
+      return (
+        await jsonRequest<{ workspace: Workspace }>(
+          request,
+          `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}`,
+          jsonInit(input, token, "PATCH")
+        )
+      ).workspace;
+    },
     async search(workspaceId, query) {
       const url = new URL(
         `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/packages`,
@@ -156,9 +179,13 @@ function toRequestInit(
   return init as RequestInit;
 }
 
-function jsonInit(body: unknown, token: string | undefined): RequestInit {
+function jsonInit(
+  body: unknown,
+  token: string | undefined,
+  method = "POST"
+): RequestInit {
   return {
-    method: "POST",
+    method,
     credentials: "include",
     headers: {
       "content-type": "application/json",

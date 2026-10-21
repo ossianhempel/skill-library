@@ -186,12 +186,15 @@ Customize these fields in `registry.config.json`:
 
 - `registryTagline` — header kicker (for example `Rebtech skill registry`)
 - `appName` / `documentTitle` — product name shown in the UI and browser tab
+- `appShortName` / `logoUrl` — placeholder initials and optional instance-wide logo fallback
 - `companyName` — your organization name
 - `defaultWorkspaceId` — default workspace slug/id for publish and install prompts (match existing data if upgrading)
 - `registryPublicUrl` — public registry URL used in generated CLI install commands
 - `loginSubtitle`, `overviewHeading`, `overviewDescription`, and other UI strings
 
 The server merges your file over built-in defaults and exposes the result at `GET /api/config`; the web UI loads it on startup. If the file is missing, the app runs with code defaults and logs a warning.
+
+Admins can also set a workspace-specific logo from **Team → Workspace branding**. That stored workspace logo overrides `logoUrl` for the active workspace and supports `http(s)` URLs, root-relative paths, and base64 image data URLs for PNG, JPEG, GIF, WebP, or SVG images.
 
 **Containers:** place `registry.config.json` on the build host before `docker build` (it is copied into the image), mount it as a volume, or set `SKILL_LIBRARY_CONFIG_PATH` to a mounted path.
 

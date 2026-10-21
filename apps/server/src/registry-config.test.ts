@@ -15,13 +15,23 @@ describe("registry-config", () => {
         companyName: "Rebtech",
         registryTagline: "Rebtech skill registry",
         registryPublicUrl: "https://skills.rebtech.se",
+        logoUrl: "https://skills.rebtech.se/logo.svg",
       })
     ).toEqual({
       ...DEFAULT_REGISTRY_BRANDING,
       companyName: "Rebtech",
       registryTagline: "Rebtech skill registry",
       registryPublicUrl: "https://skills.rebtech.se",
+      logoUrl: "https://skills.rebtech.se/logo.svg",
     });
+  });
+
+  it("ignores unsupported logo config values", () => {
+    expect(
+      mergeRegistryBranding({
+        logoUrl: "javascript:alert(1)",
+      }).logoUrl
+    ).toBe("");
   });
 
   it("falls back to defaults when the config file is missing", async () => {

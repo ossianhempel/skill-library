@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   DEFAULT_REGISTRY_BRANDING,
+  normalizeLogoUrlInput,
   type RegistryBrandingConfig,
 } from "@skill-library/domain";
 
@@ -43,7 +44,12 @@ export function mergeRegistryBranding(
   for (const key of BRANDING_KEYS) {
     const value = overrides[key];
 
-    if (typeof value === "string" && value.trim()) {
+    if (key === "logoUrl") {
+      const logo = normalizeLogoUrlInput(value);
+      if (logo.ok && logo.value !== undefined) {
+        branding.logoUrl = logo.value;
+      }
+    } else if (typeof value === "string" && value.trim()) {
       branding[key] = value.trim();
     }
   }

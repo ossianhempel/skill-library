@@ -41,6 +41,7 @@ export async function runRegistryMigrations(
       .addColumn("id", t.keyText, (c) => c.primaryKey())
       .addColumn("slug", t.keyText, (c) => c.notNull().unique())
       .addColumn("name", t.freeText, (c) => c.notNull())
+      .addColumn("logo_url", t.freeText)
       .addColumn("reporting_policy", t.keyText, (c) =>
         c
           .notNull()
@@ -54,6 +55,10 @@ export async function runRegistryMigrations(
       )
       .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
       .execute();
+  }
+
+  if (existing.has("workspaces")) {
+    await addColumnIfMissing(db, "workspaces", "logo_url", t.freeText);
   }
 
   if (!existing.has("skill_packages")) {
@@ -169,6 +174,26 @@ export async function runRegistryMigrations(
       .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
       .execute();
   }
+}
+
+async function addColumnIfMissing(
+  db: Kysely<DatabaseSchema>,
+  tableName: string,
+  columnName: string,
+  dataType: RawBuilder<unknown>
+): Promise<void> {
+  const table = (await db.introspection.getTables()).find(
+    (entry) => entry.name === tableName
+  );
+
+  if (table?.columns.some((column) => column.name === columnName)) {
+    return;
+  }
+
+  await db.schema
+    .alterTable(tableName)
+    .addColumn(columnName, dataType)
+    .execute();
 }
 
 /**
