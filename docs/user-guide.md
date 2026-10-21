@@ -70,6 +70,8 @@ For people who use Claude but don't use a terminal. The skill page walks them th
 2. In Claude, open **Customize > Skills**, click **+ > Create skill > Upload a skill**, and pick the file.
 3. Turn the skill on.
 
+Below the steps, **Copy prompt for Claude** copies a prompt to paste into any Claude that can run commands on the user's computer (Claude Code, or the desktop app with file access). Claude checks access against `/api/packages/<package-id>`, downloads the `layout=claude-app` ZIP and unzips it into `~/.claude/skills`, so the skill is global. When the user is signed in, their personal agent token (from `/api/me/agent-token`) is added to the copied text only, never shown on the page. If Claude can't write to the user's computer, the prompt tells it to fall back to the upload steps above instead of claiming success.
+
 Skills need code execution enabled; on Team and Enterprise plans an owner controls this. See Claude's [Using Skills in Claude](https://support.claude.com/en/articles/12512180-using-skills-in-claude).
 
 ### Coding agents (CLI)
