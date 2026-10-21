@@ -5,6 +5,7 @@ import {
   type ClaudeSkillPromptInput,
 } from "../lib/claude-skill-prompt.js";
 import { fetchMcpSetupAgentAuth } from "../mcp-setup-prompts.js";
+import { browserToken } from "../lib/browser.js";
 
 export const CLAUDE_APP_URL = "https://claude.ai";
 export const CLAUDE_DOWNLOAD_URL = "https://claude.com/download";
@@ -75,20 +76,32 @@ export function ClaudePromptInstall({
 }: {
   promptInput: Omit<ClaudeSkillPromptInput, "token">;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle"
+  );
 
   async function copyPrompt() {
+    // Signed-in users get their personal agent token. People using the API
+    // token fallback (no SSO session) get the token they entered instead.
     const agentAuth = await fetchMcpSetupAgentAuth({
       registryUrl: promptInput.registryUrl,
       hasSession: true,
     });
     const prompt = buildClaudeSkillPrompt({
       ...promptInput,
-      token: agentAuth?.token,
+      token: agentAuth?.token ?? browserToken(),
     });
-    await navigator.clipboard?.writeText(prompt).catch(() => undefined);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2500);
+
+    try {
+      if (!navigator.clipboard) {
+        throw new Error("Clipboard unavailable");
+      }
+      await navigator.clipboard.writeText(prompt);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+    window.setTimeout(() => setCopyState("idle"), 2500);
   }
 
   return (
@@ -106,10 +119,20 @@ export function ClaudePromptInstall({
       <code>{buildClaudeSkillPrompt(promptInput)}</code>
       <div className="actions">
         <button type="button" onClick={() => void copyPrompt()}>
-          {copied ? <ClipboardCheck size={17} /> : <Copy size={17} />}
-          {copied ? "Copied" : "Copy prompt for Claude"}
+          {copyState === "copied" ? (
+            <ClipboardCheck size={17} />
+          ) : (
+            <Copy size={17} />
+          )}
+          {copyState === "copied" ? "Copied" : "Copy prompt for Claude"}
         </button>
       </div>
+      {copyState === "failed" && (
+        <p className="install-warning" role="alert">
+          Couldn&apos;t copy to your clipboard. Select the prompt above and copy
+          it yourself, or try another browser.
+        </p>
+      )}
     </div>
   );
 }
