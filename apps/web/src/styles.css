@@ -1898,14 +1898,27 @@ p {
   margin-top: var(--space-6);
 }
 
-.claude-steps-help,
+.claude-prompt-install {
+  margin-top: var(--space-22);
+  padding-top: var(--space-18);
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: var(--space-10);
+}
+
+.claude-prompt-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
 .how-it-works-note {
   margin: var(--space-16) 0 0;
   color: var(--muted);
   font-size: var(--font-size-sm);
 }
 
-.claude-steps-help a,
 .how-it-works-note a,
 .claude-steps a:not(.button) {
   color: var(--accent);

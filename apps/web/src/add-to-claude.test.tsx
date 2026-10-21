@@ -1,5 +1,11 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_REGISTRY_BRANDING,
   type SkillPackage,
@@ -7,7 +13,10 @@ import {
 } from "@skill-library/domain";
 import { SkillLibraryApp, type CatalogSkill } from "./ui.js";
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const branding = {
   ...DEFAULT_REGISTRY_BRANDING,
@@ -74,5 +83,82 @@ describe("non-technical install path", () => {
     expect(
       screen.getByText(/Install with a prompt instead/).closest("details")?.open
     ).toBe(false);
+  });
+
+  it("copies a Claude prompt with the user's access key, never showing it on screen", async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/api/me/agent-token")
+          ? new Response(
+              JSON.stringify({
+                token: "tok_personal123",
+                role: "user",
+                actorId: "user-1",
+              })
+            )
+          : new Response(JSON.stringify({}), { status: 404 })
+      )
+    );
+    render(<SkillLibraryApp skills={[approvedSkill()]} branding={branding} />);
+    fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+
+    expect(screen.getByText("Or let Claude add it for you")).toBeTruthy();
+    expect(document.body.textContent).not.toContain("tok_personal123");
+    fireEvent.click(
+      screen.getByRole("button", { name: /Copy prompt for Claude/ })
+    );
+
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    const copied = String(writeText.mock.calls[0]?.[0 as never]);
+    expect(copied).toContain("Bearer tok_personal123");
+    expect(copied).toContain("~/.claude/skills");
+  });
+
+  it("says so when the clipboard write fails instead of showing Copied", async () => {
+    const writeText = vi.fn(async () => {
+      throw new Error("denied");
+    });
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({}), { status: 403 }))
+    );
+    render(<SkillLibraryApp skills={[approvedSkill()]} branding={branding} />);
+    fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Copy prompt for Claude/ })
+    );
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Copied" })).toBeNull();
+  });
+
+  it("falls back to the entered API token when there is no session", async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({}), { status: 403 }))
+    );
+    window.localStorage.setItem("skill-library-token", "tok_entered123");
+    try {
+      render(
+        <SkillLibraryApp skills={[approvedSkill()]} branding={branding} />
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: /Copy prompt for Claude/ })
+      );
+
+      await waitFor(() => expect(writeText).toHaveBeenCalled());
+      expect(String(writeText.mock.calls[0]?.[0 as never])).toContain(
+        "Bearer tok_entered123"
+      );
+    } finally {
+      window.localStorage.removeItem("skill-library-token");
+    }
   });
 });

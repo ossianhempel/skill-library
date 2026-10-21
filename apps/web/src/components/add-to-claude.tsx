@@ -1,9 +1,14 @@
-import { Download, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { Bot, ClipboardCheck, Copy, Download } from "lucide-react";
+import {
+  buildClaudeSkillPrompt,
+  type ClaudeSkillPromptInput,
+} from "../lib/claude-skill-prompt.js";
+import { fetchMcpSetupAgentAuth } from "../mcp-setup-prompts.js";
+import { browserToken } from "../lib/browser.js";
 
 export const CLAUDE_APP_URL = "https://claude.ai";
 export const CLAUDE_DOWNLOAD_URL = "https://claude.com/download";
-export const CLAUDE_SKILLS_HELP_URL =
-  "https://support.claude.com/en/articles/12512180-using-skills-in-claude";
 
 /**
  * Plain-language steps for adding a skill to the Claude apps (claude.ai or the
@@ -56,14 +61,78 @@ export function AddToClaudeSteps({
           </span>
         </li>
       </ol>
-      <p className="claude-steps-help">
-        Don&apos;t see Skills? Ask whoever manages Claude at your company to
-        turn on Skills and code execution.{" "}
-        <a href={CLAUDE_SKILLS_HELP_URL} target="_blank" rel="noreferrer">
-          Claude&apos;s help page
-          <ExternalLink size={12} aria-hidden="true" />
-        </a>
+    </div>
+  );
+}
+
+/**
+ * The other way in: a prompt the user pastes into any Claude that has access to
+ * their computer. Claude checks access, downloads the skill and saves it as a
+ * global skill. The on-screen preview shows a placeholder; the user's personal
+ * access key is fetched and added only to the copied text.
+ */
+export function ClaudePromptInstall({
+  promptInput,
+}: {
+  promptInput: Omit<ClaudeSkillPromptInput, "token">;
+}) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle"
+  );
+
+  async function copyPrompt() {
+    // Signed-in users get their personal agent token. People using the API
+    // token fallback (no SSO session) get the token they entered instead.
+    const agentAuth = await fetchMcpSetupAgentAuth({
+      registryUrl: promptInput.registryUrl,
+      hasSession: true,
+    });
+    const prompt = buildClaudeSkillPrompt({
+      ...promptInput,
+      token: agentAuth?.token ?? browserToken(),
+    });
+
+    try {
+      if (!navigator.clipboard) {
+        throw new Error("Clipboard unavailable");
+      }
+      await navigator.clipboard.writeText(prompt);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+    window.setTimeout(() => setCopyState("idle"), 2500);
+  }
+
+  return (
+    <div className="claude-prompt-install">
+      <p className="claude-prompt-title">
+        <Bot size={17} />
+        <strong>Or let Claude add it for you</strong>
       </p>
+      <p className="install-hint">
+        Copy this prompt and paste it into Claude, in the desktop app or Claude
+        Code. Claude checks your access, downloads the skill and saves it so it
+        works in all your conversations. Your personal access key is added when
+        you copy, so don&apos;t share the copied text.
+      </p>
+      <code>{buildClaudeSkillPrompt(promptInput)}</code>
+      <div className="actions">
+        <button type="button" onClick={() => void copyPrompt()}>
+          {copyState === "copied" ? (
+            <ClipboardCheck size={17} />
+          ) : (
+            <Copy size={17} />
+          )}
+          {copyState === "copied" ? "Copied" : "Copy prompt for Claude"}
+        </button>
+      </div>
+      {copyState === "failed" && (
+        <p className="install-warning" role="alert">
+          Couldn&apos;t copy to your clipboard. Select the prompt above and copy
+          it yourself, or try another browser.
+        </p>
+      )}
     </div>
   );
 }

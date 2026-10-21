@@ -30,7 +30,7 @@ import {
 import { ValidationPanel } from "../validation-panel.js";
 import { SkillStatsMeta } from "../skill-stats.js";
 import { LifecycleBadge } from "./chrome.js";
-import { AddToClaudeSteps } from "./add-to-claude.js";
+import { AddToClaudeSteps, ClaudePromptInstall } from "./add-to-claude.js";
 
 export const SkillDetailPane = forwardRef<
   HTMLElement,
@@ -118,6 +118,20 @@ export const SkillDetailPane = forwardRef<
                 "claude-app"
               )}
               fileName={`${selected.pkg.slug}.zip`}
+            />
+            <ClaudePromptInstall
+              promptInput={{
+                packageId: selected.pkg.id,
+                packageSlug: selected.pkg.slug,
+                packageName: selected.pkg.name,
+                appName: branding.appName,
+                registryUrl: resolvedRegistryUrl,
+                downloadUrl: artifactDownloadUrl(
+                  resolvedRegistryUrl,
+                  selected,
+                  "claude-app"
+                ),
+              }}
             />
             <details className="developer-install">
               <summary>
