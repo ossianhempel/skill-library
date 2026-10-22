@@ -1,4 +1,9 @@
-import type { PackageReport, SkillVersion } from "@skill-library/domain";
+import type {
+  CatalogPackageStats,
+  PackageReport,
+  SkillPackage,
+  SkillVersion,
+} from "@skill-library/domain";
 import type {
   CatalogSkill,
   UploadVersionInput,
@@ -34,7 +39,49 @@ export function pickActiveVersion(
   return latestApproved;
 }
 
+export interface LoadedCatalog {
+  skills: CatalogSkill[];
+  /** Who the registry served this catalog to; undefined on the legacy path. */
+  viewer?: { id: string; role: string } | null;
+}
+
 export async function loadCatalogSkills(
+  api: WebApiClient,
+  workspaceId: string,
+  query?: string
+): Promise<CatalogSkill[]> {
+  return (await loadWorkspaceCatalog(api, workspaceId, query)).skills;
+}
+
+export async function loadWorkspaceCatalog(
+  api: WebApiClient,
+  workspaceId: string,
+  query?: string
+): Promise<LoadedCatalog> {
+  const catalog = query ? undefined : await api.workspaceCatalog?.(workspaceId);
+
+  if (catalog) {
+    return {
+      viewer: catalog.viewer ?? null,
+      skills: catalog.packages.map((entry) =>
+        toCatalogSkill({
+          pkg: entry.package,
+          latestApproved: entry.latestApproved,
+          activeVersion: entry.activeVersion,
+          stats: entry.stats,
+          report: entry.report,
+          versions: [],
+        })
+      ),
+    };
+  }
+
+  return { skills: await loadCatalogSkillsPerPackage(api, workspaceId, query) };
+}
+
+// The pre-/catalog path: two requests per package. Kept for registries that
+// do not serve the batched endpoint yet.
+async function loadCatalogSkillsPerPackage(
   api: WebApiClient,
   workspaceId: string,
   query?: string
@@ -53,38 +100,61 @@ export async function loadCatalogSkills(
 
   return Promise.all(
     packages.map(async (pkg) => {
-      const latestApproved = await api
-        .latestApprovedVersion(pkg.id)
-        .catch(() => undefined);
-      const versions = await api.packageVersions(pkg.id).catch(() => []);
-      const activeVersion = pickActiveVersion(latestApproved, versions);
-      const report = reportsByPackage.get(pkg.id);
-      const stats = statsByPackage.get(pkg.id);
-      const validation = activeVersion?.validation;
+      const [latestApproved, versions] = await Promise.all([
+        api.latestApprovedVersion(pkg.id).catch(() => undefined),
+        api.packageVersions(pkg.id).catch(() => []),
+      ]);
 
-      return {
+      return toCatalogSkill({
         pkg,
         latestApproved,
-        activeVersion,
-        validation,
-        files: validation?.files.map((file) => file.path) ?? [],
-        installs: report?.installs.total ?? 0,
-        downloads: stats?.downloads ?? report?.downloads ?? 0,
-        downloadHistory:
-          stats?.downloadHistory ??
-          report?.downloadHistory ??
-          emptyDownloadHistory(),
-        lastModifiedAt:
-          stats?.lastModifiedAt ??
-          report?.lastModifiedAt ??
-          resolveLastModifiedAt(versions),
-        staleInstalls:
-          (report?.installs.byState.stale ?? 0) +
-          (report?.installs.byState["modified-local-content"] ?? 0),
-        report,
-      };
+        activeVersion: pickActiveVersion(latestApproved, versions),
+        stats: statsByPackage.get(pkg.id),
+        report: reportsByPackage.get(pkg.id),
+        versions,
+      });
     })
   );
+}
+
+function toCatalogSkill({
+  pkg,
+  latestApproved,
+  activeVersion,
+  stats,
+  report,
+  versions,
+}: {
+  pkg: SkillPackage;
+  latestApproved?: SkillVersion;
+  activeVersion?: SkillVersion;
+  stats?: CatalogPackageStats;
+  report?: PackageReport;
+  versions: SkillVersion[];
+}): CatalogSkill {
+  const validation = activeVersion?.validation;
+
+  return {
+    pkg,
+    latestApproved,
+    activeVersion,
+    validation,
+    files: validation?.files.map((file) => file.path) ?? [],
+    installs: report?.installs.total ?? 0,
+    downloads: stats?.downloads ?? report?.downloads ?? 0,
+    downloadHistory:
+      stats?.downloadHistory ??
+      report?.downloadHistory ??
+      emptyDownloadHistory(),
+    lastModifiedAt:
+      stats?.lastModifiedAt ??
+      report?.lastModifiedAt ??
+      resolveLastModifiedAt(versions),
+    staleInstalls:
+      (report?.installs.byState.stale ?? 0) +
+      (report?.installs.byState["modified-local-content"] ?? 0),
+    report,
+  };
 }
 
 export function summarizeReports(reports: PackageReport[]) {

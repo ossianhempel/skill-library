@@ -165,6 +165,24 @@ export interface PackageReport {
   };
 }
 
+/**
+ * One package as the web catalog shows it, from GET /api/workspaces/:id/catalog.
+ * activeVersion is the newest version the viewer may see; report is present
+ * for maintainers only.
+ */
+export interface WorkspaceCatalogEntry {
+  package: SkillPackage;
+  latestApproved?: SkillVersion;
+  activeVersion?: SkillVersion;
+  stats: CatalogPackageStats;
+  report?: PackageReport;
+}
+
+export interface WorkspaceCatalogResponse {
+  viewer: Actor | null;
+  packages: WorkspaceCatalogEntry[];
+}
+
 export const DOWNLOAD_HISTORY_DAYS = 14;
 
 export type UsageEventType = "view" | "download";

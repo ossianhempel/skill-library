@@ -5,6 +5,7 @@ import type {
   SkillVersion,
   ValidationResult,
   Workspace,
+  WorkspaceCatalogResponse,
 } from "@skill-library/domain";
 import type { WebApiClient } from "../types.js";
 
@@ -95,6 +96,29 @@ export function createWebApiClient({
           authHeaders(token)
         )
       ).reports;
+    },
+    async workspaceCatalog(workspaceId) {
+      const response = await request(
+        `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/catalog`,
+        { headers: authHeaders(token), credentials: "include" }
+      );
+
+      if (response.status === 404) {
+        return undefined;
+      }
+
+      if (!response.ok) {
+        // status lets the caller tell an access denial from a transient failure.
+        throw Object.assign(
+          new Error(
+            (await response.text().catch(() => "")) ||
+              `Registry request failed: ${response.status} ${response.statusText}`
+          ),
+          { status: response.status }
+        );
+      }
+
+      return (await response.json()) as WorkspaceCatalogResponse;
     },
     async uploadVersion(workspaceId, input) {
       return (

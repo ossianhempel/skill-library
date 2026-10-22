@@ -157,18 +157,18 @@ export function SkillLibraryApp({
     selected,
   } = useCatalog({
     apiClient,
+    registryUrl,
     workspaceId,
     skills,
     session,
+    sessionLoading,
     activeTab,
     loading,
     setLoading,
     setNotice,
   });
 
-  useEffect(() => {
-    setFilesExpanded(false);
-  }, [selectedId]);
+  useEffect(() => setFilesExpanded(false), [selectedId]);
 
   const { copiedLink, copyShareLink } = useSkillUrl({
     activeTab,

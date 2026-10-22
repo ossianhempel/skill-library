@@ -7,6 +7,7 @@ import type {
   SkillVersion,
   ValidationResult,
   Workspace,
+  WorkspaceCatalogResponse,
 } from "@skill-library/domain";
 
 export interface SessionUser {
@@ -54,6 +55,13 @@ export interface WebApiClient {
     workspaceId: string
   ): Promise<import("@skill-library/domain").CatalogPackageStats[]>;
   workspaceReports(workspaceId: string): Promise<PackageReport[]>;
+  /**
+   * Whole catalog in one request. Resolves undefined when the registry predates
+   * the endpoint; optional so older or fake clients use the per-package path.
+   */
+  workspaceCatalog?(
+    workspaceId: string
+  ): Promise<WorkspaceCatalogResponse | undefined>;
   uploadVersion(
     workspaceId: string,
     input: UploadVersionInput
