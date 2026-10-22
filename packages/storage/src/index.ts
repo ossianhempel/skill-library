@@ -29,7 +29,16 @@ import type {
   Workspace,
 } from "@skill-library/domain";
 import { DOWNLOAD_HISTORY_DAYS } from "@skill-library/domain";
+import {
+  assembleWorkspaceCatalog,
+  buildPackageReport,
+  downloadHistoryStartIso,
+  fillDownloadHistory,
+  resolveLastModifiedAt,
+  type WorkspaceCatalogSnapshot,
+} from "./workspace-catalog.js";
 
+export type { WorkspaceCatalogSnapshot } from "./workspace-catalog.js";
 export type DatabaseMode = DatabaseEngine;
 
 export {
@@ -89,6 +98,11 @@ export interface RegistryStore {
     workspaceId: string,
     days?: number
   ): Promise<CatalogPackageStats[]>;
+  /** Packages, versions, stats and reports for a workspace in one batched read. */
+  getWorkspaceCatalog(
+    workspaceId: string,
+    days?: number
+  ): Promise<WorkspaceCatalogSnapshot>;
 }
 
 /**
@@ -533,11 +547,12 @@ export class SqlRegistryStore implements RegistryStore {
     return row ? fromPackageRow(row) : undefined;
   }
 
-  async listVersions(packageId: string): Promise<SkillVersion[]> {
+  // Versions joined to their author's user row so the UI can show a display name.
+  private selectVersions() {
     const actorId = this.jsonText("v.provenance", "actorId");
     const actorEmail = this.jsonText("v.provenance", "actorEmail");
     const gitAuthorEmail = this.jsonText("v.provenance", "gitAuthorEmail");
-    const rows = await this.kysely
+    return this.kysely
       .selectFrom("skill_versions as v")
       .leftJoin("user as u", (join) =>
         join.on((eb) =>
@@ -562,7 +577,11 @@ export class SqlRegistryStore implements RegistryStore {
         "v.replacement_version_id",
         "u.name as actor_name",
         "u.email as actor_email",
-      ])
+      ]);
+  }
+
+  async listVersions(packageId: string): Promise<SkillVersion[]> {
+    const rows = await this.selectVersions()
       .where("v.package_id", "=", packageId)
       .orderBy("v.created_at", "desc")
       .execute();
@@ -571,35 +590,7 @@ export class SqlRegistryStore implements RegistryStore {
   }
 
   async getVersion(versionId: string): Promise<SkillVersion | undefined> {
-    const actorId = this.jsonText("v.provenance", "actorId");
-    const actorEmail = this.jsonText("v.provenance", "actorEmail");
-    const gitAuthorEmail = this.jsonText("v.provenance", "gitAuthorEmail");
-    const row = await this.kysely
-      .selectFrom("skill_versions as v")
-      .leftJoin("user as u", (join) =>
-        join.on((eb) =>
-          eb.or([
-            eb(actorId, "=", eb.ref("u.id")),
-            eb(actorId, "=", eb.ref("u.email")),
-            eb(actorEmail, "=", eb.ref("u.email")),
-            eb(gitAuthorEmail, "=", eb.ref("u.email")),
-          ])
-        )
-      )
-      .select([
-        "v.id",
-        "v.package_id",
-        "v.version",
-        "v.lifecycle_state",
-        "v.artifact_digest",
-        "v.validation",
-        "v.provenance",
-        "v.created_at",
-        "v.approved_at",
-        "v.replacement_version_id",
-        "u.name as actor_name",
-        "u.email as actor_email",
-      ])
+    const row = await this.selectVersions()
       .where("v.id", "=", versionId)
       .executeTakeFirst();
 
@@ -609,35 +600,7 @@ export class SqlRegistryStore implements RegistryStore {
   async getLatestApprovedVersion(
     packageId: string
   ): Promise<SkillVersion | undefined> {
-    const actorId = this.jsonText("v.provenance", "actorId");
-    const actorEmail = this.jsonText("v.provenance", "actorEmail");
-    const gitAuthorEmail = this.jsonText("v.provenance", "gitAuthorEmail");
-    const base = this.kysely
-      .selectFrom("skill_versions as v")
-      .leftJoin("user as u", (join) =>
-        join.on((eb) =>
-          eb.or([
-            eb(actorId, "=", eb.ref("u.id")),
-            eb(actorId, "=", eb.ref("u.email")),
-            eb(actorEmail, "=", eb.ref("u.email")),
-            eb(gitAuthorEmail, "=", eb.ref("u.email")),
-          ])
-        )
-      )
-      .select([
-        "v.id",
-        "v.package_id",
-        "v.version",
-        "v.lifecycle_state",
-        "v.artifact_digest",
-        "v.validation",
-        "v.provenance",
-        "v.created_at",
-        "v.approved_at",
-        "v.replacement_version_id",
-        "u.name as actor_name",
-        "u.email as actor_email",
-      ])
+    const base = this.selectVersions()
       .where("v.package_id", "=", packageId)
       .where("v.lifecycle_state", "=", "approved");
 
@@ -942,49 +905,91 @@ export class SqlRegistryStore implements RegistryStore {
     workspaceId: string,
     days: number = DOWNLOAD_HISTORY_DAYS
   ): Promise<CatalogPackageStats[]> {
-    const packages = await this.listPackages(workspaceId);
-    const stats: CatalogPackageStats[] = [];
-
-    for (const pkg of packages) {
-      const versions = await this.listVersions(pkg.id);
-      const downloads = await this.countUsageEvents({
-        workspaceId,
-        packageId: pkg.id,
-        eventType: "download",
-      });
-      const downloadHistory = await this.getDownloadHistory(
-        {
-          workspaceId,
-          packageId: pkg.id,
-          eventType: "download",
-        },
-        days
-      );
-
-      stats.push({
-        packageId: pkg.id,
-        downloads,
-        downloadHistory,
-        lastModifiedAt: resolveLastModifiedAt(versions),
-      });
-    }
-
-    return stats;
+    return (await this.getWorkspaceCatalog(workspaceId, days)).stats;
   }
 
   async getWorkspaceReports(workspaceId: string): Promise<PackageReport[]> {
-    const packages = await this.listPackages(workspaceId);
-    const reports: PackageReport[] = [];
+    return (await this.getWorkspaceCatalog(workspaceId)).reports;
+  }
 
-    for (const pkg of packages) {
-      const report = await this.getPackageReport(pkg.id);
-
-      if (report) {
-        reports.push(report);
-      }
+  // A fixed five queries per workspace instead of several per package: on a
+  // remote database each round trip costs tens of milliseconds.
+  async getWorkspaceCatalog(
+    workspaceId: string,
+    days: number = DOWNLOAD_HISTORY_DAYS
+  ): Promise<WorkspaceCatalogSnapshot> {
+    const day = sql`cast(created_at as date)`;
+    const [packages, versionRows, usageRows, historyRows, installRows] =
+      await Promise.all([
+        this.listPackages(workspaceId),
+        this.selectVersions()
+          .innerJoin("skill_packages as p", "p.id", "v.package_id")
+          .where("p.workspace_id", "=", workspaceId)
+          .execute(),
+        this.kysely
+          .selectFrom("usage_events")
+          .select((eb) => [
+            "package_id",
+            "event_type",
+            eb.fn.countAll().as("count"),
+          ])
+          .where("workspace_id", "=", workspaceId)
+          .where("package_id", "is not", null)
+          .groupBy(["package_id", "event_type"])
+          .execute(),
+        this.kysely
+          .selectFrom("usage_events")
+          .select((eb) => [
+            "package_id",
+            day.as("day"),
+            eb.fn.countAll().as("count"),
+          ])
+          .where("workspace_id", "=", workspaceId)
+          .where("event_type", "=", "download")
+          .where("package_id", "is not", null)
+          .where(
+            "created_at",
+            ">=",
+            new Date(downloadHistoryStartIso(days, this.now))
+          )
+          .groupBy(["package_id", day])
+          .execute(),
+        this.kysely
+          .selectFrom("install_reports as r")
+          .innerJoin("skill_packages as p", "p.id", "r.package_id")
+          .select(["r.package_id", "r.install_id", "r.state", "r.reported_at"])
+          .where("p.workspace_id", "=", workspaceId)
+          .execute(),
+      ]);
+    // The OR join on author can match one version to several users; keep one row.
+    const versions = new Map<string, SkillVersion>();
+    for (const row of versionRows) {
+      if (!versions.has(row.id)) versions.set(row.id, fromVersionRow(row));
     }
 
-    return reports;
+    return assembleWorkspaceCatalog(
+      {
+        packages,
+        versions: [...versions.values()],
+        usageCounts: usageRows.map((row) => ({
+          packageId: row.package_id as string,
+          eventType: row.event_type,
+          count: Number(row.count),
+        })),
+        downloadHistory: historyRows.map((row) => ({
+          packageId: row.package_id as string,
+          ...fromDownloadHistoryRow(row as DownloadHistoryRow),
+        })),
+        installReports: installRows.map((row) => ({
+          packageId: row.package_id,
+          installId: row.install_id,
+          state: row.state as InstalledSkillState,
+          reportedAt: toIsoString(row.reported_at),
+        })),
+      },
+      days,
+      this.now
+    );
   }
 
   async seed(
@@ -1293,6 +1298,29 @@ export class MemoryRegistryStore implements RegistryStore {
     return stats;
   }
 
+  async getWorkspaceCatalog(
+    workspaceId: string,
+    days: number = DOWNLOAD_HISTORY_DAYS
+  ): Promise<WorkspaceCatalogSnapshot> {
+    const packages = await this.listPackages(workspaceId);
+    const versionsByPackage = new Map<string, SkillVersion[]>();
+    const latestApprovedByPackage = new Map<string, SkillVersion>();
+
+    for (const pkg of packages) {
+      versionsByPackage.set(pkg.id, await this.listVersions(pkg.id));
+      const latest = await this.getLatestApprovedVersion(pkg.id);
+      if (latest) latestApprovedByPackage.set(pkg.id, latest);
+    }
+
+    return {
+      packages,
+      versionsByPackage,
+      latestApprovedByPackage,
+      stats: await this.getWorkspaceCatalogStats(workspaceId, days),
+      reports: await this.getWorkspaceReports(workspaceId),
+    };
+  }
+
   async getWorkspaceReports(workspaceId: string): Promise<PackageReport[]> {
     const packages = await this.listPackages(workspaceId);
     const reports: PackageReport[] = [];
@@ -1308,16 +1336,6 @@ export class MemoryRegistryStore implements RegistryStore {
     return reports;
   }
 }
-
-const installStates: InstalledSkillState[] = [
-  "current",
-  "stale",
-  "deprecated",
-  "hidden",
-  "unknown-registry",
-  "missing-metadata",
-  "modified-local-content",
-];
 
 interface PackageRow {
   id: string;
@@ -1361,92 +1379,6 @@ interface InstallReportRow {
 interface DownloadHistoryRow {
   day: string | Date;
   count: string | number;
-}
-
-interface ReportInput {
-  packageId: string;
-  workspaceId: string;
-  versionCount: number;
-  latestApprovedVersionId?: string;
-  views: number;
-  downloads: number;
-  downloadHistory: DownloadHistoryPoint[];
-  lastModifiedAt: string;
-  reports: Pick<InstallReport, "installId" | "state" | "reportedAt">[];
-}
-
-function buildPackageReport(input: ReportInput): PackageReport {
-  const latestByInstall = new Map<
-    string,
-    Pick<InstallReport, "installId" | "state" | "reportedAt">
-  >();
-
-  for (const report of input.reports) {
-    const current = latestByInstall.get(report.installId);
-
-    if (!current || report.reportedAt > current.reportedAt) {
-      latestByInstall.set(report.installId, report);
-    }
-  }
-
-  const byState = Object.fromEntries(
-    installStates.map((state) => [state, 0])
-  ) as PackageReport["installs"]["byState"];
-
-  for (const report of latestByInstall.values()) {
-    byState[report.state] += 1;
-  }
-
-  return {
-    packageId: input.packageId,
-    workspaceId: input.workspaceId,
-    versionCount: input.versionCount,
-    latestApprovedVersionId: input.latestApprovedVersionId,
-    views: input.views,
-    downloads: input.downloads,
-    downloadHistory: input.downloadHistory,
-    lastModifiedAt: input.lastModifiedAt,
-    installs: {
-      total: latestByInstall.size,
-      byState,
-    },
-  };
-}
-
-function resolveLastModifiedAt(versions: SkillVersion[]): string {
-  const newest = versions[0];
-
-  return newest?.createdAt ?? new Date(0).toISOString();
-}
-
-function downloadHistoryStartIso(days: number, now: Clock): string {
-  // Copy: the cursor below is mutated, and a Clock is allowed to hand back a
-  // shared Date instance (e.g. `() => fixedDate` in a test).
-  const start = new Date(now().getTime());
-  start.setUTCHours(0, 0, 0, 0);
-  start.setUTCDate(start.getUTCDate() - (days - 1));
-
-  return start.toISOString();
-}
-
-function fillDownloadHistory(
-  points: DownloadHistoryPoint[],
-  days: number,
-  now: Clock
-): DownloadHistoryPoint[] {
-  const counts = new Map(points.map((point) => [point.date, point.count]));
-  const filled: DownloadHistoryPoint[] = [];
-  const cursor = new Date(now().getTime());
-  cursor.setUTCHours(0, 0, 0, 0);
-  cursor.setUTCDate(cursor.getUTCDate() - (days - 1));
-
-  for (let index = 0; index < days; index += 1) {
-    const date = cursor.toISOString().slice(0, 10);
-    filled.push({ date, count: counts.get(date) ?? 0 });
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-
-  return filled;
 }
 
 function fromDownloadHistoryRow(row: DownloadHistoryRow): DownloadHistoryPoint {

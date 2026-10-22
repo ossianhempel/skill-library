@@ -8,22 +8,32 @@ import type {
 } from "../types.js";
 import { isLocalDev } from "../lib/browser.js";
 import { devSampleSkills } from "../lib/dev-sample-data.js";
-import { loadCatalogSkills } from "../api/catalog.js";
+import { loadWorkspaceCatalog } from "../api/catalog.js";
+import {
+  catalogCacheKey,
+  clearCachedCatalogs,
+  readCachedCatalog,
+  writeCachedCatalog,
+} from "../lib/catalog-cache.js";
 
 export function useCatalog({
   apiClient,
+  registryUrl = "",
   workspaceId,
   skills,
   session,
+  sessionLoading = false,
   activeTab,
   loading,
   setLoading,
   setNotice,
 }: {
   apiClient: WebApiClient;
+  registryUrl?: string;
   workspaceId: string;
   skills: CatalogSkill[] | undefined;
   session: SessionUser | null;
+  sessionLoading?: boolean;
   activeTab: AppTab;
   loading: boolean;
   setLoading: (loading: boolean) => void;
@@ -46,6 +56,21 @@ export function useCatalog({
   // Identifies the in-flight catalog load so a slower request for a previous
   // workspace can't overwrite a newer one's results.
   const loadTokenRef = useRef(0);
+  // True once the current workspace's list is on screen (from cache or network),
+  // so later refreshes run in the background without the global loading state.
+  const shownRef = useRef(false);
+  const freshRef = useRef(false);
+  // Viewer the last network catalog was served to; undefined until known.
+  // Viewer identities are "id|role" (or null when anonymous): a role change
+  // alters what the catalog may contain, so it counts as a different viewer.
+  const loadedViewerRef = useRef<string | null | undefined>(undefined);
+  const sessionIdRef = useRef<string | null | undefined>(undefined);
+  // The server treats a session without a role as "user"; match it so cache
+  // keys and change detection agree with the viewer the catalog was served to.
+  const sessionViewer = session
+    ? { id: session.id, role: session.role || "user" }
+    : null;
+  const sessionId = viewerIdentity(sessionViewer);
 
   // Select a skill and, on stacked/narrow layouts where the detail pane sits
   // below (or scrolled off from) the list, bring the skill info into view.
@@ -78,9 +103,67 @@ export function useCatalog({
     }
 
     // Switching workspace (or client): the current catalog is not yet loaded.
+    shownRef.current = false;
+    freshRef.current = false;
     setCatalogLoaded(false);
     void loadCatalog();
   }, [skills, workspaceId, apiClient]);
+
+  // Stale-while-revalidate: the network load starts at mount; as soon as we
+  // know who is signed in, show that viewer's last catalog until it lands.
+  useEffect(() => {
+    if (skills || sessionLoading || freshRef.current) {
+      return;
+    }
+
+    const cached = readCachedCatalog(
+      catalogCacheKey(registryUrl, workspaceId, sessionViewer)
+    );
+
+    if (cached) {
+      shownRef.current = true;
+      applyCatalog(cached);
+      setCatalogLoaded(true);
+    }
+  }, [skills, sessionLoading, sessionId, workspaceId, registryUrl]);
+
+  // A different viewer (sign-in without a reload, sign-out, account or role
+  // switch) must not keep seeing the previous viewer's catalog.
+  useEffect(() => {
+    if (sessionLoading) {
+      return;
+    }
+
+    const previous = sessionIdRef.current;
+    sessionIdRef.current = sessionId;
+    const loadedViewer = loadedViewerRef.current;
+    const viewerChanged =
+      previous !== undefined
+        ? previous !== sessionId
+        : // First resolution: the mount-time load may have run before a
+          // session existed. Token-only clients have no session to compare.
+          sessionId !== null &&
+          loadedViewer !== undefined &&
+          loadedViewer !== sessionId;
+
+    if (skills || !viewerChanged) {
+      return;
+    }
+
+    if (previous && !sessionId) {
+      clearCachedCatalogs();
+    }
+
+    // Drop what the previous viewer saw and any load still in flight for them,
+    // then load as the new viewer with the normal (foreground) states.
+    loadTokenRef.current += 1;
+    loadedViewerRef.current = undefined;
+    shownRef.current = false;
+    freshRef.current = false;
+    applyCatalog([]);
+    setCatalogLoaded(false);
+    void loadCatalog();
+  }, [sessionLoading, sessionId]);
 
   const availableCategories = useMemo(() => {
     const categoriesSet = new Set<string>();
@@ -112,12 +195,7 @@ export function useCatalog({
       }
 
       // 2. Filter by search query (client-side!)
-      const normalizedQuery = query.trim().toLowerCase();
-      if (normalizedQuery) {
-        const matchText =
-          `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
-        if (!matchText.includes(normalizedQuery)) return false;
-      }
+      if (!matchesQuery(skill, query)) return false;
 
       return true;
     });
@@ -156,12 +234,7 @@ export function useCatalog({
       }
 
       // 2. Filter by search query (client-side!)
-      const normalizedQuery = query.trim().toLowerCase();
-      if (normalizedQuery) {
-        const matchText =
-          `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
-        if (!matchText.includes(normalizedQuery)) return false;
-      }
+      if (!matchesQuery(skill, query)) return false;
 
       return true;
     });
@@ -183,33 +256,16 @@ export function useCatalog({
   }, [mySkills]);
 
   const queryFilteredCatalog = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return catalog;
-    return catalog.filter((skill) => {
-      const matchText =
-        `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
-      return matchText.includes(normalizedQuery);
-    });
+    return catalog.filter((skill) => matchesQuery(skill, query));
   }, [catalog, query]);
 
   const queryFilteredMySkills = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return mySkills;
-    return mySkills.filter((skill) => {
-      const matchText =
-        `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
-      return matchText.includes(normalizedQuery);
-    });
+    return mySkills.filter((skill) => matchesQuery(skill, query));
   }, [mySkills, query]);
 
   const queryAndStatusFilteredCatalog = useMemo(() => {
     return catalog.filter((skill) => {
-      const normalizedQuery = query.trim().toLowerCase();
-      if (normalizedQuery) {
-        const matchText =
-          `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
-        if (!matchText.includes(normalizedQuery)) return false;
-      }
+      if (!matchesQuery(skill, query)) return false;
 
       const state =
         skill.activeVersion?.lifecycleState ??
@@ -227,12 +283,7 @@ export function useCatalog({
 
   const queryAndStatusFilteredMySkills = useMemo(() => {
     return mySkills.filter((skill) => {
-      const normalizedQuery = query.trim().toLowerCase();
-      if (normalizedQuery) {
-        const matchText =
-          `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`.toLowerCase();
-        if (!matchText.includes(normalizedQuery)) return false;
-      }
+      if (!matchesQuery(skill, query)) return false;
 
       const state =
         skill.activeVersion?.lifecycleState ??
@@ -289,22 +340,40 @@ export function useCatalog({
 
   const selected = catalog.find((skill) => skill.pkg.id === selectedId);
 
+  function applyCatalog(next: CatalogSkill[]) {
+    setCatalog(next);
+    setSelectedId((current) =>
+      current && next.some((skill) => skill.pkg.id === current)
+        ? current
+        : next[0]?.pkg.id
+    );
+  }
+
   async function loadCatalog() {
     const token = ++loadTokenRef.current;
-    setLoading(true);
+    if (!shownRef.current) {
+      setLoading(true);
+    }
 
     try {
-      const next = await loadCatalogSkills(apiClient, workspaceId);
+      const { skills: next, viewer } = await loadWorkspaceCatalog(
+        apiClient,
+        workspaceId
+      );
       // A newer load (e.g. a workspace switch) started while this was in flight.
       if (token !== loadTokenRef.current) {
         return;
       }
-      setCatalog(next);
-      setSelectedId((current) =>
-        current && next.some((skill) => skill.pkg.id === current)
-          ? current
-          : next[0]?.pkg.id
-      );
+      freshRef.current = true;
+      shownRef.current = true;
+      applyCatalog(next);
+      if (viewer !== undefined) {
+        loadedViewerRef.current = viewerIdentity(viewer);
+        writeCachedCatalog(
+          catalogCacheKey(registryUrl, workspaceId, viewer),
+          next
+        );
+      }
       setNotice(
         next.length > 0
           ? "Catalog synced"
@@ -312,6 +381,22 @@ export function useCatalog({
       );
     } catch (error) {
       if (token !== loadTokenRef.current) {
+        return;
+      }
+      const status = (error as { status?: number } | undefined)?.status;
+      const denied = status === 401 || status === 403;
+      if (denied) {
+        // The viewer lost access: drop what the cache put on screen too.
+        clearCachedCatalogs();
+      }
+      // The cache may have been put on screen after this load started.
+      if (shownRef.current && !denied) {
+        // Keep showing the cached catalog; only say the refresh failed.
+        setNotice(
+          error instanceof Error
+            ? `Could not refresh catalog: ${error.message}`
+            : "Could not refresh catalog"
+        );
         return;
       }
       const fallback = isLocalDev() ? devSampleSkills : [];
@@ -327,6 +412,8 @@ export function useCatalog({
             : "API unavailable"
       );
     } finally {
+      // Only the newest load settles the state, so it also owns clearing the
+      // loading flag a superseded foreground load may have set.
       if (token === loadTokenRef.current) {
         setLoading(false);
         setCatalogLoaded(true);
@@ -385,4 +472,21 @@ export function useCatalog({
     displaySkills,
     selected,
   };
+}
+
+// Client-side search over name, description and categories.
+function matchesQuery(skill: CatalogSkill, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+  return (
+    !normalizedQuery ||
+    `${skill.pkg.name} ${skill.pkg.description} ${skill.pkg.categories.join(" ")}`
+      .toLowerCase()
+      .includes(normalizedQuery)
+  );
+}
+
+function viewerIdentity(
+  viewer: { id: string; role: string } | null | undefined
+): string | null {
+  return viewer ? `${viewer.id}|${viewer.role}` : null;
 }

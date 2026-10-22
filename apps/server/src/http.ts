@@ -20,6 +20,10 @@ import {
 } from "./better-auth.js";
 import { getOrCreateAgentToken } from "./agent-token.js";
 import { artifactDownloadResponse } from "./artifact-download.js";
+import {
+  registerWorkspaceCatalogRoute,
+  visibleWorkspaceCatalog,
+} from "./workspace-catalog.js";
 
 export function createHttpApp(
   store: RegistryStore,
@@ -116,28 +120,23 @@ export function createHttpApp(
     const actor = await resolveActor(context.req.raw.headers);
     const packages = await api.search(workspaceId, context.req.query("q"));
 
-    if (hasRole(actor, "maintainer")) {
+    if (hasRole(actor, "maintainer") || packages.length === 0) {
       return context.json({ packages });
     }
 
-    const installablePackages = [];
+    const visible = new Set(
+      visibleWorkspaceCatalog(
+        await api.workspaceCatalog(workspaceId),
+        actor
+      ).map((entry) => entry.package.id)
+    );
 
-    for (const pkg of packages) {
-      if (await api.latestApprovedVersion(pkg.id)) {
-        installablePackages.push(pkg);
-      } else if (actor) {
-        const versions = await api.packageVersions(pkg.id);
-        const hasUserVersion = versions.some(
-          (v) => v.provenance.actorId === actor.id
-        );
-        if (hasUserVersion) {
-          installablePackages.push(pkg);
-        }
-      }
-    }
-
-    return context.json({ packages: installablePackages });
+    return context.json({
+      packages: packages.filter((pkg) => visible.has(pkg.id)),
+    });
   });
+
+  registerWorkspaceCatalogRoute(app, api, resolveActor);
 
   app.get("/api/packages/:packageId", async (context) => {
     const packageId = context.req.param("packageId");
