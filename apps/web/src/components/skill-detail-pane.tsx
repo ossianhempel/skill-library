@@ -31,6 +31,7 @@ import { ValidationPanel } from "../validation-panel.js";
 import { SkillStatsMeta } from "../skill-stats.js";
 import { LifecycleBadge } from "./chrome.js";
 import { AddToClaudeSteps, ClaudePromptInstall } from "./add-to-claude.js";
+import { PopularityLine, UpvoteButton } from "./popularity.js";
 
 export const SkillDetailPane = forwardRef<
   HTMLElement,
@@ -51,6 +52,8 @@ export const SkillDetailPane = forwardRef<
     copyShareLink: () => void;
     setFilesExpanded: (expanded: boolean) => void;
     handleLifecycle: (toState: LifecycleState) => void;
+    onVote: (voted: boolean) => void;
+    votePending: boolean;
   }
 >(function SkillDetailPane(
   {
@@ -70,6 +73,8 @@ export const SkillDetailPane = forwardRef<
     copyShareLink,
     setFilesExpanded,
     handleLifecycle,
+    onVote,
+    votePending,
   },
   ref
 ) {
@@ -80,6 +85,7 @@ export const SkillDetailPane = forwardRef<
           <p className="kicker">Selected package</p>
           <h2>{selected.pkg.name}</h2>
           <p>{selected.pkg.description}</p>
+          <PopularityLine ranking={selected.ranking} />
           {selected.pkg.categories && selected.pkg.categories.length > 0 && (
             <div className="tags" style={{ marginTop: "8px" }}>
               {selected.pkg.categories.map((category) => (
@@ -92,6 +98,14 @@ export const SkillDetailPane = forwardRef<
           <LifecycleBadge
             state={selected.activeVersion?.lifecycleState ?? "draft"}
           />
+          {/* New votes need an approved version; an existing vote can always be withdrawn. */}
+          {(selected.latestApproved || selected.ranking?.votedByMe) && (
+            <UpvoteButton
+              ranking={selected.ranking}
+              disabled={loading || votePending}
+              onVote={onVote}
+            />
+          )}
           <button
             type="button"
             className="secondary copy-link-button"

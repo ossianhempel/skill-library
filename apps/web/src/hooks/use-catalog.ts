@@ -3,9 +3,11 @@ import type { LifecycleState } from "@skill-library/domain";
 import type {
   AppTab,
   CatalogSkill,
+  CatalogSort,
   SessionUser,
   WebApiClient,
 } from "../types.js";
+import { sortCatalog } from "../components/popularity.js";
 import { isLocalDev } from "../lib/browser.js";
 import { devSampleSkills } from "../lib/dev-sample-data.js";
 import { loadWorkspaceCatalog } from "../api/catalog.js";
@@ -48,6 +50,9 @@ export function useCatalog({
   const [statusFilter, setStatusFilter] = useState<
     "all" | "approved" | "drafts"
   >("all");
+  const [sortBy, setSortBy] = useState<CatalogSort>("popular");
+  const [votePending, setVotePending] = useState(false);
+  const votePendingRef = useRef(false);
   // Tracks whether the initial catalog query has resolved at least once, so the
   // Catalog / My Skills lists can show a spinner instead of an empty-state on
   // first paint (before any data has arrived).
@@ -321,8 +326,8 @@ export function useCatalog({
       });
     }
 
-    return base;
-  }, [activeTab, filteredCatalog, filteredMySkills, statusFilter]);
+    return sortCatalog(base, sortBy);
+  }, [activeTab, filteredCatalog, filteredMySkills, statusFilter, sortBy]);
 
   useEffect(() => {
     setSelectedCategory("all");
@@ -348,6 +353,16 @@ export function useCatalog({
         : next[0]?.pkg.id
     );
   }
+
+  // The lists behind the Catalog / My Skills filters for whichever tab is open.
+  const isMySkills = activeTab === "my-skills";
+  const listFilters = {
+    statusCatalog: isMySkills ? queryFilteredMySkills : queryFilteredCatalog,
+    categories: isMySkills ? myCategories : availableCategories,
+    categoryCatalog: isMySkills
+      ? queryAndStatusFilteredMySkills
+      : queryAndStatusFilteredCatalog,
+  };
 
   async function loadCatalog() {
     const token = ++loadTokenRef.current;
@@ -446,6 +461,32 @@ export function useCatalog({
     }
   }
 
+  async function handleVote(voted: boolean) {
+    const packageId = selected?.pkg.id;
+
+    // One vote request at a time, so a double click can't race itself.
+    if (!packageId || !apiClient.setSkillVote || votePendingRef.current) {
+      return;
+    }
+
+    votePendingRef.current = true;
+    setVotePending(true);
+    try {
+      const ranking = await apiClient.setSkillVote(packageId, voted);
+      setCatalog((current) =>
+        current.map((skill) =>
+          skill.pkg.id === packageId ? { ...skill, ranking } : skill
+        )
+      );
+      setNotice(voted ? "Thanks — upvote saved" : "Upvote removed");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Upvote failed");
+    } finally {
+      votePendingRef.current = false;
+      setVotePending(false);
+    }
+  }
+
   return {
     catalog,
     selectedId,
@@ -471,6 +512,11 @@ export function useCatalog({
     queryAndStatusFilteredMySkills,
     displaySkills,
     selected,
+    sortBy,
+    setSortBy,
+    handleVote,
+    votePending,
+    listFilters,
   };
 }
 

@@ -25,11 +25,9 @@ import { useSkillUrl } from "./hooks/use-skill-url.js";
 import { StatusStyles } from "./components/chrome.js";
 import { useWorkspace } from "./hooks/use-workspace.js";
 import { AppRail, AppTopbar } from "./components/app-shell.js";
-import {
-  CategoryFilter,
-  SkillList,
-  StatusFilter,
-} from "./components/catalog-list.js";
+import { CatalogTab } from "./components/catalog-tab.js";
+import { ContributorsPanel } from "./components/popularity.js";
+import { useContributors } from "./hooks/use-contributors.js";
 import { OverviewTab } from "./components/overview-tab.js";
 import { PublishTab } from "./components/publish-tab.js";
 import { ReportPanel } from "./components/report-panel.js";
@@ -148,13 +146,13 @@ export function SkillLibraryApp({
     loadCatalog,
     handleLifecycle,
     availableCategories,
-    myCategories,
-    queryFilteredCatalog,
-    queryFilteredMySkills,
-    queryAndStatusFilteredCatalog,
-    queryAndStatusFilteredMySkills,
     displaySkills,
     selected,
+    sortBy,
+    setSortBy,
+    handleVote,
+    votePending,
+    listFilters,
   } = useCatalog({
     apiClient,
     registryUrl,
@@ -169,6 +167,12 @@ export function SkillLibraryApp({
   });
 
   useEffect(() => setFilesExpanded(false), [selectedId]);
+
+  const leaderboard = useContributors({
+    apiClient,
+    workspaceId,
+    active: activeTab === "contributors",
+  });
 
   const { copiedLink, copyShareLink } = useSkillUrl({
     activeTab,
@@ -360,66 +364,21 @@ export function SkillLibraryApp({
             />
           )}
 
-          {activeTab === "catalog" && (
-            <>
-              <StatusFilter
-                selectedStatus={statusFilter}
-                onSelectStatus={setStatusFilter}
-                catalog={queryFilteredCatalog}
-              />
-              <CategoryFilter
-                categories={availableCategories}
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                catalog={queryAndStatusFilteredCatalog}
-              />
-              <SkillList
-                catalog={displaySkills}
-                selectedId={selected?.pkg.id}
-                onSelect={handleSelectSkill}
-                loading={!catalogLoaded}
-                emptyMessage={
-                  displaySkills.length === 0
-                    ? statusFilter === "drafts"
-                      ? "No draft or pending skills in this category match your search."
-                      : statusFilter === "approved"
-                        ? "No approved skills in this category match your search."
-                        : "No skills in this category match your search."
-                    : undefined
-                }
-              />
-            </>
-          )}
-
-          {activeTab === "my-skills" && (
-            <>
-              <StatusFilter
-                selectedStatus={statusFilter}
-                onSelectStatus={setStatusFilter}
-                catalog={queryFilteredMySkills}
-              />
-              <CategoryFilter
-                categories={myCategories}
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                catalog={queryAndStatusFilteredMySkills}
-              />
-              <SkillList
-                catalog={displaySkills}
-                selectedId={selected?.pkg.id}
-                onSelect={handleSelectSkill}
-                loading={!catalogLoaded}
-                emptyMessage={
-                  displaySkills.length === 0
-                    ? statusFilter === "drafts"
-                      ? "You haven't uploaded any draft or pending skills in this category yet."
-                      : statusFilter === "approved"
-                        ? "You haven't uploaded any approved skills in this category yet."
-                        : "You haven't uploaded any skills in this category yet."
-                    : undefined
-                }
-              />
-            </>
+          {(activeTab === "catalog" || activeTab === "my-skills") && (
+            <CatalogTab
+              view={activeTab}
+              {...listFilters}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              displaySkills={displaySkills}
+              selectedId={selected?.pkg.id}
+              onSelect={handleSelectSkill}
+              loading={!catalogLoaded}
+            />
           )}
 
           {activeTab === "publish" && (
@@ -443,6 +402,14 @@ export function SkillLibraryApp({
 
           {activeTab === "reports" && (
             <ReportPanel catalog={catalog} summary={reportSummary} />
+          )}
+
+          {activeTab === "contributors" && (
+            <ContributorsPanel
+              contributors={leaderboard.contributors}
+              loading={leaderboard.loading}
+              currentUserId={session?.id}
+            />
           )}
 
           {activeTab === "team" && session && (
@@ -482,6 +449,8 @@ export function SkillLibraryApp({
             copyShareLink={copyShareLink}
             setFilesExpanded={setFilesExpanded}
             handleLifecycle={handleLifecycle}
+            onVote={handleVote}
+            votePending={votePending}
           />
         )}
       </main>
@@ -490,10 +459,38 @@ export function SkillLibraryApp({
 }
 
 // Stable public re-exports — ui.test.tsx and index.ts import these from ./ui.js.
-export { buildInstallPrompt, buildInstallAgentPrompt, INSTALL_PROVIDER_OPTIONS } from "./lib/install-prompts.js"; // prettier-ignore
+export {
+  buildInstallPrompt,
+  buildInstallAgentPrompt,
+  INSTALL_PROVIDER_OPTIONS,
+} from "./lib/install-prompts.js";
 export type { InstallAgentPromptInput } from "./lib/install-prompts.js";
-export { buildUploadRequest, resolvePublishInput, PUBLISH_FIELD_PLACEHOLDERS, emptyPublishForm, emptyGitFields } from "./lib/publish.js"; // prettier-ignore
-export { filesToPackageEntries, loadCatalogSkills, pickActiveVersion, summarizeReports } from "./api/catalog.js"; // prettier-ignore
+export {
+  buildUploadRequest,
+  resolvePublishInput,
+  PUBLISH_FIELD_PLACEHOLDERS,
+  emptyPublishForm,
+  emptyGitFields,
+} from "./lib/publish.js";
+export {
+  filesToPackageEntries,
+  loadCatalogSkills,
+  pickActiveVersion,
+  summarizeReports,
+} from "./api/catalog.js";
 export { createWebApiClient } from "./api/client.js";
-export { renderCatalogTitle, renderLifecycleBadge, formatRoleLabel } from "./lib/format.js"; // prettier-ignore
-export type { SessionUser, AdminUser, CatalogSkill, WebApiClient, UploadVersionInput, GitImportInput, SkillLibraryAppProps, AppTab } from "./types.js"; // prettier-ignore
+export {
+  renderCatalogTitle,
+  renderLifecycleBadge,
+  formatRoleLabel,
+} from "./lib/format.js";
+export type {
+  SessionUser,
+  AdminUser,
+  CatalogSkill,
+  WebApiClient,
+  UploadVersionInput,
+  GitImportInput,
+  SkillLibraryAppProps,
+  AppTab,
+} from "./types.js";

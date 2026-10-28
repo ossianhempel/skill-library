@@ -22,6 +22,8 @@ The registry API is implemented in `apps/server` and uses the same `RegistryApi`
 - `GET /api/workspaces/:workspaceId/usage-counts?eventType=&packageId=&versionId=`: count recorded view/download events.
 - `GET /api/workspaces/:workspaceId/reports`: maintainer package reports for all packages in a workspace.
 - `POST /api/install-reports`: record CLI/MCP install or status reports.
+- `GET /api/workspaces/:workspaceId/ranking`: skill popularity (distinct colleagues who installed, upvotes, score, and whether the caller upvoted or authored each skill) plus the contributor leaderboard. The batched catalog response carries the same per-skill `ranking`.
+- `PUT /api/packages/:packageId/vote`: body `{ "voted": true | false }`. Signed-in users upvote an approved skill once, or withdraw the upvote. Authors get `403` on their own skills.
 
 ## Response Policy
 
@@ -32,6 +34,8 @@ Artifact ingestion refuses invalid packages with `422` and stores valid packages
 Private workspaces require at least `user` role for catalog, package, and version reads. Public workspaces may be browsed without credentials.
 
 Package detail requests record `view` usage events. Artifact downloads record `download` usage events when `packageId` and `versionId` query parameters are provided. These counters support reporting without mutating package version content.
+
+Ranking counts people, not events. A skill's score sums, over distinct signed-in colleagues who downloaded it, a weight that halves every 30 days since their latest download, plus 2 per upvote. Authors' own downloads and upvotes never count. A contributor's score is the sum over the approved skills they published.
 
 Package reports count views and downloads as raw events. Install reports are deduplicated by `installId`; only the latest report timestamp for each install contributes to the package's current install-state totals. This lets repeated status checks update stale/current state without inflating adoption.
 
