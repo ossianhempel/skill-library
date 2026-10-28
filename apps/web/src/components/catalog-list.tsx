@@ -3,6 +3,7 @@ import type { CatalogSkill } from "../types.js";
 import { titleize } from "../lib/format.js";
 import { SkillStatsMeta } from "../skill-stats.js";
 import { LifecycleBadge } from "./chrome.js";
+import { PopularityLine } from "./popularity.js";
 
 export function StatusFilter({
   selectedStatus,
@@ -167,6 +168,7 @@ export function SkillRow({
         <div className="skill-row-copy">
           <h2>{skill.pkg.name}</h2>
           <p>{skill.pkg.description}</p>
+          <PopularityLine ranking={skill.ranking} />
           <div className="tags">
             {skill.pkg.categories.map((category) => (
               <span key={category}>{category}</span>

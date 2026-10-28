@@ -172,6 +172,25 @@ export async function runRegistryMigrations(
       )
       .addColumn("event_type", t.keyText, (c) => c.notNull())
       .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
+      .addColumn("actor_id", t.keyText)
+      .execute();
+  }
+
+  if (existing.has("usage_events")) {
+    await addColumnIfMissing(db, "usage_events", "actor_id", t.keyText);
+  }
+
+  // One upvote per (skill, user). No FK to "user": the auth tables are created after
+  // these, and votes from a deleted user are removed by the store's deleteUser.
+  if (!existing.has("skill_votes")) {
+    await db.schema
+      .createTable("skill_votes")
+      .addColumn("package_id", t.keyText, (c) =>
+        c.notNull().references("skill_packages.id").onDelete("cascade")
+      )
+      .addColumn("user_id", t.keyText, (c) => c.notNull())
+      .addColumn("created_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
+      .addPrimaryKeyConstraint("skill_votes_pk", ["package_id", "user_id"])
       .execute();
   }
 }

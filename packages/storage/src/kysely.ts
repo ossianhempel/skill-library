@@ -162,6 +162,7 @@ export interface DatabaseSchema {
   lifecycle_events: LifecycleEventsTable;
   install_reports: InstallReportsTable;
   usage_events: UsageEventsTable;
+  skill_votes: SkillVotesTable;
   // Better Auth tables. Runtime CRUD is owned by Better Auth's native Kysely adapter;
   // these types exist so the store can create the schema cross-dialect and run typed
   // maintenance queries (orphan cleanup, user count). Column names mirror the existing
@@ -248,6 +249,13 @@ interface UsageEventsTable {
   package_id: string | null;
   version_id: string | null;
   event_type: string;
+  created_at: GeneratedTimestamp;
+  actor_id: string | null;
+}
+
+interface SkillVotesTable {
+  package_id: string;
+  user_id: string;
   created_at: GeneratedTimestamp;
 }
 

@@ -15,6 +15,9 @@ import {
   type DatabaseSchema,
 } from "./kysely.js";
 import { runRegistryMigrations, runAuthMigrations } from "./migrations.js";
+import * as ranking from "./ranking-store.js";
+import type { SkillVoteInput } from "./ranking-store.js";
+import { listTeamMembers } from "./team-members.js";
 import { fromWorkspaceRow } from "./workspace-row.js";
 import type {
   CatalogPackageStats,
@@ -23,6 +26,7 @@ import type {
   InstalledSkillState,
   LifecycleState,
   PackageReport,
+  RankingSignals,
   SkillPackage,
   SkillVersion,
   UsageEvent,
@@ -46,6 +50,7 @@ export {
   createKyselyInstance,
   buildTediousConfig,
 } from "./kysely.js";
+export type { SkillVoteInput } from "./ranking-store.js";
 export type {
   DatabaseEngine,
   DatabaseSchema,
@@ -103,6 +108,8 @@ export interface RegistryStore {
     workspaceId: string,
     days?: number
   ): Promise<WorkspaceCatalogSnapshot>;
+  getRankingSignals(workspaceId: string): Promise<RankingSignals>;
+  setSkillVote(input: SkillVoteInput): Promise<void>;
 }
 
 /**
@@ -653,6 +660,7 @@ export class SqlRegistryStore implements RegistryStore {
         version_id: event.versionId ?? null,
         event_type: event.eventType,
         created_at: event.createdAt,
+        actor_id: event.actorId ?? null,
       },
       [["id", event.id]]
     );
@@ -689,13 +697,16 @@ export class SqlRegistryStore implements RegistryStore {
     return Number(row?.count ?? 0);
   }
 
-  // Dialect-aware text extraction from a JSON column. Postgres/PGlite use the `->>`
-  // operator on jsonb; SQL Server stores JSON as nvarchar(max) and reads it with
-  // JSON_VALUE(col, '$.key'). Used by the team-roster join on provenance->>'actorId'.
   private jsonText(columnRef: string, key: string) {
-    return this.engine === "mssql"
-      ? sql<string>`json_value(${sql.ref(columnRef)}, ${sql.lit(`$.${key}`)})`
-      : sql<string>`${sql.ref(columnRef)} ->> ${sql.lit(key)}`;
+    return ranking.jsonText(this.engine, columnRef, key);
+  }
+
+  async getRankingSignals(workspaceId: string): Promise<RankingSignals> {
+    return ranking.loadRankingSignals(this.kysely, this.engine, workspaceId);
+  }
+
+  async setSkillVote(input: SkillVoteInput): Promise<void> {
+    await ranking.writeSkillVote(this.kysely, this.engine, input);
   }
 
   async getAgentToken(userId: string): Promise<string | undefined> {
@@ -734,51 +745,7 @@ export class SqlRegistryStore implements RegistryStore {
   }
 
   async listTeamMembers(): Promise<TeamMemberRecord[]> {
-    const actorId = this.jsonText("v.provenance", "actorId");
-    const actorEmail = this.jsonText("v.provenance", "actorEmail");
-    const gitAuthorEmail = this.jsonText("v.provenance", "gitAuthorEmail");
-
-    const rows = await this.kysely
-      .selectFrom("user as u")
-      .leftJoin("skill_versions as v", (join) =>
-        join.on((eb) =>
-          eb.or([
-            eb(actorId, "=", eb.ref("u.id")),
-            eb(actorId, "=", eb.ref("u.email")),
-            eb(actorEmail, "=", eb.ref("u.email")),
-            eb(gitAuthorEmail, "=", eb.ref("u.email")),
-          ])
-        )
-      )
-      .select((eb) => [
-        "u.id",
-        "u.name",
-        "u.email",
-        "u.role",
-        "u.created_at",
-        "u.image",
-        eb.fn.count("v.id").as("skills_submitted"),
-      ])
-      .groupBy([
-        "u.id",
-        "u.name",
-        "u.email",
-        "u.role",
-        "u.created_at",
-        "u.image",
-      ])
-      .orderBy("u.created_at", "asc")
-      .execute();
-
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      role: row.role,
-      createdAt: toIsoString(row.created_at),
-      image: row.image,
-      skillsSubmitted: Number(row.skills_submitted ?? 0),
-    }));
+    return listTeamMembers(this.kysely, this.engine);
   }
 
   async updateUserRole(
@@ -812,6 +779,10 @@ export class SqlRegistryStore implements RegistryStore {
   }
 
   async deleteUser(userId: string): Promise<void> {
+    await this.kysely
+      .deleteFrom("skill_votes")
+      .where("user_id", "=", userId)
+      .execute();
     await this.kysely.deleteFrom("user").where("id", "=", userId).execute();
   }
 
@@ -1023,6 +994,7 @@ export class MemoryRegistryStore implements RegistryStore {
   private readonly versions = new Map<string, SkillVersion[]>();
   private readonly reports: InstallReport[] = [];
   private readonly usageEvents: UsageEvent[] = [];
+  private readonly votes = new Set<string>();
   private readonly now: Clock;
 
   constructor(config: RegistryStoreConfig = {}) {
@@ -1175,6 +1147,22 @@ export class MemoryRegistryStore implements RegistryStore {
 
   async recordUsageEvent(event: UsageEvent): Promise<void> {
     this.usageEvents.push(event);
+  }
+
+  async getRankingSignals(workspaceId: string): Promise<RankingSignals> {
+    const packages = await this.listPackages(workspaceId);
+    return ranking.memoryRankingSignals(
+      packages,
+      this.versions,
+      this.usageEvents,
+      this.votes
+    );
+  }
+
+  async setSkillVote(input: SkillVoteInput): Promise<void> {
+    const key = `${input.packageId}\u0000${input.userId}`;
+    if (input.voted) this.votes.add(key);
+    else this.votes.delete(key);
   }
 
   async countUsageEvents(filter: UsageEventFilter): Promise<number> {
