@@ -1992,3 +1992,78 @@ p {
 .technical-details[open] > summary::before {
   transform: rotate(90deg);
 }
+
+/* ── Language switcher ── */
+.topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.language-switcher {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  background: rgba(251, 250, 244, 0.78);
+}
+
+.language-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: 34px;
+  padding: 0 var(--space-10);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.language-option:hover {
+  color: var(--ink);
+}
+
+.language-option.active {
+  border-color: var(--accent);
+  background: rgba(232, 244, 236, 0.9);
+  color: var(--ink);
+}
+
+.language-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.language-option .flag {
+  width: 22px;
+  height: 15px;
+  flex: none;
+  box-shadow: 0 0 0 1px rgba(21, 23, 19, 0.18);
+}
+
+.login-shell {
+  position: relative;
+}
+
+.login-language {
+  position: absolute;
+  top: var(--space-18);
+  right: var(--space-18);
+}
+
+@media (max-width: 720px) {
+  .topbar-tools {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

@@ -3,6 +3,7 @@ import type {
   LifecycleState,
   RegistryBrandingConfig,
 } from "@skill-library/domain";
+import { useI18n } from "../i18n/locale.js";
 
 export function NavButton({
   icon,
@@ -46,7 +47,10 @@ export function Metric({
 }
 
 export function LifecycleBadge({ state }: { state: LifecycleState }) {
-  return <span className={`badge ${state}`}>{state}</span>;
+  const { t } = useI18n();
+  return (
+    <span className={`badge ${state}`}>{t.lifecycle[state] ?? state}</span>
+  );
 }
 
 export function StatusStyles({

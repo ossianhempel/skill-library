@@ -3,11 +3,12 @@ import { resolve } from "node:path";
 import {
   DEFAULT_REGISTRY_BRANDING,
   normalizeLogoUrlInput,
+  REGISTRY_BRANDING_TEXT_KEYS,
   type RegistryBrandingConfig,
 } from "@skill-library/domain";
 
 const BRANDING_KEYS = Object.keys(DEFAULT_REGISTRY_BRANDING) as Array<
-  keyof RegistryBrandingConfig
+  Exclude<keyof RegistryBrandingConfig, "localized">
 >;
 
 export function defaultRegistryBrandingConfig(): RegistryBrandingConfig {
@@ -54,7 +55,43 @@ export function mergeRegistryBranding(
     }
   }
 
+  const localized = mergeLocalizedBranding(overrides.localized);
+  if (localized) {
+    branding.localized = localized;
+  }
+
   return branding;
+}
+
+/** Keeps only known text fields with non-empty string values, per locale. */
+function mergeLocalizedBranding(
+  input: unknown
+): RegistryBrandingConfig["localized"] {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return undefined;
+  }
+
+  const result: NonNullable<RegistryBrandingConfig["localized"]> = {};
+
+  for (const [locale, fields] of Object.entries(input)) {
+    if (!fields || typeof fields !== "object" || Array.isArray(fields)) {
+      continue;
+    }
+
+    const texts: Record<string, string> = {};
+    for (const key of REGISTRY_BRANDING_TEXT_KEYS) {
+      const value = (fields as Record<string, unknown>)[key];
+      if (typeof value === "string" && value.trim()) {
+        texts[key] = value.trim();
+      }
+    }
+
+    if (Object.keys(texts).length > 0) {
+      result[locale] = texts;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 function resolveConfigPath(): string {

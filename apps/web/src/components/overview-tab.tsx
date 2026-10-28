@@ -8,6 +8,7 @@ import type { AppTab, CatalogSkill, SessionUser } from "../types.js";
 import { FeaturedSkill } from "./catalog-list.js";
 import { Metric } from "./chrome.js";
 import { HowItWorks } from "./add-to-claude.js";
+import { useI18n } from "../i18n/locale.js";
 
 export function OverviewTab({
   branding,
@@ -32,40 +33,39 @@ export function OverviewTab({
   setActiveTab: (tab: AppTab) => void;
   copyMcpSetupPrompt: (target: McpSetupTarget) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <section className="overview-stack" aria-label="Start here">
+    <section className="overview-stack" aria-label={t.overview.startHere}>
       <div className="decision-panel">
-        <p className="kicker">Start here</p>
+        <p className="kicker">{t.overview.startHere}</p>
         <h2>{branding.overviewHeading}</h2>
         <p>{branding.overviewDescription}</p>
         <div className="actions">
           <button onClick={() => setActiveTab("catalog")}>
             <Search size={17} />
-            Browse skills
+            {t.overview.browseSkills}
           </button>
           <button className="secondary" onClick={() => setActiveTab("publish")}>
             <UploadCloud size={17} />
-            Share a skill
+            {t.overview.shareSkill}
           </button>
         </div>
       </div>
       <HowItWorks onBrowse={() => setActiveTab("catalog")} />
       <details className="developer-connect">
-        <summary>
-          For developers: connect Claude Code, Codex, Cursor, or ChatGPT
-        </summary>
+        <summary>{t.overview.developerSummary}</summary>
         <section
           className="mcp-connect-panel"
-          aria-label="Connect your agent via MCP"
+          aria-label={t.overview.connectAria}
         >
           <div className="mcp-connect-copy">
-            <p className="kicker">Connect your agent</p>
-            <h3>Copy agent setup prompt</h3>
+            <p className="kicker">{t.overview.connectKicker}</p>
+            <h3>{t.overview.connectTitle}</h3>
             <p>
               {session || activeToken
-                ? "Choose your agent below. The copied prompt embeds your personal MCP bearer token — paste it into Claude Code, Codex, Cursor, or another agent to configure local MCP and validate search."
-                : "Sign in first. The copied prompt will embed your personal MCP bearer token so your agent can authenticate without Microsoft SSO."}{" "}
-              Registry: <strong>{resolvedRegistryUrl}</strong>
+                ? t.overview.connectSignedIn
+                : t.overview.connectSignedOut}{" "}
+              {t.overview.registry} <strong>{resolvedRegistryUrl}</strong>
             </p>
           </div>
           <div className="mcp-connect-grid">
@@ -74,7 +74,7 @@ export function OverviewTab({
                 key={target.id}
                 type="button"
                 className={`mcp-connect-button ${copiedMcpTarget === target.id ? "copied" : ""}`}
-                aria-label={`Copy ${target.label} MCP setup prompt`}
+                aria-label={t.overview.copyTargetAria(target.label)}
                 onClick={() => void copyMcpSetupPrompt(target.id)}
               >
                 <span className="mcp-connect-button-label">{target.label}</span>
@@ -85,17 +85,23 @@ export function OverviewTab({
                   ) : (
                     <Copy size={16} />
                   )}
-                  {copiedMcpTarget === target.id ? "Copied" : "Copy prompt"}
+                  {copiedMcpTarget === target.id
+                    ? t.overview.copied
+                    : t.overview.copyPrompt}
                 </span>
               </button>
             ))}
           </div>
         </section>
       </details>
-      <div className="metrics compact" aria-label="Registry metrics">
-        <Metric label="Approved skills" value={catalog.length} />
-        <Metric label="Installs" value={totals.installs} />
-        <Metric label="Need update" value={totals.stale} tone="warn" />
+      <div className="metrics compact" aria-label={t.overview.metricsAria}>
+        <Metric label={t.overview.approvedSkills} value={catalog.length} />
+        <Metric label={t.overview.installs} value={totals.installs} />
+        <Metric
+          label={t.overview.needUpdate}
+          value={totals.stale}
+          tone="warn"
+        />
       </div>
       {selected ? (
         <FeaturedSkill
@@ -105,12 +111,12 @@ export function OverviewTab({
       ) : (
         <article className="featured-skill empty-catalog">
           <div>
-            <p className="kicker">No skills yet</p>
+            <p className="kicker">{t.overview.noSkillsYet}</p>
             <h2>{branding.emptyCatalogTitle}</h2>
             <p>{branding.emptyCatalogDescription}</p>
           </div>
           <button onClick={() => setActiveTab("publish")}>
-            Publish first skill
+            {t.overview.publishFirst}
           </button>
         </article>
       )}

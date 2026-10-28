@@ -5,6 +5,7 @@ import {
   type Workspace,
 } from "@skill-library/domain";
 import { LogoMark } from "./logo-mark.js";
+import { useI18n } from "../i18n/locale.js";
 
 export function WorkspaceLogoSettings({
   workspace,
@@ -19,6 +20,7 @@ export function WorkspaceLogoSettings({
   canManage: boolean;
   onWorkspaceLogoChange: (logoUrl: string) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [draftLogoUrl, setDraftLogoUrl] = useState(workspace?.logoUrl ?? "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -48,7 +50,7 @@ export function WorkspaceLogoSettings({
     try {
       await onWorkspaceLogoChange(logo.value ?? "");
     } catch (err) {
-      setError(readErrorMessage(err));
+      setError(readErrorMessage(err, t.team.logoUpdateFailed));
     } finally {
       setSaving(false);
     }
@@ -66,15 +68,15 @@ export function WorkspaceLogoSettings({
       await onWorkspaceLogoChange("");
       setDraftLogoUrl("");
     } catch (err) {
-      setError(readErrorMessage(err));
+      setError(readErrorMessage(err, t.team.logoUpdateFailed));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <section className="admin-section" aria-label="Workspace branding">
-      <h3 className="admin-section-title">Workspace branding</h3>
+    <section className="admin-section" aria-label={t.team.branding}>
+      <h3 className="admin-section-title">{t.team.branding}</h3>
       <form className="workspace-branding-form" onSubmit={handleSubmit}>
         <LogoMark
           logoUrl={effectiveLogoUrl}
@@ -83,7 +85,7 @@ export function WorkspaceLogoSettings({
         />
         <div className="workspace-branding-fields">
           <label>
-            Logo URL
+            {t.team.logoUrl}
             <input
               value={draftLogoUrl}
               onChange={(event) => {
@@ -94,9 +96,7 @@ export function WorkspaceLogoSettings({
               disabled={!canManage || saving || !workspace}
             />
           </label>
-          <p className="admin-field-hint">
-            Supports http(s), root-relative paths, and base64 image data URLs.
-          </p>
+          <p className="admin-field-hint">{t.team.logoHint}</p>
           {error ? (
             <p className="field-error" role="alert">
               {error}
@@ -110,7 +110,7 @@ export function WorkspaceLogoSettings({
               className="secondary"
               disabled={saving || !workspace}
             >
-              {saving ? "Saving..." : "Save logo"}
+              {saving ? t.team.saving : t.team.saveLogo}
             </button>
             <button
               type="button"
@@ -118,7 +118,7 @@ export function WorkspaceLogoSettings({
               disabled={saving || !workspace || !workspace.logoUrl}
               onClick={() => void handleClear()}
             >
-              Clear
+              {t.team.clear}
             </button>
           </div>
         ) : null}
@@ -127,7 +127,7 @@ export function WorkspaceLogoSettings({
   );
 }
 
-function readErrorMessage(err: unknown): string {
+function readErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error) {
     try {
       const parsed = JSON.parse(err.message) as { error?: string };
@@ -137,5 +137,5 @@ function readErrorMessage(err: unknown): string {
     }
   }
 
-  return "Could not update workspace logo.";
+  return fallback;
 }

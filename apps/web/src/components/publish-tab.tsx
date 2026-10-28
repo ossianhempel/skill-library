@@ -12,6 +12,7 @@ import {
 } from "../lib/publish.js";
 import { usePublish } from "../hooks/use-publish.js";
 import { ValidationPanel } from "../validation-panel.js";
+import { useI18n } from "../i18n/locale.js";
 
 export function PublishTab({
   apiClient,
@@ -44,6 +45,7 @@ export function PublishTab({
   onUploaded: () => Promise<void>;
   notice: string;
 }) {
+  const { t } = useI18n();
   const {
     publishForm,
     setPublishForm,
@@ -85,10 +87,10 @@ export function PublishTab({
         maxWidth: "800px",
       }}
     >
-      <section className="publish-console" aria-label="Publish local draft">
+      <section className="publish-console" aria-label={t.publish.localAria}>
         <div className="panel-title">
           <UploadCloud size={17} />
-          Publish local folder
+          {t.publish.localTitle}
         </div>
         <p
           style={{
@@ -101,7 +103,7 @@ export function PublishTab({
         </p>
         <div className="form-grid">
           <label>
-            Workspace
+            {t.publish.workspace}
             <select
               value={isCreatingCustomWorkspace ? "__new__" : workspaceId}
               onChange={(event) => onWorkspaceChange(event.target.value)}
@@ -111,15 +113,15 @@ export function PublishTab({
                   {ws}
                 </option>
               ))}
-              <option value="__new__">+ Create custom workspace...</option>
+              <option value="__new__">{t.publish.createWorkspace}</option>
             </select>
           </label>
           {isCreatingCustomWorkspace && (
             <label>
-              New Workspace ID
+              {t.publish.newWorkspaceId}
               <input
                 value={customWorkspaceId}
-                placeholder="e.g. engineering"
+                placeholder={t.publish.newWorkspacePlaceholder}
                 onChange={(event) =>
                   onCustomWorkspaceChange(event.target.value)
                 }
@@ -128,7 +130,7 @@ export function PublishTab({
             </label>
           )}
           <label>
-            Slug
+            {t.publish.slug}
             <input
               value={publishForm.packageSlug}
               placeholder={PUBLISH_FIELD_PLACEHOLDERS.packageSlug}
@@ -141,7 +143,7 @@ export function PublishTab({
             />
           </label>
           <label>
-            Version
+            {t.publish.version}
             <input
               value={publishForm.version}
               placeholder={PUBLISH_FIELD_PLACEHOLDERS.version}
@@ -154,7 +156,7 @@ export function PublishTab({
             />
           </label>
           <label style={{ gridColumn: "span 3" }}>
-            Categories
+            {t.publish.categories}
             <div
               style={{
                 display: "flex",
@@ -175,7 +177,7 @@ export function PublishTab({
                     fontStyle: "italic",
                   }}
                 >
-                  No categories selected. Select or add one below.
+                  {t.publish.noCategories}
                 </span>
               ) : (
                 categoriesToShow.map((cat) => {
@@ -215,7 +217,7 @@ export function PublishTab({
             <div style={{ display: "flex", gap: "8px" }}>
               <input
                 value={newCategoryInput}
-                placeholder="Add a new custom category..."
+                placeholder={t.publish.newCategoryPlaceholder}
                 onChange={(event) => setNewCategoryInput(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -231,15 +233,15 @@ export function PublishTab({
                 onClick={handleAddCategory}
                 style={{ height: "40px", padding: "0 16px" }}
               >
-                + Add
+                {t.publish.addCategory}
               </button>
             </div>
           </label>
           <label>
-            Name (optional)
+            {t.publish.name}
             <input
               value={publishForm.packageName}
-              placeholder="e.g. My Great Skill"
+              placeholder={t.publish.namePlaceholder}
               onChange={(event) =>
                 setPublishForm({
                   ...publishForm,
@@ -249,10 +251,10 @@ export function PublishTab({
             />
           </label>
           <label>
-            Description (optional)
+            {t.publish.description}
             <input
               value={publishForm.description}
-              placeholder="e.g. A skill that does X"
+              placeholder={t.publish.descriptionPlaceholder}
               onChange={(event) =>
                 setPublishForm({
                   ...publishForm,
@@ -281,7 +283,7 @@ export function PublishTab({
             <>
               <CheckCircle2 size={24} style={{ color: "var(--accent)" }} />
               <div style={{ margin: "4px 0" }}>
-                <strong>{uploadEntries.length} files staged</strong>
+                <strong>{t.publish.filesStaged(uploadEntries.length)}</strong>
                 <p
                   style={{
                     margin: "4px 0 0",
@@ -289,7 +291,7 @@ export function PublishTab({
                     color: "var(--muted)",
                   }}
                 >
-                  Folder:{" "}
+                  {t.publish.folder}{" "}
                   <code>
                     {publishForm.packageSlug ||
                       PUBLISH_FIELD_PLACEHOLDERS.packageSlug}
@@ -300,14 +302,14 @@ export function PublishTab({
                 className="button secondary choose-btn"
                 style={{ pointerEvents: "none", height: "34px" }}
               >
-                Choose different folder
+                {t.publish.chooseDifferent}
               </span>
             </>
           ) : (
             <>
               <UploadCloud size={24} />
               <div style={{ margin: "4px 0" }}>
-                <strong>Drag & drop a skill folder here</strong>
+                <strong>{t.publish.dropHere}</strong>
                 <p
                   style={{
                     margin: "4px 0 0",
@@ -315,14 +317,14 @@ export function PublishTab({
                     color: "var(--muted)",
                   }}
                 >
-                  or click to browse your folders
+                  {t.publish.orBrowse}
                 </p>
               </div>
               <span
                 className="button secondary choose-btn"
                 style={{ pointerEvents: "none", height: "34px" }}
               >
-                Choose Folder
+                {t.publish.chooseFolder}
               </span>
             </>
           )}
@@ -341,7 +343,7 @@ export function PublishTab({
             disabled={loading || uploadEntries.length === 0}
           >
             <ClipboardCheck size={17} />
-            Validate
+            {t.publish.validate}
           </button>
           <button
             onClick={handleUpload}
@@ -349,24 +351,24 @@ export function PublishTab({
             className={uploadEntries.length > 0 ? "primary" : undefined}
           >
             <UploadCloud size={17} />
-            Upload skill
+            {t.publish.upload}
           </button>
         </div>
         {preflightValidation ? (
           <div className="panel" style={{ marginTop: "16px" }}>
             <div className="panel-title">
               <ClipboardCheck size={17} />
-              Preflight validation
+              {t.publish.preflight}
             </div>
             <ValidationPanel validation={preflightValidation} />
           </div>
         ) : null}
       </section>
 
-      <section className="publish-console" aria-label="Import from Git">
+      <section className="publish-console" aria-label={t.publish.gitAria}>
         <div className="panel-title">
           <GitBranch size={17} />
-          Import from Git
+          {t.publish.gitTitle}
         </div>
         <p
           style={{
@@ -375,11 +377,11 @@ export function PublishTab({
             fontSize: "0.92rem",
           }}
         >
-          Import a skill package version directly from a remote Git repository.
+          {t.publish.gitDescription}
         </p>
         <div className="form-grid git-fields">
           <label>
-            Repository
+            {t.publish.repository}
             <input
               value={gitFields.repositoryPath}
               placeholder={PUBLISH_FIELD_PLACEHOLDERS.repositoryPath}
@@ -392,7 +394,7 @@ export function PublishTab({
             />
           </label>
           <label>
-            Ref
+            {t.publish.ref}
             <input
               value={gitFields.ref}
               placeholder={PUBLISH_FIELD_PLACEHOLDERS.ref}
@@ -402,7 +404,7 @@ export function PublishTab({
             />
           </label>
           <label>
-            Subdir
+            {t.publish.subdir}
             <input
               value={gitFields.subdirectory}
               placeholder={PUBLISH_FIELD_PLACEHOLDERS.subdirectory}
@@ -424,7 +426,7 @@ export function PublishTab({
             )}
           </code>
           <button onClick={handleGitImport} disabled={loading}>
-            Import
+            {t.publish.import}
           </button>
         </div>
       </section>

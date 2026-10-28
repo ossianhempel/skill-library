@@ -1,4 +1,5 @@
 import type { ValidationIssue, ValidationResult } from "@skill-library/domain";
+import { useI18n } from "./i18n/locale.js";
 
 export interface ValidationPanelProps {
   validation?: ValidationResult;
@@ -7,10 +8,13 @@ export interface ValidationPanelProps {
 
 export function ValidationPanel({
   validation,
-  emptyMessage = "No validation results yet.",
+  emptyMessage,
 }: ValidationPanelProps) {
+  const { t } = useI18n();
   if (!validation) {
-    return <p className="validation-copy">{emptyMessage}</p>;
+    return (
+      <p className="validation-copy">{emptyMessage ?? t.validation.none}</p>
+    );
   }
 
   const errors = validation.issues.filter(
@@ -27,20 +31,20 @@ export function ValidationPanel({
       >
         {validation.ok
           ? errors.length === 0 && warnings.length === 0
-            ? "Package shape is valid. SKILL.md frontmatter and bundled files look good."
-            : "Package passed validation with warnings."
-          : "Validation found blocking errors."}
+            ? t.validation.valid
+            : t.validation.warnings
+          : t.validation.blocking}
       </p>
       {errors.length > 0 ? (
         <ValidationIssueGroup
-          title="Errors"
+          title={t.validation.errors}
           issues={errors}
           className="validation-errors"
         />
       ) : null}
       {warnings.length > 0 ? (
         <ValidationIssueGroup
-          title="Warnings"
+          title={t.validation.warningsTitle}
           issues={warnings}
           className="validation-warnings"
         />

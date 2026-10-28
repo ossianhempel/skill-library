@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "../i18n/locale.js";
 import type { AppTab, CatalogSkill } from "../types.js";
 import {
   buildSkillPath,
@@ -38,6 +39,7 @@ export function useSkillUrl({
   handleSelectSkill: (id: string) => void;
   setNotice: (notice: string) => void;
 }) {
+  const { t } = useI18n();
   const [copiedLink, setCopiedLink] = useState(false);
   // A skill awaiting resolution once its workspace's catalog has loaded. Tracks
   // the target workspace so a cross-workspace link is never resolved against the
@@ -94,7 +96,7 @@ export function useSkillUrl({
       // selection on the way out.
       pendingRef.current = null;
       skipNextPushRef.current = true;
-      setNotice(`Skill "${pending.slug}" was not found in this workspace.`);
+      setNotice(t.notices.skillNotFound(pending.slug));
       setActiveTab("overview");
     }
   }, [
@@ -212,7 +214,7 @@ export function useSkillUrl({
       } else {
         // Dead link: switching to overview hides the stale detail and lets the
         // URL-sync effect drop the invalid path (overview ⇒ not a push).
-        setNotice(`Skill "${parts.slug}" was not found in this workspace.`);
+        setNotice(t.notices.skillNotFound(parts.slug));
         setActiveTab("overview");
       }
     }
@@ -227,6 +229,7 @@ export function useSkillUrl({
     setActiveTab,
     setSelectedWorkspaceId,
     setNotice,
+    t,
   ]);
 
   const copyShareLink = useCallback(() => {
@@ -241,9 +244,9 @@ export function useSkillUrl({
     );
     void navigator.clipboard?.writeText(url).catch(() => undefined);
     setCopiedLink(true);
-    setNotice("Link copied — share it with your team");
+    setNotice(t.notices.linkCopied);
     window.setTimeout(() => setCopiedLink(false), 2500);
-  }, [selected, setNotice]);
+  }, [selected, setNotice, t]);
 
   return { copiedLink, copyShareLink };
 }

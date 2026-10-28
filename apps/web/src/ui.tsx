@@ -27,6 +27,7 @@ import { useWorkspace } from "./hooks/use-workspace.js";
 import { AppRail, AppTopbar } from "./components/app-shell.js";
 import {
   CategoryFilter,
+  emptyListMessage,
   SkillList,
   StatusFilter,
 } from "./components/catalog-list.js";
@@ -36,8 +37,18 @@ import { ReportPanel } from "./components/report-panel.js";
 import { LoginScreen } from "./components/login-screen.js";
 import { TeamPanel } from "./components/team-panel.js";
 import { SkillDetailPane } from "./components/skill-detail-pane.js";
+import { LocaleProvider, useI18n } from "./i18n/locale.js";
+import { localizeBranding } from "./i18n/branding.js";
 
-export function SkillLibraryApp({
+export function SkillLibraryApp(props: SkillLibraryAppProps) {
+  return (
+    <LocaleProvider>
+      <SkillLibraryAppContent {...props} />
+    </LocaleProvider>
+  );
+}
+
+function SkillLibraryAppContent({
   skills,
   workspaceId: workspaceIdProp,
   registryUrl = "",
@@ -45,11 +56,16 @@ export function SkillLibraryApp({
   api,
   branding: brandingProp,
 }: SkillLibraryAppProps) {
-  const [branding, setBranding] = useState<RegistryBrandingConfig>(
+  const { locale, t } = useI18n();
+  const [configBranding, setBranding] = useState<RegistryBrandingConfig>(
     brandingProp ?? DEFAULT_REGISTRY_BRANDING
   );
+  const branding = useMemo(
+    () => localizeBranding(configBranding, locale),
+    [configBranding, locale]
+  );
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>(
-    workspaceIdProp ?? branding.defaultWorkspaceId
+    workspaceIdProp ?? configBranding.defaultWorkspaceId
   );
   const workspaceId = selectedWorkspaceId;
   const [customWorkspaceId, setCustomWorkspaceId] = useState("");
@@ -62,7 +78,7 @@ export function SkillLibraryApp({
     }
   }, [workspaceIdProp]);
 
-  const [notice, setNotice] = useState("Ready");
+  const [notice, setNotice] = useState(t.notices.ready);
   const [copiedInstall, setCopiedInstall] = useState(false);
   const [installTarget, setInstallTarget] =
     useState<InstallTargetKind>("project");
@@ -241,7 +257,7 @@ export function SkillLibraryApp({
 
     await navigator.clipboard?.writeText(prompt).catch(() => undefined);
     setCopiedInstall(true);
-    setNotice("Install prompt copied — paste it into your agent");
+    setNotice(t.notices.installCopied);
     window.setTimeout(() => setCopiedInstall(false), 2500);
   }
 
@@ -291,11 +307,7 @@ export function SkillLibraryApp({
     });
 
     if (!agentAuth) {
-      setNotice(
-        session
-          ? "Could not load your MCP token. Sign out and back in, then try again. If this persists, the registry may need an update."
-          : "Sign in to copy a setup prompt with your personal MCP token."
-      );
+      setNotice(session ? t.notices.mcpTokenFailed : t.notices.mcpSignIn);
       return;
     }
 
@@ -308,7 +320,7 @@ export function SkillLibraryApp({
     const label =
       MCP_SETUP_TARGETS.find((entry) => entry.id === target)?.label ?? "Agent";
     setCopiedMcpTarget(target);
-    setNotice(`Copied ${label} agent setup prompt with your MCP token`);
+    setNotice(t.notices.mcpCopied(label));
     window.setTimeout(() => {
       setCopiedMcpTarget((current) => (current === target ? null : current));
     }, 2500);
@@ -332,7 +344,10 @@ export function SkillLibraryApp({
           handleTokenChange={handleTokenChange}
         />
 
-        <section className="catalog-pane" aria-label="Workspace overview">
+        <section
+          className="catalog-pane"
+          aria-label={t.topbar.workspaceOverview}
+        >
           <AppTopbar
             branding={branding}
             workspaceId={workspaceId}
@@ -378,15 +393,7 @@ export function SkillLibraryApp({
                 selectedId={selected?.pkg.id}
                 onSelect={handleSelectSkill}
                 loading={!catalogLoaded}
-                emptyMessage={
-                  displaySkills.length === 0
-                    ? statusFilter === "drafts"
-                      ? "No draft or pending skills in this category match your search."
-                      : statusFilter === "approved"
-                        ? "No approved skills in this category match your search."
-                        : "No skills in this category match your search."
-                    : undefined
-                }
+                emptyMessage={emptyListMessage(t, false, statusFilter)}
               />
             </>
           )}
@@ -409,15 +416,7 @@ export function SkillLibraryApp({
                 selectedId={selected?.pkg.id}
                 onSelect={handleSelectSkill}
                 loading={!catalogLoaded}
-                emptyMessage={
-                  displaySkills.length === 0
-                    ? statusFilter === "drafts"
-                      ? "You haven't uploaded any draft or pending skills in this category yet."
-                      : statusFilter === "approved"
-                        ? "You haven't uploaded any approved skills in this category yet."
-                        : "You haven't uploaded any skills in this category yet."
-                    : undefined
-                }
+                emptyMessage={emptyListMessage(t, true, statusFilter)}
               />
             </>
           )}

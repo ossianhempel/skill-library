@@ -6,6 +6,7 @@ import {
 } from "../lib/claude-skill-prompt.js";
 import { fetchMcpSetupAgentAuth } from "../mcp-setup-prompts.js";
 import { browserToken } from "../lib/browser.js";
+import { useI18n } from "../i18n/locale.js";
 
 export const CLAUDE_APP_URL = "https://claude.ai";
 export const CLAUDE_DOWNLOAD_URL = "https://claude.com/download";
@@ -22,43 +23,41 @@ export function AddToClaudeSteps({
   downloadUrl: string;
   fileName: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="add-to-claude">
       <ol className="claude-steps">
         <li>
-          <strong>Download the skill.</strong>
+          <strong>{t.addToClaude.downloadTitle}</strong>
           <span>
-            This saves <code>{fileName}</code> to your Downloads folder. You
-            don&apos;t need to open it.
+            {t.addToClaude.downloadBefore} <code>{fileName}</code>{" "}
+            {t.addToClaude.downloadAfter}
           </span>
           <a className="button claude-download" href={downloadUrl}>
             <Download size={17} />
-            Download for Claude
+            {t.addToClaude.downloadButton}
           </a>
         </li>
         <li>
-          <strong>Open Claude.</strong>
+          <strong>{t.addToClaude.openTitle}</strong>
           <span>
-            Use{" "}
+            {t.addToClaude.openBefore}{" "}
             <a href={CLAUDE_APP_URL} target="_blank" rel="noreferrer">
               claude.ai
             </a>{" "}
-            in your browser, or the Claude desktop app.
+            {t.addToClaude.openAfter}
           </span>
         </li>
         <li>
-          <strong>Go to Customize, then Skills.</strong>
+          <strong>{t.addToClaude.customizeTitle}</strong>
         </li>
         <li>
-          <strong>Click +, then Create skill, then Upload a skill.</strong>
-          <span>Pick the file you just downloaded.</span>
+          <strong>{t.addToClaude.uploadTitle}</strong>
+          <span>{t.addToClaude.uploadBody}</span>
         </li>
         <li>
-          <strong>Turn the skill on.</strong>
-          <span>
-            Use the switch next to it in your list of skills. After that, just
-            ask Claude for help as usual. It uses the skill when it fits.
-          </span>
+          <strong>{t.addToClaude.enableTitle}</strong>
+          <span>{t.addToClaude.enableBody}</span>
         </li>
       </ol>
     </div>
@@ -76,6 +75,7 @@ export function ClaudePromptInstall({
 }: {
   promptInput: Omit<ClaudeSkillPromptInput, "token">;
 }) {
+  const { t } = useI18n();
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
     "idle"
   );
@@ -108,14 +108,9 @@ export function ClaudePromptInstall({
     <div className="claude-prompt-install">
       <p className="claude-prompt-title">
         <Bot size={17} />
-        <strong>Or let Claude add it for you</strong>
+        <strong>{t.addToClaude.promptTitle}</strong>
       </p>
-      <p className="install-hint">
-        Copy this prompt and paste it into Claude, in the desktop app or Claude
-        Code. Claude checks your access, downloads the skill and saves it so it
-        works in all your conversations. Your personal access key is added when
-        you copy, so don&apos;t share the copied text.
-      </p>
+      <p className="install-hint">{t.addToClaude.promptHint}</p>
       <code>{buildClaudeSkillPrompt(promptInput)}</code>
       <div className="actions">
         <button type="button" onClick={() => void copyPrompt()}>
@@ -124,13 +119,14 @@ export function ClaudePromptInstall({
           ) : (
             <Copy size={17} />
           )}
-          {copyState === "copied" ? "Copied" : "Copy prompt for Claude"}
+          {copyState === "copied"
+            ? t.addToClaude.copied
+            : t.addToClaude.copyPrompt}
         </button>
       </div>
       {copyState === "failed" && (
         <p className="install-warning" role="alert">
-          Couldn&apos;t copy to your clipboard. Select the prompt above and copy
-          it yourself, or try another browser.
+          {t.addToClaude.copyFailed}
         </p>
       )}
     </div>
@@ -139,36 +135,37 @@ export function ClaudePromptInstall({
 
 /** The three-step summary on the overview page, before a skill is picked. */
 export function HowItWorks({ onBrowse }: { onBrowse: () => void }) {
+  const { t } = useI18n();
   return (
-    <section className="how-it-works" aria-label="How it works">
-      <p className="kicker">How it works</p>
+    <section className="how-it-works" aria-label={t.howItWorks.title}>
+      <p className="kicker">{t.howItWorks.title}</p>
       <ol className="how-it-works-steps">
         <li>
-          <strong>Find a skill</strong>
+          <strong>{t.howItWorks.findTitle}</strong>
           <span>
             <button type="button" className="link-button" onClick={onBrowse}>
-              Browse the skills
+              {t.howItWorks.browse}
             </button>{" "}
-            and click one to see what it does.
+            {t.howItWorks.findRest}
           </span>
         </li>
         <li>
-          <strong>Download it</strong>
-          <span>One click. The file lands in your Downloads folder.</span>
+          <strong>{t.howItWorks.downloadTitle}</strong>
+          <span>{t.howItWorks.downloadBody}</span>
         </li>
         <li>
-          <strong>Add it to Claude</strong>
-          <span>Upload it under Customize, then Skills. That&apos;s it.</span>
+          <strong>{t.howItWorks.addTitle}</strong>
+          <span>{t.howItWorks.addBody}</span>
         </li>
       </ol>
       <p className="how-it-works-note">
-        New to Claude? Use it at{" "}
+        {t.howItWorks.newToClaude}{" "}
         <a href={CLAUDE_APP_URL} target="_blank" rel="noreferrer">
           claude.ai
         </a>{" "}
-        in your browser, or{" "}
+        {t.howItWorks.inBrowserOr}{" "}
         <a href={CLAUDE_DOWNLOAD_URL} target="_blank" rel="noreferrer">
-          download the desktop app
+          {t.howItWorks.downloadApp}
         </a>
         .
       </p>
