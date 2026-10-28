@@ -250,6 +250,60 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
     expect(ada?.skillsSubmitted).toBe(1);
   });
 
+  it("loads ranking signals and writes idempotent votes on T-SQL", async () => {
+    // An approved version by u-1 makes Ada an author through the JSON_VALUE join.
+    await store
+      .kysely!.insertInto("skill_versions")
+      .values({
+        id: "v-rank",
+        package_id: pkg.id,
+        version: "3.0.0",
+        lifecycle_state: "approved",
+        artifact_digest: "sha256:abc",
+        validation: JSON.stringify({ ok: true }),
+        provenance: JSON.stringify({ kind: "upload", actorId: "u-1" }),
+        created_at: new Date(),
+      })
+      .execute();
+    for (const [id, actorId, createdAt] of [
+      ["rank-e1", "u-2", "2026-06-01T10:00:00.000Z"],
+      ["rank-e2", "u-2", "2026-06-05T10:00:00.000Z"],
+      ["rank-e3", "u-3", "2026-06-02T10:00:00.000Z"],
+    ] as const) {
+      await store.recordUsageEvent({
+        id,
+        workspaceId: workspace.id,
+        packageId: pkg.id,
+        versionId: "v-rank",
+        eventType: "download",
+        createdAt,
+        actorId,
+      });
+    }
+
+    const vote = { packageId: pkg.id, userId: "u-2", voted: true };
+    await store.setSkillVote(vote);
+    await store.setSkillVote(vote); // duplicate key (2627) is a no-op
+    await store.setSkillVote({ ...vote, userId: "u-3" });
+    await store.setSkillVote({ ...vote, userId: "u-3", voted: false });
+
+    const signals = await store.getRankingSignals(workspace.id);
+    expect(
+      signals.installs.sort((a, b) => a.userId.localeCompare(b.userId))
+    ).toEqual([
+      { packageId: pkg.id, userId: "u-2", lastAt: "2026-06-05T10:00:00.000Z" },
+      { packageId: pkg.id, userId: "u-3", lastAt: "2026-06-02T10:00:00.000Z" },
+    ]);
+    expect(signals.votes).toEqual([{ packageId: pkg.id, userId: "u-2" }]);
+    expect(signals.authors).toEqual([
+      expect.objectContaining({
+        packageId: pkg.id,
+        userId: "u-1",
+        approved: true,
+      }),
+    ]);
+  });
+
   it("updates a user role and deletes the user (U6)", async () => {
     const updated = await store.updateUserRole("u-1", "maintainer");
     expect(updated?.role).toBe("maintainer");
