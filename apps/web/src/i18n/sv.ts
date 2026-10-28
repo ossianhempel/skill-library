@@ -41,6 +41,7 @@ export const sv: Messages = {
     publish: "Publicera",
     reports: "Rapporter",
     team: "Team",
+    leaderboard: "Topplista",
     signOut: "Logga ut",
     apiKey: "API-nyckel",
     apiKeyPlaceholder: "Ange token...",
@@ -258,7 +259,38 @@ export const sv: Messages = {
     clear: "Rensa",
     logoUpdateFailed: "Det gick inte att uppdatera arbetsytans logotyp.",
   },
+  popularity: {
+    noColleagues: "Inga kollegor har installerat den än",
+    installedBy: (count: number) =>
+      `Installerad av ${count} ${count === 1 ? "kollega" : "kollegor"}`,
+    foundUseful: (count: number) => `${count} tycker att den är användbar`,
+    ownUseful: (count: number) => `${count} användbar`,
+    yourSkill: "Din skill",
+    useful: "Användbar",
+    removeUpvote: "Ta bort din röst",
+    upvoteHint: "Rösta om den här skillen hjälpte dig",
+    sortAria: "Sortera skills",
+    sortLabel: "Sortera",
+    sortPopular: "Populära",
+    sortNewest: "Nyaste",
+    sortName: "A–Ö",
+  },
+  leaderboard: {
+    title: "Flitigaste bidragsgivarna",
+    intro:
+      "Kollegor vars skills andra installerar och tycker är användbara. Nya installationer väger tyngst.",
+    loading: "Laddar bidragsgivare…",
+    empty: "Inga godkända skills än. Publicera en så kan du hamna först här.",
+    you: " (du)",
+    skills: (_count: number) => "skills",
+    colleaguesReached: (count: number) =>
+      count === 1 ? "kollega nådd" : "kollegor nådda",
+    upvotes: (count: number) => (count === 1 ? "röst" : "röster"),
+  },
   notices: {
+    upvoteSaved: "Tack — din röst är sparad",
+    upvoteRemoved: "Rösten är borttagen",
+    upvoteFailed: "Röstningen misslyckades",
     ready: "Redo",
     installCopied:
       "Installationsprompten är kopierad. Klistra in den i din agent.",

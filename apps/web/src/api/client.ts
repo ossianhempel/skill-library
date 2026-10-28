@@ -2,10 +2,12 @@ import type {
   CatalogPackageStats,
   PackageReport,
   SkillPackage,
+  SkillRanking,
   SkillVersion,
   ValidationResult,
   Workspace,
   WorkspaceCatalogResponse,
+  WorkspaceRanking,
 } from "@skill-library/domain";
 import type { WebApiClient } from "../types.js";
 
@@ -155,6 +157,24 @@ export function createWebApiClient({
           jsonInit({ toState }, token)
         )
       ).version;
+    },
+    async workspaceRanking(workspaceId) {
+      return (
+        await jsonRequest<{ ranking: WorkspaceRanking }>(
+          request,
+          `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/ranking`,
+          authHeaders(token)
+        )
+      ).ranking;
+    },
+    async setSkillVote(packageId, voted) {
+      return (
+        await jsonRequest<{ skill: SkillRanking }>(
+          request,
+          `${baseUrl}/api/packages/${encodeURIComponent(packageId)}/vote`,
+          jsonInit({ voted }, token, "PUT")
+        )
+      ).skill;
     },
   };
 }

@@ -4,10 +4,12 @@ import type {
   PackageReport,
   RegistryBrandingConfig,
   SkillPackage,
+  SkillRanking,
   SkillVersion,
   ValidationResult,
   Workspace,
   WorkspaceCatalogResponse,
+  WorkspaceRanking,
 } from "@skill-library/domain";
 
 export interface SessionUser {
@@ -40,7 +42,11 @@ export interface CatalogSkill {
   lastModifiedAt: string;
   staleInstalls: number;
   report?: PackageReport;
+  /** Popularity among colleagues; absent when the registry has no ranking yet. */
+  ranking?: SkillRanking;
 }
+
+export type CatalogSort = "popular" | "newest" | "name";
 
 export interface WebApiClient {
   workspaceDetail(workspaceId: string): Promise<Workspace | undefined>;
@@ -77,6 +83,9 @@ export interface WebApiClient {
     versionId: string,
     toState: LifecycleState
   ): Promise<SkillVersion>;
+  // Optional so clients built against older registries (and test doubles) still fit.
+  workspaceRanking?(workspaceId: string): Promise<WorkspaceRanking>;
+  setSkillVote?(packageId: string, voted: boolean): Promise<SkillRanking>;
 }
 
 export interface UploadVersionInput {
@@ -114,4 +123,5 @@ export type AppTab =
   | "publish"
   | "reports"
   | "team"
-  | "my-skills";
+  | "my-skills"
+  | "contributors";

@@ -176,6 +176,8 @@ export interface WorkspaceCatalogEntry {
   activeVersion?: SkillVersion;
   stats: CatalogPackageStats;
   report?: PackageReport;
+  /** Popularity among colleagues; see rankWorkspace. */
+  ranking?: SkillRanking;
 }
 
 export interface WorkspaceCatalogResponse {
@@ -212,6 +214,8 @@ export interface UsageEvent {
   createdAt: string;
   packageId?: SkillPackageId;
   versionId?: SkillVersionId;
+  /** Signed-in user behind the event; absent for anonymous or legacy events. */
+  actorId?: string;
 }
 
 export interface RegistryBrandingConfig {
@@ -381,3 +385,6 @@ export function normalizeLogoUrlInput(input: unknown): LogoUrlValidationResult {
     error: "Logo URL must use http or https.",
   };
 }
+
+export * from "./ranking.js";
+import type { SkillRanking } from "./ranking.js";

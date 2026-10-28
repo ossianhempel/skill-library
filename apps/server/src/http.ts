@@ -24,6 +24,12 @@ import {
   registerWorkspaceCatalogRoute,
   visibleWorkspaceCatalog,
 } from "./workspace-catalog.js";
+import { registerRankingRoutes } from "./ranking-routes.js";
+import {
+  parseLifecycleState,
+  parsePackageTreeBody,
+  parseUsageEventType,
+} from "./request-parsers.js";
 
 export function createHttpApp(
   store: RegistryStore,
@@ -60,6 +66,8 @@ export function createHttpApp(
   app.on(["POST", "GET"], "/api/auth/*", (context) =>
     auth.handler(context.req.raw)
   );
+
+  registerRankingRoutes(app, { api, resolveActor, canAccessWorkspace });
 
   app.get("/health", (context) => context.json({ ok: true, mode: store.mode }));
 
@@ -517,7 +525,7 @@ export function createHttpApp(
       return context.json({ error: "Artifact not found" }, 404);
     }
 
-    await api.recordArtifactDownload(packageId, versionId);
+    await api.recordArtifactDownload(packageId, versionId, actor?.id);
     const slug = (await api.packageDetail(packageId))?.slug ?? "";
     return artifactDownloadResponse(
       download,
@@ -747,36 +755,4 @@ function mapTeamMemberRow(member: TeamMemberRecord) {
     image: member.image,
     skillsSubmitted: member.skillsSubmitted,
   };
-}
-
-function parseUsageEventType(value: string | undefined) {
-  return value === "view" || value === "download" ? value : undefined;
-}
-
-function parseLifecycleState(
-  value: string | undefined
-): LifecycleState | undefined {
-  if (
-    value === "draft" ||
-    value === "published" ||
-    value === "approved" ||
-    value === "hidden" ||
-    value === "deprecated"
-  ) {
-    return value;
-  }
-
-  return undefined;
-}
-
-async function parsePackageTreeBody(
-  request: Request
-): Promise<{ entries: PackageTreeEntry[] }> {
-  const body = (await request.json()) as { entries?: PackageTreeEntry[] };
-
-  if (!Array.isArray(body.entries)) {
-    throw new Error("Request body must include entries.");
-  }
-
-  return { entries: body.entries };
 }

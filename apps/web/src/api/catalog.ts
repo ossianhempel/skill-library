@@ -2,6 +2,7 @@ import type {
   CatalogPackageStats,
   PackageReport,
   SkillPackage,
+  SkillRanking,
   SkillVersion,
 } from "@skill-library/domain";
 import type {
@@ -71,6 +72,7 @@ export async function loadWorkspaceCatalog(
           stats: entry.stats,
           report: entry.report,
           versions: [],
+          ranking: entry.ranking,
         })
       ),
     };
@@ -86,11 +88,15 @@ async function loadCatalogSkillsPerPackage(
   workspaceId: string,
   query?: string
 ): Promise<CatalogSkill[]> {
-  const [packages, reports, catalogStats] = await Promise.all([
+  const [packages, reports, catalogStats, ranking] = await Promise.all([
     api.search(workspaceId, query),
     api.workspaceReports(workspaceId).catch(() => []),
     api.workspaceCatalogStats(workspaceId).catch(() => []),
+    api.workspaceRanking?.(workspaceId).catch(() => undefined),
   ]);
+  const rankingByPackage = new Map(
+    (ranking?.skills ?? []).map((skill) => [skill.packageId, skill])
+  );
   const reportsByPackage = new Map(
     reports.map((report) => [report.packageId, report])
   );
@@ -112,6 +118,7 @@ async function loadCatalogSkillsPerPackage(
         stats: statsByPackage.get(pkg.id),
         report: reportsByPackage.get(pkg.id),
         versions,
+        ranking: rankingByPackage.get(pkg.id),
       });
     })
   );
@@ -124,6 +131,7 @@ function toCatalogSkill({
   stats,
   report,
   versions,
+  ranking,
 }: {
   pkg: SkillPackage;
   latestApproved?: SkillVersion;
@@ -131,6 +139,7 @@ function toCatalogSkill({
   stats?: CatalogPackageStats;
   report?: PackageReport;
   versions: SkillVersion[];
+  ranking?: SkillRanking;
 }): CatalogSkill {
   const validation = activeVersion?.validation;
 
@@ -154,6 +163,7 @@ function toCatalogSkill({
       (report?.installs.byState.stale ?? 0) +
       (report?.installs.byState["modified-local-content"] ?? 0),
     report,
+    ranking,
   };
 }
 

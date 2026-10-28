@@ -3,6 +3,7 @@ import {
   BarChart3,
   LogOut,
   Search,
+  Trophy,
   UploadCloud,
   User,
   UserCheck,
@@ -53,6 +54,12 @@ export function AppRail({
         label={t.rail.catalog}
         active={activeTab === "catalog"}
         onClick={() => setActiveTab("catalog")}
+      />
+      <NavButton
+        icon={<Trophy size={19} />}
+        label={t.rail.leaderboard}
+        active={activeTab === "contributors"}
+        onClick={() => setActiveTab("contributors")}
       />
       {hasSession && (
         <NavButton

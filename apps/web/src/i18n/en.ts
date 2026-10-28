@@ -42,6 +42,7 @@ export const en = {
     publish: "Publish",
     reports: "Reports",
     team: "Team",
+    leaderboard: "Leaderboard",
     signOut: "Sign out",
     apiKey: "API Key",
     apiKeyPlaceholder: "Enter token...",
@@ -257,7 +258,38 @@ export const en = {
     clear: "Clear",
     logoUpdateFailed: "Could not update workspace logo.",
   },
+  popularity: {
+    noColleagues: "No colleagues have installed this yet",
+    installedBy: (count: number) =>
+      `Installed by ${count} ${count === 1 ? "colleague" : "colleagues"}`,
+    foundUseful: (count: number) => `${count} found it useful`,
+    ownUseful: (count: number) => `${count} useful`,
+    yourSkill: "Your skill",
+    useful: "Useful",
+    removeUpvote: "Remove your upvote",
+    upvoteHint: "Upvote if this skill helped you",
+    sortAria: "Sort skills",
+    sortLabel: "Sort",
+    sortPopular: "Popular",
+    sortNewest: "Newest",
+    sortName: "A–Z",
+  },
+  leaderboard: {
+    title: "Top contributors",
+    intro:
+      "Colleagues whose skills others install and find useful. Recent installs count most.",
+    loading: "Loading contributors…",
+    empty: "No approved skills yet. Publish one and you could be first here.",
+    you: " (you)",
+    skills: (count: number): string => (count === 1 ? "skill" : "skills"),
+    colleaguesReached: (count: number): string =>
+      count === 1 ? "colleague reached" : "colleagues reached",
+    upvotes: (count: number): string => (count === 1 ? "upvote" : "upvotes"),
+  },
   notices: {
+    upvoteSaved: "Thanks — upvote saved",
+    upvoteRemoved: "Upvote removed",
+    upvoteFailed: "Upvote failed",
     ready: "Ready",
     installCopied: "Install prompt copied — paste it into your agent",
     mcpTokenFailed:

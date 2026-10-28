@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 import type {
   Actor,
+  SkillRanking,
   WorkspaceCatalogEntry,
   WorkspaceCatalogResponse,
 } from "@skill-library/domain";
@@ -15,8 +16,10 @@ import { hasRole } from "./auth.js";
  */
 export function visibleWorkspaceCatalog(
   snapshot: WorkspaceCatalogSnapshot,
-  actor: Actor | undefined
+  actor: Actor | undefined,
+  rankings: SkillRanking[] = []
 ): WorkspaceCatalogEntry[] {
+  const rankingByPackage = new Map(rankings.map((r) => [r.packageId, r]));
   const maintainer = hasRole(actor, "maintainer");
   const statsByPackage = new Map(snapshot.stats.map((s) => [s.packageId, s]));
   const reportsByPackage = new Map(
@@ -51,6 +54,7 @@ export function visibleWorkspaceCatalog(
           lastModifiedAt: new Date(0).toISOString(),
         },
         report: maintainer ? reportsByPackage.get(pkg.id) : undefined,
+        ranking: rankingByPackage.get(pkg.id),
       },
     ];
   });
@@ -78,10 +82,13 @@ export function registerWorkspaceCatalogRoute(
       return context.json({ error: "User role required" }, 403);
     }
 
-    const snapshot = await api.workspaceCatalog(workspaceId);
+    const [snapshot, ranking] = await Promise.all([
+      api.workspaceCatalog(workspaceId),
+      api.workspaceRanking(workspaceId, actor?.id),
+    ]);
     const body: WorkspaceCatalogResponse = {
       viewer: actor ?? null,
-      packages: visibleWorkspaceCatalog(snapshot, actor),
+      packages: visibleWorkspaceCatalog(snapshot, actor, ranking.skills),
     };
 
     return context.json(body);
