@@ -282,7 +282,7 @@ export const sv: Messages = {
     loading: "Laddar bidragsgivare…",
     empty: "Inga godkända skills än. Publicera en så kan du hamna först här.",
     you: " (du)",
-    skills: (_count: number) => "skills",
+    skills: (count: number) => (count === 1 ? "skill" : "skills"),
     colleaguesReached: (count: number) =>
       count === 1 ? "kollega nådd" : "kollegor nådda",
     upvotes: (count: number) => (count === 1 ? "röst" : "röster"),

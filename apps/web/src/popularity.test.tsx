@@ -154,5 +154,6 @@ describe("popularity", () => {
     expect(screen.getByRole("button", { name: /Användbar/ })).toBeTruthy();
     expect(screen.getByText("Flitigaste bidragsgivarna")).toBeTruthy();
     expect(screen.getByText("kollega nådd")).toBeTruthy();
+    expect(screen.getByText("skills")).toBeTruthy();
   });
 });
