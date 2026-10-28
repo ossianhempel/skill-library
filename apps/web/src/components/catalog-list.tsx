@@ -3,6 +3,23 @@ import type { CatalogSkill } from "../types.js";
 import { titleize } from "../lib/format.js";
 import { SkillStatsMeta } from "../skill-stats.js";
 import { LifecycleBadge } from "./chrome.js";
+import { useI18n } from "../i18n/locale.js";
+import type { Messages } from "../i18n/en.js";
+
+/** Empty-list copy for the catalog (`mine` = the My Skills tab). */
+export function emptyListMessage(
+  t: Messages,
+  mine: boolean,
+  status: "all" | "approved" | "drafts"
+) {
+  if (status === "drafts") {
+    return mine ? t.catalog.mineEmptyDrafts : t.catalog.emptyDrafts;
+  }
+  if (status === "approved") {
+    return mine ? t.catalog.mineEmptyApproved : t.catalog.emptyApproved;
+  }
+  return mine ? t.catalog.mineEmptyAll : t.catalog.emptyAll;
+}
 
 export function StatusFilter({
   selectedStatus,
@@ -13,6 +30,7 @@ export function StatusFilter({
   onSelectStatus: (status: "all" | "approved" | "drafts") => void;
   catalog: CatalogSkill[];
 }) {
+  const { t } = useI18n();
   const allCount = catalog.length;
   const approvedCount = catalog.filter((skill) => {
     const state =
@@ -42,21 +60,21 @@ export function StatusFilter({
         className={`category-pill ${selectedStatus === "all" ? "active" : ""}`}
         onClick={() => onSelectStatus("all")}
       >
-        All Statuses <span className="count">({allCount})</span>
+        {t.catalog.allStatuses} <span className="count">({allCount})</span>
       </button>
       <button
         type="button"
         className={`category-pill ${selectedStatus === "approved" ? "active" : ""}`}
         onClick={() => onSelectStatus("approved")}
       >
-        Approved <span className="count">({approvedCount})</span>
+        {t.catalog.approved} <span className="count">({approvedCount})</span>
       </button>
       <button
         type="button"
         className={`category-pill ${selectedStatus === "drafts" ? "active" : ""}`}
         onClick={() => onSelectStatus("drafts")}
       >
-        Drafts & Pending <span className="count">({draftsCount})</span>
+        {t.catalog.draftsPending} <span className="count">({draftsCount})</span>
       </button>
     </div>
   );
@@ -73,6 +91,7 @@ export function CategoryFilter({
   onSelectCategory: (cat: string) => void;
   catalog: CatalogSkill[];
 }) {
+  const { t } = useI18n();
   return (
     <div className="category-filter-bar">
       <button
@@ -80,7 +99,7 @@ export function CategoryFilter({
         className={`category-pill ${selectedCategory === "all" ? "active" : ""}`}
         onClick={() => onSelectCategory("all")}
       >
-        All <span className="count">({catalog.length})</span>
+        {t.catalog.all} <span className="count">({catalog.length})</span>
       </button>
       {categories.map((cat) => {
         const count = catalog.filter((skill) =>
@@ -116,22 +135,21 @@ export function SkillList({
   emptyMessage?: string;
   loading?: boolean;
 }) {
+  const { t } = useI18n();
   // Show a spinner while the initial query is still in flight so an empty list
   // isn't mistaken for "no skills found".
   if (loading && catalog.length === 0) {
     return (
       <div className="skill-list-loading" role="status" aria-live="polite">
         <Loader2 size={22} className="spin" aria-hidden="true" />
-        <p>Loading skills…</p>
+        <p>{t.catalog.loading}</p>
       </div>
     );
   }
 
   if (catalog.length === 0) {
     return (
-      <p className="empty-catalog-copy">
-        {emptyMessage ?? "No skills in the catalog yet."}
-      </p>
+      <p className="empty-catalog-copy">{emptyMessage ?? t.catalog.empty}</p>
     );
   }
 
@@ -203,10 +221,11 @@ export function FeaturedSkill({
   skill: CatalogSkill;
   onOpen: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <article className="featured-skill">
       <div>
-        <p className="kicker">Featured approved skill</p>
+        <p className="kicker">{t.catalog.featured}</p>
         <h2>{skill.pkg.name}</h2>
         <p>{skill.pkg.description}</p>
         <SkillStatsMeta
@@ -221,7 +240,7 @@ export function FeaturedSkill({
           lastModifiedAt={skill.lastModifiedAt}
         />
       </div>
-      <button onClick={onOpen}>Open catalog</button>
+      <button onClick={onOpen}>{t.catalog.openCatalog}</button>
     </article>
   );
 }

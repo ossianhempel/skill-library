@@ -103,6 +103,10 @@ On localhost only, if the API is unavailable, the catalog falls back to demo dat
 
 The web UI includes an adoption report panel with package totals, current installs, stale or locally modified installs, and per-package rows. Editor and admin report data comes from `/api/workspaces/:workspaceId/reports`.
 
+## Language
+
+The web app is available in English and Swedish. Switch with the flags at the top of every page, including the sign-in page. The choice is saved in your browser and used on your next visit. Without a saved choice the app follows your browser language and falls back to English. Agent prompts (install and MCP setup) stay in English because they are instructions for the agent.
+
 ## Workspaces
 
 A workspace is the catalog namespace inside one registry deployment. Most company installs use a single workspace. The default id is `main`, configured through `defaultWorkspaceId` in `registry.config.json`. Skills, publish forms, and CLI install commands all scope to that workspace id.
@@ -110,3 +114,14 @@ A workspace is the catalog namespace inside one registry deployment. Most compan
 ## Branding
 
 Company deployments customize UI copy and an instance-wide logo fallback in gitignored `registry.config.json` (from `registry.config.example.json`). Admins can replace the active workspace logo on the **Team** tab. The placeholder initials remain the fallback when no logo is configured. See [forking.md](forking.md).
+
+Branding copy can be translated per language with a `localized` block. A field without a translation uses the built-in Swedish copy when it still has the English default, and keeps your custom text otherwise:
+
+```json
+{
+  "loginSubtitle": "Sign in with your Acme account.",
+  "localized": {
+    "sv": { "loginSubtitle": "Logga in med ditt Acme-konto." }
+  }
+}
+```

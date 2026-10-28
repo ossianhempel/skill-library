@@ -14,6 +14,8 @@ import type { AppTab, SessionUser } from "../types.js";
 import { formatRoleLabel } from "../lib/format.js";
 import { NavButton } from "./chrome.js";
 import { LogoMark } from "./logo-mark.js";
+import { useI18n } from "../i18n/locale.js";
+import { LanguageSwitcher } from "../i18n/language-switcher.js";
 
 export function AppRail({
   branding,
@@ -36,45 +38,46 @@ export function AppRail({
   handleLogout: () => void;
   handleTokenChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <aside className="rail" aria-label="Workspace">
+    <aside className="rail" aria-label={t.rail.workspace}>
       <LogoMark logoUrl={logoUrl} fallbackText={branding.appShortName} />
       <NavButton
         icon={<Archive size={19} />}
-        label="Overview"
+        label={t.rail.overview}
         active={activeTab === "overview"}
         onClick={() => setActiveTab("overview")}
       />
       <NavButton
         icon={<Search size={19} />}
-        label="Catalog"
+        label={t.rail.catalog}
         active={activeTab === "catalog"}
         onClick={() => setActiveTab("catalog")}
       />
       {hasSession && (
         <NavButton
           icon={<UserCheck size={19} />}
-          label="My Skills"
+          label={t.rail.mySkills}
           active={activeTab === "my-skills"}
           onClick={() => setActiveTab("my-skills")}
         />
       )}
       <NavButton
         icon={<UploadCloud size={19} />}
-        label="Publish"
+        label={t.rail.publish}
         active={activeTab === "publish"}
         onClick={() => setActiveTab("publish")}
       />
       <NavButton
         icon={<BarChart3 size={19} />}
-        label="Reports"
+        label={t.rail.reports}
         active={activeTab === "reports"}
         onClick={() => setActiveTab("reports")}
       />
       {hasSession && (
         <NavButton
           icon={<Users size={19} />}
-          label="Team"
+          label={t.rail.team}
           active={activeTab === "team"}
           onClick={() => setActiveTab("team")}
         />
@@ -94,14 +97,14 @@ export function AppRail({
           <div className="session-info">
             <span className="session-name">{session.name}</span>
             <span className={`session-role role-${session.role}`}>
-              {formatRoleLabel(session.role)}
+              {formatRoleLabel(session.role, t.roles.labels)}
             </span>
           </div>
           <button
             className="session-logout"
             onClick={() => void handleLogout()}
-            aria-label="Sign out"
-            title="Sign out"
+            aria-label={t.rail.signOut}
+            title={t.rail.signOut}
           >
             <LogOut size={14} />
           </button>
@@ -109,12 +112,12 @@ export function AppRail({
       ) : (
         <div className="token-config">
           <label>
-            API Key
+            {t.rail.apiKey}
             <input
               type="password"
               value={activeToken ?? ""}
               onChange={handleTokenChange}
-              placeholder="Enter token..."
+              placeholder={t.rail.apiKeyPlaceholder}
             />
           </label>
         </div>
@@ -144,6 +147,7 @@ export function AppTopbar({
   setIsCreatingCustomWorkspace: (value: boolean) => void;
   setSelectedWorkspaceId: (value: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <header className="topbar">
       <div>
@@ -171,30 +175,33 @@ export function AppTopbar({
                   setSelectedWorkspaceId(val);
                 }
               }}
-              title="Active Workspace"
+              title={t.topbar.activeWorkspace}
             >
               {availableWorkspaces.map((ws) => (
                 <option key={ws} value={ws}>
-                  Workspace: {ws}
+                  {t.topbar.workspaceOption(ws)}
                 </option>
               ))}
-              <option value="__new__">+ New Workspace...</option>
+              <option value="__new__">{t.topbar.newWorkspace}</option>
             </select>
           </div>
         </div>
       </div>
-      {(activeTab === "catalog" ||
-        activeTab === "my-skills" ||
-        activeTab === "overview") && (
-        <label className="searchbox">
-          <Search size={17} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={branding.searchPlaceholder}
-          />
-        </label>
-      )}
+      <div className="topbar-tools">
+        <LanguageSwitcher />
+        {(activeTab === "catalog" ||
+          activeTab === "my-skills" ||
+          activeTab === "overview") && (
+          <label className="searchbox">
+            <Search size={17} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={branding.searchPlaceholder}
+            />
+          </label>
+        )}
+      </div>
     </header>
   );
 }

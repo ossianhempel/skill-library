@@ -246,7 +246,32 @@ export interface RegistryBrandingConfig {
   statusDeprecatedBg?: string;
   statusDeprecatedText?: string;
   statusDeprecatedBorder?: string;
+  /**
+   * Per-language overrides for the text fields, keyed by locale id, e.g.
+   * `{ "sv": { "overviewHeading": "Hitta en skill" } }`.
+   */
+  localized?: Partial<
+    Record<string, Partial<Record<RegistryBrandingTextKey, string>>>
+  >;
 }
+
+/** Branding fields that are copy shown to people, so they can be translated. */
+export const REGISTRY_BRANDING_TEXT_KEYS = [
+  "appName",
+  "registryTagline",
+  "documentTitle",
+  "loginSubtitle",
+  "overviewHeading",
+  "overviewDescription",
+  "searchPlaceholder",
+  "emptyCatalogTitle",
+  "emptyCatalogDescription",
+  "emptyCatalogListMessage",
+  "uploadDescription",
+] as const;
+
+export type RegistryBrandingTextKey =
+  (typeof REGISTRY_BRANDING_TEXT_KEYS)[number];
 
 export const DEFAULT_REGISTRY_BRANDING: RegistryBrandingConfig = {
   appName: "Skill Library",

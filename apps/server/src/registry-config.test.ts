@@ -34,6 +34,21 @@ describe("registry-config", () => {
     ).toBe("");
   });
 
+  it("keeps per-language text overrides and drops anything else", () => {
+    expect(
+      mergeRegistryBranding({
+        localized: {
+          sv: {
+            overviewHeading: "  Hitta en skill  ",
+            registryPublicUrl: "https://evil.example",
+            loginSubtitle: "",
+          },
+          de: "not an object",
+        },
+      } as never).localized
+    ).toEqual({ sv: { overviewHeading: "Hitta en skill" } });
+  });
+
   it("falls back to defaults when the config file is missing", async () => {
     const dir = await mkdtemp(
       join(tmpdir(), "skill-library-branding-missing-")

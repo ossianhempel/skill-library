@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AdminUser, AppTab, SessionUser } from "../types.js";
 import { formatRoleLabel } from "../lib/format.js";
+import { useI18n } from "../i18n/locale.js";
 
 export function useAuthSession({
   registryUrl,
@@ -13,6 +14,7 @@ export function useAuthSession({
   setNotice: (notice: string) => void;
   setActiveTab: (tab: AppTab) => void;
 }) {
+  const { t } = useI18n();
   const [session, setSession] = useState<SessionUser | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
@@ -122,22 +124,20 @@ export function useAuthSession({
         }
       );
       if (response.ok) {
-        setNotice(`Role updated to ${formatRoleLabel(newRole)}`);
+        setNotice(
+          t.notices.roleUpdated(formatRoleLabel(newRole, t.roles.labels))
+        );
         await loadTeamMembers();
       } else {
-        setNotice("Failed to update user role");
+        setNotice(t.notices.roleFailed);
       }
     } catch {
-      setNotice("Failed to update user role");
+      setNotice(t.notices.roleFailed);
     }
   }
 
   async function handleDeleteUser(userId: string, userName: string) {
-    if (
-      !window.confirm(
-        `Remove ${userName} from the registry? This action cannot be undone.`
-      )
-    ) {
+    if (!window.confirm(t.notices.confirmRemove(userName))) {
       return;
     }
     const baseUrl = registryUrl.replace(/\/$/, "");
@@ -150,13 +150,13 @@ export function useAuthSession({
         }
       );
       if (response.ok) {
-        setNotice(`${userName} has been removed`);
+        setNotice(t.notices.userRemoved(userName));
         await loadTeamMembers();
       } else {
-        setNotice("Failed to remove user");
+        setNotice(t.notices.removeFailed);
       }
     } catch {
-      setNotice("Failed to remove user");
+      setNotice(t.notices.removeFailed);
     }
   }
 

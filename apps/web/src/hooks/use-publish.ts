@@ -1,4 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from "react";
+import { useI18n } from "../i18n/locale.js";
 import type { ValidationResult } from "@skill-library/domain";
 import type { UploadVersionInput, WebApiClient } from "../types.js";
 import { parseSimpleFrontmatter, titleize } from "../lib/format.js";
@@ -26,6 +27,7 @@ export function usePublish({
   onNotice: (notice: string) => void;
   onUploaded: () => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [publishForm, setPublishForm] = useState(emptyPublishForm);
   const [gitFields, setGitFields] = useState(emptyGitFields);
   const [uploadEntries, setUploadEntries] = useState<
@@ -71,7 +73,7 @@ export function usePublish({
 
   async function handlePreflightValidate() {
     if (uploadEntries.length === 0) {
-      onNotice("Choose a skill directory before validating.");
+      onNotice(t.notices.chooseBeforeValidate);
       return;
     }
 
@@ -83,12 +85,14 @@ export function usePublish({
       onNotice(
         validation.ok
           ? validation.issues.some((issue) => issue.severity === "warning")
-            ? "Validation passed with warnings. You can upload the draft for maintainer review."
-            : "Validation passed. Ready to upload."
-          : "Validation found blocking errors. Fix them before approval; you can still upload an invalid draft for review."
+            ? t.notices.validationWarnings
+            : t.notices.validationPassed
+          : t.notices.validationBlocking
       );
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : "Validation failed");
+      onNotice(
+        error instanceof Error ? error.message : t.notices.validationFailed
+      );
     } finally {
       setLoading(false);
     }
@@ -96,9 +100,7 @@ export function usePublish({
 
   async function handleUpload() {
     if (uploadEntries.length === 0) {
-      onNotice(
-        "Choose a skill directory or JSON package tree before uploading."
-      );
+      onNotice(t.notices.chooseBeforeUpload);
       return;
     }
 
@@ -113,12 +115,12 @@ export function usePublish({
       setPreflightValidation(version.validation);
       onNotice(
         version.validation.ok
-          ? `Uploaded as draft: version ${version.version}. Validation passed. Maintainers must Approve it from the Catalog page to make it available for download/install.`
-          : `Uploaded as draft: version ${version.version}. Validation found blocking errors — fix frontmatter before approval. Maintainers can review the issue list in Catalog.`
+          ? t.notices.uploadedValid(version.version)
+          : t.notices.uploadedInvalid(version.version)
       );
       await onUploaded();
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : "Upload failed");
+      onNotice(error instanceof Error ? error.message : t.notices.uploadFailed);
     } finally {
       setLoading(false);
     }
@@ -225,7 +227,7 @@ export function usePublish({
     if (files.length === 0) {
       setUploadEntries([]);
       setPreflightValidation(undefined);
-      onNotice("No files staged");
+      onNotice(t.notices.noFilesStaged);
       return;
     }
 
@@ -237,9 +239,7 @@ export function usePublish({
     if (!hasSkillMd) {
       setUploadEntries([]);
       setPreflightValidation(undefined);
-      onNotice(
-        "Validation error: The selected folder does not contain a SKILL.md file. Publishing requires a SKILL.md file."
-      );
+      onNotice(t.notices.missingSkillMd);
       return;
     }
 
@@ -260,9 +260,7 @@ export function usePublish({
     }
 
     await detectSkillMetadata(files, slug);
-    onNotice(
-      `${entries.length} files staged for upload from skill folder "${slug || "selected"}". Ready to publish.`
-    );
+    onNotice(t.notices.filesStaged(entries.length, slug || "selected"));
   }
 
   function handleDragOver(event: React.DragEvent) {
@@ -326,9 +324,7 @@ export function usePublish({
     if (!hasSkillMd) {
       setUploadEntries([]);
       setPreflightValidation(undefined);
-      onNotice(
-        "Validation error: The selected folder does not contain a SKILL.md file. Publishing requires a SKILL.md file."
-      );
+      onNotice(t.notices.missingSkillMd);
       return;
     }
 
@@ -349,9 +345,7 @@ export function usePublish({
     }
 
     await detectSkillMetadata(files, slug);
-    onNotice(
-      `${entries.length} files staged for upload from dropped folder "${slug || "dropped"}". Ready to publish.`
-    );
+    onNotice(t.notices.filesDropped(entries.length, slug || "dropped"));
   }
 
   return {

@@ -1,11 +1,12 @@
 import type { DownloadHistoryPoint } from "@skill-library/domain";
+import { useI18n } from "./i18n/locale.js";
 
-export function formatSkillDate(iso: string): string {
+export function formatSkillDate(iso: string, locale = "en-US"): string {
   if (!iso || iso === new Date(0).toISOString()) {
     return "—";
   }
 
-  return new Date(iso).toLocaleDateString("en-US", {
+  return new Date(iso).toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -16,13 +17,14 @@ export function DownloadSparkline({
   history,
   width = 72,
   height = 24,
-  label = "Download trend",
+  label,
 }: {
   history: DownloadHistoryPoint[];
   width?: number;
   height?: number;
   label?: string;
 }) {
+  const { t } = useI18n();
   const values = history.map((point) => point.count);
   const max = Math.max(...values, 1);
   const step = values.length > 1 ? width / (values.length - 1) : 0;
@@ -41,7 +43,7 @@ export function DownloadSparkline({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label={label}
+      aria-label={label ?? t.stats.downloadTrend}
     >
       <polyline
         fill="none"
@@ -72,33 +74,34 @@ export function SkillStatsMeta({
   author?: string;
   compact?: boolean;
 }) {
+  const { t, dateLocale } = useI18n();
   return (
     <div
       className={compact ? "skill-stats skill-stats--compact" : "skill-stats"}
     >
       <span className="skill-stat">
-        <em>Version</em>
+        <em>{t.stats.version}</em>
         <strong>{version ?? "—"}</strong>
       </span>
       {author && (
         <span className="skill-stat">
-          <em>Author</em>
+          <em>{t.stats.author}</em>
           <strong>{author}</strong>
         </span>
       )}
       <span className="skill-stat">
-        <em>Downloads</em>
+        <em>{t.stats.downloads}</em>
         <strong>{downloads}</strong>
       </span>
       {!compact && (
         <span className="skill-stat">
-          <em>Uploaded</em>
-          <strong>{formatSkillDate(uploadedAt)}</strong>
+          <em>{t.stats.uploaded}</em>
+          <strong>{formatSkillDate(uploadedAt, dateLocale)}</strong>
         </span>
       )}
       <span className="skill-stat">
-        <em>Last modified</em>
-        <strong>{formatSkillDate(lastModifiedAt)}</strong>
+        <em>{t.stats.lastModified}</em>
+        <strong>{formatSkillDate(lastModifiedAt, dateLocale)}</strong>
       </span>
       <span
         className="skill-stat skill-stat--sparkline"

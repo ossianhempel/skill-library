@@ -1,6 +1,8 @@
 import { Loader2, Shield } from "lucide-react";
 import type { RegistryBrandingConfig } from "@skill-library/domain";
 import { LogoMark } from "./logo-mark.js";
+import { useI18n } from "../i18n/locale.js";
+import { LanguageSwitcher } from "../i18n/language-switcher.js";
 
 export function LoginScreen({
   branding,
@@ -15,13 +17,13 @@ export function LoginScreen({
   signingIn?: boolean;
   checkingSession?: boolean;
 }) {
+  const { t } = useI18n();
   const busy = signingIn || checkingSession;
-  const statusCopy = checkingSession
-    ? "Checking your sign-in…"
-    : "Redirecting to Microsoft…";
+  const statusCopy = checkingSession ? t.login.checking : t.login.redirecting;
 
   return (
     <main className="login-shell">
+      <LanguageSwitcher className="login-language" />
       <div className="login-card">
         <LogoMark
           logoUrl={logoUrl}
@@ -65,7 +67,7 @@ export function LoginScreen({
         ) : (
           <button className="login-btn" onClick={onSignIn}>
             <Shield size={18} />
-            Sign in with Microsoft
+            {t.login.signIn}
           </button>
         )}
       </div>

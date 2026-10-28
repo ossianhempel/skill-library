@@ -9,6 +9,7 @@ import type {
 import { isLocalDev } from "../lib/browser.js";
 import { devSampleSkills } from "../lib/dev-sample-data.js";
 import { loadWorkspaceCatalog } from "../api/catalog.js";
+import { useI18n } from "../i18n/locale.js";
 import {
   catalogCacheKey,
   clearCachedCatalogs,
@@ -39,6 +40,7 @@ export function useCatalog({
   setLoading: (loading: boolean) => void;
   setNotice: (notice: string) => void;
 }) {
+  const { t } = useI18n();
   const [catalog, setCatalog] = useState<CatalogSkill[]>(skills ?? []);
   const [selectedId, setSelectedId] = useState<string | undefined>(
     catalog[0]?.pkg.id
@@ -375,9 +377,7 @@ export function useCatalog({
         );
       }
       setNotice(
-        next.length > 0
-          ? "Catalog synced"
-          : "Catalog is empty. Publish a skill to get started."
+        next.length > 0 ? t.notices.catalogSynced : t.notices.catalogEmpty
       );
     } catch (error) {
       if (token !== loadTokenRef.current) {
@@ -393,9 +393,9 @@ export function useCatalog({
       if (shownRef.current && !denied) {
         // Keep showing the cached catalog; only say the refresh failed.
         setNotice(
-          error instanceof Error
-            ? `Could not refresh catalog: ${error.message}`
-            : "Could not refresh catalog"
+          t.notices.refreshFailed(
+            error instanceof Error ? error.message : undefined
+          )
         );
         return;
       }
@@ -403,13 +403,10 @@ export function useCatalog({
       setCatalog(fallback);
       setSelectedId(fallback[0]?.pkg.id);
       setNotice(
-        error instanceof Error
-          ? isLocalDev()
-            ? `API unavailable: ${error.message}; showing local demo data`
-            : `API unavailable: ${error.message}`
-          : isLocalDev()
-            ? "API unavailable; showing local demo data"
-            : "API unavailable"
+        t.notices.apiUnavailable(
+          error instanceof Error ? error.message : undefined,
+          isLocalDev()
+        )
       );
     } finally {
       // Only the newest load settles the state, so it also owns clearing the
@@ -425,7 +422,7 @@ export function useCatalog({
     const versionId = selected?.activeVersion?.id;
 
     if (!versionId) {
-      setNotice("No selected version to transition.");
+      setNotice(t.notices.noVersion);
       return;
     }
 
@@ -434,12 +431,15 @@ export function useCatalog({
     try {
       const version = await apiClient.transitionVersion(versionId, toState);
       setNotice(
-        `Version ${version.version} moved to ${version.lifecycleState}`
+        t.notices.versionMoved(
+          version.version,
+          t.lifecycle[version.lifecycleState]
+        )
       );
       await loadCatalog();
     } catch (error) {
       setNotice(
-        error instanceof Error ? error.message : "Lifecycle transition failed"
+        error instanceof Error ? error.message : t.notices.lifecycleFailed
       );
     } finally {
       setLoading(false);

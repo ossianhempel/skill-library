@@ -31,6 +31,7 @@ import { ValidationPanel } from "../validation-panel.js";
 import { SkillStatsMeta } from "../skill-stats.js";
 import { LifecycleBadge } from "./chrome.js";
 import { AddToClaudeSteps, ClaudePromptInstall } from "./add-to-claude.js";
+import { useI18n } from "../i18n/locale.js";
 
 export const SkillDetailPane = forwardRef<
   HTMLElement,
@@ -73,11 +74,12 @@ export const SkillDetailPane = forwardRef<
   },
   ref
 ) {
+  const { t } = useI18n();
   return (
-    <section className="detail-pane" aria-label="Skill detail" ref={ref}>
+    <section className="detail-pane" aria-label={t.detail.aria} ref={ref}>
       <div className="detail-head">
         <div>
-          <p className="kicker">Selected package</p>
+          <p className="kicker">{t.detail.selected}</p>
           <h2>{selected.pkg.name}</h2>
           <p>{selected.pkg.description}</p>
           {selected.pkg.categories && selected.pkg.categories.length > 0 && (
@@ -96,10 +98,10 @@ export const SkillDetailPane = forwardRef<
             type="button"
             className="secondary copy-link-button"
             onClick={() => copyShareLink()}
-            title="Copy a shareable link to this skill"
+            title={t.detail.copyLinkTitle}
           >
             {copiedLink ? <ClipboardCheck size={16} /> : <Link2 size={16} />}
-            {copiedLink ? "Copied" : "Copy link"}
+            {copiedLink ? t.detail.copied : t.detail.copyLink}
           </button>
         </div>
       </div>
@@ -107,7 +109,7 @@ export const SkillDetailPane = forwardRef<
       <div className="install-section">
         <div className="panel-title">
           <Sparkles size={17} />
-          Add this skill to Claude
+          {t.addToClaude.title}
         </div>
         {selected.latestApproved ? (
           <>
@@ -136,18 +138,14 @@ export const SkillDetailPane = forwardRef<
             <details className="developer-install">
               <summary>
                 <TerminalSquare size={15} />
-                Using Claude Code, Codex, or Cursor? Install with a prompt
-                instead
+                {t.detail.developerSummary}
               </summary>
               <div className="install-actions-stack">
-                <p className="install-hint">
-                  Paste this prompt into Claude Code, Codex, Cursor, or any
-                  coding agent to install this skill and verify it.
-                </p>
+                <p className="install-hint">{t.detail.developerHint}</p>
                 <div
                   className="install-target-toggle"
                   role="group"
-                  aria-label="Install target"
+                  aria-label={t.detail.installTarget}
                 >
                   {INSTALL_PROVIDER_OPTIONS.map((option) => (
                     <button
@@ -182,30 +180,28 @@ export const SkillDetailPane = forwardRef<
                     ) : (
                       <Copy size={17} />
                     )}
-                    {copiedInstall ? "Copied" : "Copy prompt"}
+                    {copiedInstall ? t.detail.copied : t.detail.copyPrompt}
                   </button>
                   <a
                     className="button secondary"
                     href={artifactDownloadUrl(registryUrl, selected)}
                   >
                     <Download size={17} />
-                    Download ZIP
+                    {t.detail.downloadZip}
                   </a>
                 </div>
               </div>
             </details>
           </>
         ) : (
-          <p className="install-warning">
-            No approved version is available for installation.
-          </p>
+          <p className="install-warning">{t.detail.noApproved}</p>
         )}
       </div>
 
       <div className="panel">
         <div className="panel-title">
           <BarChart3 size={17} />
-          Usage
+          {t.detail.usage}
         </div>
         <SkillStatsMeta
           version={
@@ -224,12 +220,12 @@ export const SkillDetailPane = forwardRef<
       </div>
 
       <details className="technical-details">
-        <summary>Technical details: files and validation</summary>
+        <summary>{t.detail.technical}</summary>
         <div className="split">
           <div className="panel">
             <div className="panel-title">
               <FileCode2 size={17} />
-              Contents
+              {t.detail.contents}
             </div>
             <ul className="file-tree">
               {selected.files.slice(0, 5).map((file) => (
@@ -246,13 +242,13 @@ export const SkillDetailPane = forwardRef<
                 className="toggle-files-button"
                 onClick={() => setFilesExpanded(!filesExpanded)}
                 aria-label={
-                  filesExpanded ? "Show less files" : "Show more files"
+                  filesExpanded ? t.detail.showLessAria : t.detail.showMoreAria
                 }
               >
                 <span>
                   {filesExpanded
-                    ? "Show less"
-                    : `Show ${selected.files.length - 5} more files`}
+                    ? t.detail.showLess
+                    : t.detail.showMore(selected.files.length - 5)}
                 </span>
                 <ChevronDown
                   size={15}
@@ -270,19 +266,19 @@ export const SkillDetailPane = forwardRef<
           <div className="panel">
             <div className="panel-title">
               <CheckCircle2 size={17} />
-              Validation
+              {t.detail.validation}
             </div>
             <ValidationPanel validation={selected.activeVersion?.validation} />
             <div className="version-line">
-              <span>Active version</span>
+              <span>{t.detail.activeVersion}</span>
               <strong>
-                {selected.activeVersion?.version ?? "No version selected"}
+                {selected.activeVersion?.version ?? t.detail.noVersion}
               </strong>
             </div>
             {selected.latestApproved &&
             selected.activeVersion?.id !== selected.latestApproved.id ? (
               <div className="version-line">
-                <span>Approved install</span>
+                <span>{t.detail.approvedInstall}</span>
                 <strong>{selected.latestApproved.version}</strong>
               </div>
             ) : null}
@@ -294,12 +290,9 @@ export const SkillDetailPane = forwardRef<
         <div className="lifecycle-panel">
           <div className="panel-title">
             <RefreshCw size={17} />
-            Lifecycle controls
+            {t.detail.lifecycle}
           </div>
-          <p className="lifecycle-copy">
-            Editors and Admins review drafts here. Approval makes a skill
-            installable from the catalog.
-          </p>
+          <p className="lifecycle-copy">{t.detail.lifecycleCopy}</p>
           <div className="actions">
             {selected.activeVersion?.lifecycleState !== "approved" && (
               <button
@@ -307,7 +300,7 @@ export const SkillDetailPane = forwardRef<
                 disabled={loading}
               >
                 <CheckCircle2 size={17} />
-                Approve
+                {t.detail.approve}
               </button>
             )}
             <button
@@ -316,7 +309,7 @@ export const SkillDetailPane = forwardRef<
               disabled={loading}
             >
               <ShieldCheck size={17} />
-              Hide
+              {t.detail.hide}
             </button>
             <button
               className="secondary"
@@ -324,7 +317,7 @@ export const SkillDetailPane = forwardRef<
               disabled={loading}
             >
               <Archive size={17} />
-              Deprecate
+              {t.detail.deprecate}
             </button>
           </div>
         </div>
@@ -332,10 +325,7 @@ export const SkillDetailPane = forwardRef<
 
       <div className="activity-strip">
         <GitBranch size={18} />
-        <span>
-          Download counts and sparklines reflect the last{" "}
-          {DOWNLOAD_HISTORY_DAYS} days of artifact downloads.
-        </span>
+        <span>{t.detail.activity(DOWNLOAD_HISTORY_DAYS)}</span>
       </div>
     </section>
   );

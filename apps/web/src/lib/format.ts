@@ -5,6 +5,7 @@ import {
   type DownloadHistoryPoint,
   type SkillPackage,
   type SkillVersion,
+  type WorkspaceRole,
 } from "@skill-library/domain";
 
 export function titleize(slug: string) {
@@ -14,9 +15,12 @@ export function titleize(slug: string) {
     .join(" ");
 }
 
-export function formatRoleLabel(role: string): string {
+export function formatRoleLabel(
+  role: string,
+  labels: Record<WorkspaceRole, string> = WORKSPACE_ROLE_LABELS
+): string {
   if (role === "user" || role === "maintainer" || role === "admin") {
-    return WORKSPACE_ROLE_LABELS[role];
+    return labels[role];
   }
 
   return role;
