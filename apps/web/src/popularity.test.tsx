@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SkillRanking } from "@skill-library/domain";
+import { LOCALE_STORAGE_KEY, LocaleProvider } from "./i18n/locale.js";
 import {
   ContributorsPanel,
   PopularityLine,
@@ -8,7 +9,10 @@ import {
   sortCatalog,
 } from "./components/popularity.js";
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  window.localStorage.clear();
+});
 
 const ranking = (overrides: Partial<SkillRanking> = {}): SkillRanking => ({
   packageId: "p",
@@ -120,5 +124,35 @@ describe("popularity", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(10);
     expect(screen.getByText("(you)")).toBeTruthy();
     expect(screen.queryByText("Person 11")).toBeNull();
+  });
+
+  it("speaks Swedish when the Swedish locale is chosen", () => {
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, "sv");
+    render(
+      <LocaleProvider>
+        <PopularityLine ranking={ranking({ colleagues: 3, upvotes: 2 })} />
+        <UpvoteButton ranking={ranking({ upvotes: 2 })} onVote={() => {}} />
+        <ContributorsPanel
+          contributors={[
+            {
+              userId: "u1",
+              name: "Ada",
+              image: null,
+              skills: 2,
+              colleaguesReached: 1,
+              upvotes: 1,
+              score: 3,
+            },
+          ]}
+          loading={false}
+        />
+      </LocaleProvider>
+    );
+
+    expect(screen.getByText("Installerad av 3 kollegor")).toBeTruthy();
+    expect(screen.getByText("2 tycker att den är användbar")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Användbar/ })).toBeTruthy();
+    expect(screen.getByText("Flitigaste bidragsgivarna")).toBeTruthy();
+    expect(screen.getByText("kollega nådd")).toBeTruthy();
   });
 });
