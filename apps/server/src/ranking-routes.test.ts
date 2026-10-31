@@ -144,6 +144,26 @@ describe("ranking routes", () => {
     expect(await response.json()).not.toHaveProperty("skill");
   });
 
+  it("treats a static-key publisher as the author of their skill", async () => {
+    const { app, store } = await createApp();
+    await store.createVersion({
+      id: "quiet-v2",
+      packageId: "quiet",
+      version: "2.0.0",
+      lifecycleState: "approved",
+      artifactDigest: "sha256:quiet",
+      validation: { ok: true, files: [], issues: [] },
+      provenance: {
+        kind: "upload",
+        actorId: "maintainer-1",
+        importedAt: new Date().toISOString(),
+      },
+      createdAt: new Date().toISOString(),
+    });
+
+    expect((await vote(app, "maintainer-1", "quiet", true)).status).toBe(403);
+  });
+
   it("rejects self-votes, anonymous votes, and votes on drafts", async () => {
     const { app } = await createApp();
 

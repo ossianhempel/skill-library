@@ -56,14 +56,15 @@ export async function loadRankingSignals(
     .execute();
 
   // Same provenance-to-user resolution as the version reads: a version's author is
-  // the user whose id or email matches the recorded actor or git author.
+  // the user whose id or email matches the recorded actor or git author. A
+  // version with no match stays attributed to its recorded actor id.
   const actorId = jsonText(engine, "v.provenance", "actorId");
   const actorEmail = jsonText(engine, "v.provenance", "actorEmail");
   const gitAuthorEmail = jsonText(engine, "v.provenance", "gitAuthorEmail");
   const authorRows = await db
     .selectFrom("skill_versions as v")
     .innerJoin("skill_packages as p", "p.id", "v.package_id")
-    .innerJoin("user as u", (join) =>
+    .leftJoin("user as u", (join) =>
       join.on((eb) =>
         eb.or([
           eb(actorId, "=", eb.ref("u.id")),
@@ -79,13 +80,17 @@ export async function loadRankingSignals(
       "u.id as user_id",
       "u.name",
       "u.image",
+      actorId.as("actor_id"),
     ])
     .where("p.workspace_id", "=", workspaceId)
     .execute();
 
   const authors = new Map<string, RankingSignals["authors"][number]>();
   for (const row of authorRows) {
-    const key = `${row.package_id}\u0000${row.user_id}`;
+    // A static API key publishes with no user row, yet it is still the author.
+    const userId = row.user_id ?? row.actor_id;
+    if (!userId) continue;
+    const key = `${row.package_id}\u0000${userId}`;
     const approved = row.lifecycle_state === "approved";
     const current = authors.get(key);
     if (current) {
@@ -94,7 +99,7 @@ export async function loadRankingSignals(
     }
     authors.set(key, {
       packageId: row.package_id,
-      userId: row.user_id,
+      userId,
       name: row.name,
       image: row.image,
       approved,

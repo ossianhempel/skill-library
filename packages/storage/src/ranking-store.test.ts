@@ -96,6 +96,34 @@ describe("ranking signals (PGlite)", () => {
     ]);
   });
 
+  it("keeps an author who has no user account, without a name", async () => {
+    const store = await seededStore();
+    await store.createVersion({
+      id: "version-key",
+      packageId: "package-1",
+      version: "2.0.0",
+      lifecycleState: "approved",
+      artifactDigest: "sha256:key",
+      validation: { ok: true, files: [], issues: [] },
+      provenance: {
+        kind: "upload",
+        actorId: "maintainer-1",
+        importedAt: "2026-06-01T09:00:00.000Z",
+      },
+      createdAt: "2026-06-01T09:00:00.000Z",
+    });
+
+    const { authors } = await store.getRankingSignals("workspace-1");
+
+    expect(authors).toContainEqual({
+      packageId: "package-1",
+      userId: "maintainer-1",
+      name: null,
+      image: null,
+      approved: true,
+    });
+  });
+
   it("removes a vote when it is withdrawn or the voter is deleted", async () => {
     const store = await seededStore();
     const vote = { packageId: "package-1", userId: "user-bo", voted: true };

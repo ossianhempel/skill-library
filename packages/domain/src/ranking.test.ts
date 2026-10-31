@@ -118,4 +118,24 @@ describe("rankWorkspace", () => {
       },
     ]);
   });
+
+  it("excludes an author without a profile but keeps them off the leaderboard", () => {
+    const ranking = rankWorkspace(
+      signals({
+        authors: [{ ...author("skill-a", "ci-key"), name: null }],
+        installs: [
+          { packageId: "skill-a", userId: "ci-key", lastAt: daysAgo(0) },
+          { packageId: "skill-a", userId: "u1", lastAt: daysAgo(0) },
+        ],
+      }),
+      { now, viewerId: "ci-key" }
+    );
+
+    expect(ranking.skills[0]).toMatchObject({
+      packageId: "skill-a",
+      colleagues: 1,
+      authoredByMe: true,
+    });
+    expect(ranking.contributors).toEqual([]);
+  });
 });

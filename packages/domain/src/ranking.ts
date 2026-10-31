@@ -14,7 +14,8 @@ export interface RankingSignals {
   authors: {
     packageId: SkillPackageId;
     userId: string;
-    name: string;
+    /** Null when no user account matches, such as a static API key. */
+    name: string | null;
     image: string | null;
     approved: boolean;
   }[];
@@ -127,7 +128,7 @@ export function rankWorkspace(
     ContributorRanking & { reached: Set<string>; packages: Set<string> }
   >();
   for (const author of signals.authors) {
-    if (!author.approved) continue;
+    if (!author.approved || author.name === null) continue;
     let contributor = contributors.get(author.userId);
     if (!contributor) {
       contributor = {
