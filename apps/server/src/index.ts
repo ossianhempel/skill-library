@@ -6,7 +6,9 @@ import type {
   SkillVersion,
   ValidationResult,
   VersionProvenance,
+  WorkspaceRanking,
 } from "@skill-library/domain";
+import { rankWorkspace } from "@skill-library/domain";
 import type { Workspace } from "@skill-library/domain";
 import {
   createRegistryStore,
@@ -35,13 +37,22 @@ export interface RegistryApi {
     packageId: string
   ): ReturnType<RegistryStore["getLatestApprovedVersion"]>;
   recordPackageView(packageId: string): Promise<void>;
-  recordArtifactDownload(packageId: string, versionId: string): Promise<void>;
+  recordArtifactDownload(
+    packageId: string,
+    versionId: string,
+    actorId?: string
+  ): Promise<void>;
   recordInstallReport(report: InstallReport): Promise<void>;
   usageCount: RegistryStore["countUsageEvents"];
   packageReport: RegistryStore["getPackageReport"];
   workspaceReports: RegistryStore["getWorkspaceReports"];
   workspaceCatalogStats: RegistryStore["getWorkspaceCatalogStats"];
   workspaceCatalog: RegistryStore["getWorkspaceCatalog"];
+  workspaceRanking(
+    workspaceId: string,
+    viewerId?: string
+  ): Promise<WorkspaceRanking>;
+  setSkillVote: RegistryStore["setSkillVote"];
   validate(entries: PackageTreeEntry[]): ReturnType<typeof validatePackageTree>;
   ingestArtifact(entries: PackageTreeEntry[]): Promise<IngestedArtifact>;
   createUploadedVersion(
@@ -169,7 +180,7 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         createdAt: new Date().toISOString(),
       });
     },
-    async recordArtifactDownload(packageId, versionId) {
+    async recordArtifactDownload(packageId, versionId, actorId) {
       const pkg = await store.getPackage(packageId);
 
       if (!pkg) {
@@ -183,6 +194,7 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         versionId,
         eventType: "download",
         createdAt: new Date().toISOString(),
+        actorId,
       });
     },
     recordInstallReport(report) {
@@ -202,6 +214,15 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
     },
     workspaceCatalog(workspaceId) {
       return store.getWorkspaceCatalog(workspaceId);
+    },
+    async workspaceRanking(workspaceId, viewerId) {
+      return rankWorkspace(await store.getRankingSignals(workspaceId), {
+        now: new Date(),
+        viewerId,
+      });
+    },
+    setSkillVote(input) {
+      return store.setSkillVote(input);
     },
     validate(entries) {
       return validatePackageTree(entries);

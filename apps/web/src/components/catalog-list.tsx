@@ -20,6 +20,7 @@ export function emptyListMessage(
   }
   return mine ? t.catalog.mineEmptyAll : t.catalog.emptyAll;
 }
+import { PopularityLine } from "./popularity.js";
 
 export function StatusFilter({
   selectedStatus,
@@ -185,6 +186,7 @@ export function SkillRow({
         <div className="skill-row-copy">
           <h2>{skill.pkg.name}</h2>
           <p>{skill.pkg.description}</p>
+          <PopularityLine ranking={skill.ranking} />
           <div className="tags">
             {skill.pkg.categories.map((category) => (
               <span key={category}>{category}</span>

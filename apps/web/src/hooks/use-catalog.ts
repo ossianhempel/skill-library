@@ -3,9 +3,12 @@ import type { LifecycleState } from "@skill-library/domain";
 import type {
   AppTab,
   CatalogSkill,
+  CatalogSort,
   SessionUser,
   WebApiClient,
 } from "../types.js";
+import { sortCatalog } from "../components/popularity.js";
+import { useSkillVote } from "./use-ranking.js";
 import { isLocalDev } from "../lib/browser.js";
 import { devSampleSkills } from "../lib/dev-sample-data.js";
 import { loadWorkspaceCatalog } from "../api/catalog.js";
@@ -50,6 +53,7 @@ export function useCatalog({
   const [statusFilter, setStatusFilter] = useState<
     "all" | "approved" | "drafts"
   >("all");
+  const [sortBy, setSortBy] = useState<CatalogSort>("popular");
   // Tracks whether the initial catalog query has resolved at least once, so the
   // Catalog / My Skills lists can show a spinner instead of an empty-state on
   // first paint (before any data has arrived).
@@ -266,39 +270,17 @@ export function useCatalog({
   }, [mySkills, query]);
 
   const queryAndStatusFilteredCatalog = useMemo(() => {
-    return catalog.filter((skill) => {
-      if (!matchesQuery(skill, query)) return false;
-
-      const state =
-        skill.activeVersion?.lifecycleState ??
-        skill.latestApproved?.lifecycleState;
-      if (statusFilter === "approved") {
-        return state === "approved";
-      }
-      if (statusFilter === "drafts") {
-        return state === "draft" || state === "published";
-      }
-
-      return true;
-    });
+    return catalog.filter(
+      (skill) =>
+        matchesQuery(skill, query) && matchesStatus(skill, statusFilter)
+    );
   }, [catalog, query, statusFilter]);
 
   const queryAndStatusFilteredMySkills = useMemo(() => {
-    return mySkills.filter((skill) => {
-      if (!matchesQuery(skill, query)) return false;
-
-      const state =
-        skill.activeVersion?.lifecycleState ??
-        skill.latestApproved?.lifecycleState;
-      if (statusFilter === "approved") {
-        return state === "approved";
-      }
-      if (statusFilter === "drafts") {
-        return state === "draft" || state === "published";
-      }
-
-      return true;
-    });
+    return mySkills.filter(
+      (skill) =>
+        matchesQuery(skill, query) && matchesStatus(skill, statusFilter)
+    );
   }, [mySkills, query, statusFilter]);
 
   const displaySkills = useMemo(() => {
@@ -307,24 +289,11 @@ export function useCatalog({
       base = filteredMySkills;
     }
 
-    if (statusFilter === "approved") {
-      base = base.filter((skill) => {
-        const state =
-          skill.activeVersion?.lifecycleState ??
-          skill.latestApproved?.lifecycleState;
-        return state === "approved";
-      });
-    } else if (statusFilter === "drafts") {
-      base = base.filter((skill) => {
-        const state =
-          skill.activeVersion?.lifecycleState ??
-          skill.latestApproved?.lifecycleState;
-        return state === "draft" || state === "published";
-      });
-    }
-
-    return base;
-  }, [activeTab, filteredCatalog, filteredMySkills, statusFilter]);
+    return sortCatalog(
+      base.filter((skill) => matchesStatus(skill, statusFilter)),
+      sortBy
+    );
+  }, [activeTab, filteredCatalog, filteredMySkills, statusFilter, sortBy]);
 
   useEffect(() => {
     setSelectedCategory("all");
@@ -350,6 +319,16 @@ export function useCatalog({
         : next[0]?.pkg.id
     );
   }
+
+  // The lists behind the Catalog / My Skills filters for whichever tab is open.
+  const isMySkills = activeTab === "my-skills";
+  const listFilters = {
+    statusCatalog: isMySkills ? queryFilteredMySkills : queryFilteredCatalog,
+    categories: isMySkills ? myCategories : availableCategories,
+    categoryCatalog: isMySkills
+      ? queryAndStatusFilteredMySkills
+      : queryAndStatusFilteredCatalog,
+  };
 
   async function loadCatalog() {
     const token = ++loadTokenRef.current;
@@ -446,6 +425,8 @@ export function useCatalog({
     }
   }
 
+  const voting = useSkillVote({ apiClient, selected, setCatalog, setNotice });
+
   return {
     catalog,
     selectedId,
@@ -471,6 +452,10 @@ export function useCatalog({
     queryAndStatusFilteredMySkills,
     displaySkills,
     selected,
+    // Grouped so the page can hand them to CatalogTab / SkillDetailPane as-is.
+    sorting: { sortBy, setSortBy },
+    voting,
+    listFilters,
   };
 }
 
@@ -483,6 +468,18 @@ function matchesQuery(skill: CatalogSkill, query: string): boolean {
       .toLowerCase()
       .includes(normalizedQuery)
   );
+}
+
+// The Approved / Drafts & Pending status filter.
+function matchesStatus(
+  skill: CatalogSkill,
+  status: "all" | "approved" | "drafts"
+): boolean {
+  const state =
+    skill.activeVersion?.lifecycleState ?? skill.latestApproved?.lifecycleState;
+  if (status === "approved") return state === "approved";
+  if (status === "drafts") return state === "draft" || state === "published";
+  return true;
 }
 
 function viewerIdentity(
