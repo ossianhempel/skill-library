@@ -2208,3 +2208,49 @@ p {
     justify-content: flex-start;
   }
 }
+
+.connect-claude {
+  border: 1px solid var(--accent);
+  background: rgba(251, 250, 244, 0.96);
+  box-shadow: var(--shadow);
+  padding: var(--space-22);
+  display: grid;
+  gap: var(--space-14);
+}
+
+.connect-claude h3 {
+  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+  line-height: 1.05;
+  margin: 0;
+}
+
+.connect-claude p {
+  margin: 0;
+}
+
+.connect-claude .kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.connect-claude-url {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-14);
+}
+
+.connect-claude-url code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  padding: var(--space-4) var(--space-14);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+
+.connect-claude-steps {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-18);
+}

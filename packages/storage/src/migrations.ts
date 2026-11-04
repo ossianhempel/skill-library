@@ -1,5 +1,6 @@
 import { type Kysely, sql, type RawBuilder } from "kysely";
 import type { DatabaseEngine, DatabaseSchema } from "./kysely.js";
+import { runOAuthMigrations } from "./oauth-migrations.js";
 
 /**
  * Cross-dialect schema creation for the registry's own tables. Replaces the
@@ -298,6 +299,8 @@ export async function runAuthMigrations(
       .addColumn("updated_at", t.timestamp, (c) => c.notNull().defaultTo(t.now))
       .execute();
   }
+
+  await runOAuthMigrations(db, t, existing);
 
   // Remove orphaned auth rows left by historical partial-signup bugs (no-op on fresh DBs).
   await db

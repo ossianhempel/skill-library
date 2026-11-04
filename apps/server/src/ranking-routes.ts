@@ -1,5 +1,10 @@
 import type { Hono } from "hono";
-import type { Actor, SkillRanking, Workspace } from "@skill-library/domain";
+import type {
+  Actor,
+  SkillPackage,
+  SkillRanking,
+  Workspace,
+} from "@skill-library/domain";
 import type { RegistryApi } from "./index.js";
 import { hasRole } from "./auth.js";
 import { visibleWorkspaceCatalog } from "./workspace-catalog.js";
@@ -77,46 +82,65 @@ export function registerRankingRoutes(
       return context.json({ error: "Request body must include voted." }, 400);
     }
 
-    // Withdrawing stays possible after a skill loses its approved version.
-    if (body.voted && !(await api.latestApprovedVersion(packageId))) {
-      return context.json(
-        { error: "Only approved skills can be upvoted" },
-        409
-      );
-    }
-
-    const [before, snapshot] = await Promise.all([
-      api.workspaceRanking(pkg.workspaceId, actor.id),
-      api.workspaceCatalog(pkg.workspaceId),
-    ]);
-    const mine = before.skills.find((skill) => skill.packageId === packageId);
-    const visible = visibleWorkspaceCatalog(snapshot, actor).some(
-      (entry) => entry.package.id === packageId
-    );
-
-    // A skill the caller can't see in the catalog stays invisible here too,
-    // except to withdraw a vote they already cast before it was deprecated.
-    if (!visible && !mine?.votedByMe) {
-      return context.json({ error: "Package not found" }, 404);
-    }
-
-    if (mine?.authoredByMe) {
-      return context.json({ error: "You can't upvote your own skill" }, 403);
-    }
-
-    await api.setSkillVote({ packageId, userId: actor.id, voted: body.voted });
-    const after = await api.workspaceRanking(pkg.workspaceId, actor.id);
-    // A skill with no remaining signals drops out of the ranking; report zeros.
-    const skill: SkillRanking = after.skills.find(
-      (entry) => entry.packageId === packageId
-    ) ?? {
-      packageId,
-      colleagues: 0,
-      upvotes: 0,
-      score: 0,
-      votedByMe: false,
-      authoredByMe: false,
-    };
-    return context.json({ skill });
+    const result = await castSkillVote(api, actor, pkg, body.voted);
+    return "error" in result
+      ? context.json({ error: result.error }, result.status)
+      : context.json({ skill: result.skill });
   });
+}
+
+/**
+ * Upvotes a skill for `actor`, or withdraws the upvote, with the rules shared
+ * by the web API and the MCP tool: only approved skills the caller can see,
+ * never their own, and a withdrawal stays possible after a skill is
+ * deprecated. The caller has already checked workspace access.
+ */
+export async function castSkillVote(
+  api: RegistryApi,
+  actor: Actor,
+  pkg: SkillPackage,
+  voted: boolean
+): Promise<
+  { skill: SkillRanking } | { error: string; status: 403 | 404 | 409 }
+> {
+  const packageId = pkg.id;
+
+  // Withdrawing stays possible after a skill loses its approved version.
+  if (voted && !(await api.latestApprovedVersion(packageId))) {
+    return { error: "Only approved skills can be upvoted", status: 409 };
+  }
+
+  const [before, snapshot] = await Promise.all([
+    api.workspaceRanking(pkg.workspaceId, actor.id),
+    api.workspaceCatalog(pkg.workspaceId),
+  ]);
+  const mine = before.skills.find((skill) => skill.packageId === packageId);
+  const visible = visibleWorkspaceCatalog(snapshot, actor).some(
+    (entry) => entry.package.id === packageId
+  );
+
+  // A skill the caller can't see in the catalog stays invisible here too,
+  // except to withdraw a vote they already cast before it was deprecated.
+  if (!visible && !mine?.votedByMe) {
+    return { error: "Package not found", status: 404 };
+  }
+
+  if (mine?.authoredByMe) {
+    return { error: "You can't upvote your own skill", status: 403 };
+  }
+
+  await api.setSkillVote({ packageId, userId: actor.id, voted });
+  const after = await api.workspaceRanking(pkg.workspaceId, actor.id);
+  // A skill with no remaining signals drops out of the ranking; report zeros.
+  const skill: SkillRanking = after.skills.find(
+    (entry) => entry.packageId === packageId
+  ) ?? {
+    packageId,
+    colleagues: 0,
+    upvotes: 0,
+    score: 0,
+    votedByMe: false,
+    authoredByMe: false,
+  };
+  return { skill };
 }

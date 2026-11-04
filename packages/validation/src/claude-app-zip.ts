@@ -1,4 +1,8 @@
-import { packPackageZip, readPackageZipBuffer } from "./index.js";
+import {
+  packPackageZip,
+  readPackageZipBuffer,
+  type PackageTreeEntry,
+} from "./index.js";
 import { readSkillName } from "./skill-md.js";
 
 const FALLBACK_FOLDER_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -18,6 +22,24 @@ export async function packForClaudeApp(
   archive: Buffer,
   fallbackName: string
 ): Promise<{ content: Buffer; folder: string }> {
+  const { folder, entries } = await readSkillFolder(archive, fallbackName);
+  const rerooted = entries.map((entry) => ({
+    ...entry,
+    path: `${folder}/${entry.path}`,
+  }));
+
+  return { content: await packPackageZip(rerooted), folder };
+}
+
+/**
+ * Reads a stored skill artifact as the skill's own files, with paths relative
+ * to the folder that holds SKILL.md, plus the folder name the skill installs
+ * under (see {@link packForClaudeApp} for how it is chosen).
+ */
+export async function readSkillFolder(
+  archive: Buffer,
+  fallbackName: string
+): Promise<{ folder: string; entries: PackageTreeEntry[] }> {
   const entries = await readPackageZipBuffer(archive);
   const skillMd = entries.filter(
     (entry) =>
@@ -35,12 +57,10 @@ export async function packForClaudeApp(
     readSkillName(Buffer.from(skillMdEntry.content ?? "").toString("utf8")) ??
     (FALLBACK_FOLDER_PATTERN.test(fallbackName) ? fallbackName : "skill");
 
-  const rerooted = entries
-    .filter((entry) => entry.path.startsWith(root) && entry.path !== root)
-    .map((entry) => ({
-      ...entry,
-      path: `${folder}/${entry.path.slice(root.length)}`,
-    }));
-
-  return { content: await packPackageZip(rerooted), folder };
+  return {
+    folder,
+    entries: entries
+      .filter((entry) => entry.path.startsWith(root) && entry.path !== root)
+      .map((entry) => ({ ...entry, path: entry.path.slice(root.length) })),
+  };
 }

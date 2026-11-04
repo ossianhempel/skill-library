@@ -4,10 +4,11 @@ import {
   MCP_SETUP_TARGETS,
   type McpSetupTarget,
 } from "../mcp-setup-prompts.js";
-import type { AppTab, CatalogSkill, SessionUser } from "../types.js";
+import type { AppTab, CatalogSkill } from "../types.js";
 import { FeaturedSkill } from "./catalog-list.js";
 import { Metric } from "./chrome.js";
 import { HowItWorks } from "./add-to-claude.js";
+import { ConnectClaude } from "./connect-claude.js";
 import { useI18n } from "../i18n/locale.js";
 
 export function OverviewTab({
@@ -16,8 +17,6 @@ export function OverviewTab({
   totals,
   selected,
   resolvedRegistryUrl,
-  session,
-  activeToken,
   copiedMcpTarget,
   setActiveTab,
   copyMcpSetupPrompt,
@@ -27,8 +26,6 @@ export function OverviewTab({
   totals: { installs: number; downloads: number; stale: number };
   selected: CatalogSkill | undefined;
   resolvedRegistryUrl: string;
-  session: SessionUser | null;
-  activeToken: string | undefined;
   copiedMcpTarget: McpSetupTarget | null;
   setActiveTab: (tab: AppTab) => void;
   copyMcpSetupPrompt: (target: McpSetupTarget) => void;
@@ -51,6 +48,10 @@ export function OverviewTab({
           </button>
         </div>
       </div>
+      <ConnectClaude
+        registryUrl={resolvedRegistryUrl}
+        appName={branding.appName}
+      />
       <HowItWorks onBrowse={() => setActiveTab("catalog")} />
       <details className="developer-connect">
         <summary>{t.overview.developerSummary}</summary>
@@ -62,10 +63,8 @@ export function OverviewTab({
             <p className="kicker">{t.overview.connectKicker}</p>
             <h3>{t.overview.connectTitle}</h3>
             <p>
-              {session || activeToken
-                ? t.overview.connectSignedIn
-                : t.overview.connectSignedOut}{" "}
-              {t.overview.registry} <strong>{resolvedRegistryUrl}</strong>
+              {t.overview.connectBody} {t.overview.registry}{" "}
+              <strong>{resolvedRegistryUrl}/mcp</strong>
             </p>
           </div>
           <div className="mcp-connect-grid">

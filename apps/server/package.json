@@ -12,14 +12,19 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@azure/monitor-opentelemetry": "^1.20.1",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@opentelemetry/api": "^1.10.0",
     "@skill-library/domain": "workspace:*",
     "@skill-library/storage": "workspace:*",
     "@skill-library/validation": "workspace:*",
     "better-auth": "^1.6.14",
     "hono": "^4.12.23",
-    "tar": "^7.5.16"
+    "tar": "^7.5.16",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@opentelemetry/sdk-trace-base": "^2.12.0",
     "@types/tar": "^7.0.87"
   }
 }
