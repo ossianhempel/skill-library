@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { makeSignature } from "better-auth/crypto";
@@ -111,12 +111,21 @@ describe("remote MCP", () => {
       "skills_publish",
     ]);
 
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const search = await client.callTool({
       name: "skills_search",
       arguments: { query: "cv" },
     });
     expect(text(search)).toContain("**CV Tailor** (`cv-tailor`)");
     expect(text(search)).not.toContain("draft-only");
+
+    expect(log).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^mcp-usage \{"server":"skill-library","tool":"skills_search","user":"ada@example.com","ok":true,"ms":\d+,"client":"Claude"\}$/
+      )
+    );
+    expect(log.mock.calls.join("\n")).not.toContain('"query"');
+    log.mockRestore();
 
     const get = await client.callTool({
       name: "skills_get",

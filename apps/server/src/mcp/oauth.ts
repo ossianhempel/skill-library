@@ -9,6 +9,8 @@ export interface McpUser {
   role: WorkspaceRole;
   name: string;
   email: string;
+  /** The assistant's registered OAuth client name, e.g. "Claude". */
+  clientName: string;
 }
 
 export const MCP_SCOPES = ["openid", "profile", "email", "offline_access"];
@@ -21,6 +23,7 @@ export const MCP_SCOPES = ["openid", "profile", "email", "offline_access"];
 interface McpAuthApi {
   getMcpSession(input: { headers: Headers }): Promise<{
     userId?: string | null;
+    clientId?: string | null;
     accessTokenExpiresAt: Date | string;
   } | null>;
   getMcpOAuthConfig(input: { headers: Headers }): Promise<unknown>;
@@ -70,11 +73,21 @@ export async function mcpUserFromHeaders(
     return undefined;
   }
 
+  const client = token.clientId
+    ? await store.kysely
+        ?.selectFrom("oauthApplication" as never)
+        .select(["name" as never])
+        .where("clientId" as never, "=", token.clientId as never)
+        .executeTakeFirst()
+    : undefined;
+
   return {
     id: user.id,
     role: parseRole(user.role ?? null) ?? "user",
     name: user.name,
     email: user.email,
+    clientName:
+      (client as { name?: string | null } | undefined)?.name || "unknown",
   };
 }
 

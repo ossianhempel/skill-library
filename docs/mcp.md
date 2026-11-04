@@ -39,7 +39,7 @@ Maintainers also get `skills_review_queue` (drafts and published versions waitin
 
 The first time a person connects an assistant, they see an approval page ("Allow Claude to use ...?") that names their account and where the browser returns. Anyone can register an OAuth client, so without it a link to the authorize URL could hand a stranger's client the person's access. Approval is remembered per client; Better Auth only asks when the request has `prompt=consent`, so `apps/server/src/mcp/consent.ts` adds it until the person has approved that client.
 
-Visibility follows the web catalog: people see approved skills, plus their own drafts; maintainers see everything. Each request logs `skill-library-mcp user=<id> status=<code>`.
+Visibility follows the web catalog: people see approved skills, plus their own drafts; maintainers see everything. Each tool call logs one line, `mcp-usage {"server":"skill-library","tool":...,"user":<email>,"ok":...,"ms":...,"client":<OAuth client name>}`, for usage dashboards. Tool arguments are never logged.
 
 Access tokens last one hour; clients that ask for `offline_access` get a refresh token valid for 30 days. OAuth tables (`oauthApplication`, `oauthAccessToken`, `oauthConsent`) are created by the store's auth migrations. `BETTER_AUTH_URL` must be the public origin: it is the OAuth issuer and the resource URL.
 
