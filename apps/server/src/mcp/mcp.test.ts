@@ -1,4 +1,10 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
+import {
+  BasicTracerProvider,
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+} from "@opentelemetry/sdk-trace-base";
 import {
   BASE,
   addUser,
@@ -13,11 +19,25 @@ import {
   text,
 } from "./mcp-test-helpers.js";
 
+const spans = new InMemorySpanExporter();
+const toolSpans = () =>
+  spans
+    .getFinishedSpans()
+    .filter((span) => span.name.startsWith("tools/call "));
+
 beforeAll(() => {
   process.env.BETTER_AUTH_URL = BASE;
+  trace.setGlobalTracerProvider(
+    new BasicTracerProvider({
+      spanProcessors: [new SimpleSpanProcessor(spans)],
+    })
+  );
 });
 
-afterEach(cleanup);
+afterEach(async () => {
+  spans.reset();
+  await cleanup();
+});
 
 describe("remote MCP", () => {
   it("tells a client without a token where to sign in", async () => {
@@ -97,7 +117,6 @@ describe("remote MCP", () => {
       "skills_publish",
     ]);
 
-    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const search = await client.callTool({
       name: "skills_search",
       arguments: { query: "cv" },
@@ -105,13 +124,16 @@ describe("remote MCP", () => {
     expect(text(search)).toContain("**CV Tailor** (`cv-tailor`)");
     expect(text(search)).not.toContain("draft-only");
 
-    expect(log).toHaveBeenCalledWith(
-      expect.stringMatching(
-        /^mcp-usage \{"server":"skill-library","tool":"skills_search","user":"ada@example.com","ok":true,"ms":\d+,"client":"Claude"\}$/
-      )
-    );
-    expect(log.mock.calls.join("\n")).not.toContain('"query"');
-    log.mockRestore();
+    const [span] = toolSpans();
+    expect(span?.name).toBe("tools/call skills_search");
+    expect(span?.kind).toBe(SpanKind.SERVER);
+    expect(span?.attributes).toEqual({
+      "mcp.method.name": "tools/call",
+      "gen_ai.operation.name": "execute_tool",
+      "gen_ai.tool.name": "skills_search",
+      "enduser.id": "ada@example.com",
+      "mcp.client.name": "Claude",
+    });
 
     const get = await client.callTool({
       name: "skills_get",
@@ -178,6 +200,10 @@ describe("remote MCP", () => {
       },
     });
     expect(takeover.isError).toBe(true);
+    const failed = toolSpans().at(-1);
+    expect(failed?.name).toBe("tools/call skills_publish");
+    expect(failed?.attributes["error.type"]).toBe("tool_error");
+    expect(failed?.status.code).toBe(SpanStatusCode.ERROR);
 
     await client.close();
   });

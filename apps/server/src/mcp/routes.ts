@@ -1,7 +1,7 @@
+import { traceToolCalls } from "./telemetry.js";
 import type { Hono } from "hono";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { RegistryBrandingConfig } from "@skill-library/domain";
 import type { RegistryStore } from "@skill-library/storage";
 import type { RegistryApi } from "../index.js";
@@ -129,7 +129,7 @@ export function createMcpServer(input: {
     { instructions: serverInstructions(branding.appName, branding.companyName) }
   );
 
-  logToolUsage(server, input.user);
+  traceToolCalls(server, input.user);
   registerSkillTools(server, {
     api: input.api,
     user: input.user,
@@ -139,38 +139,6 @@ export function createMcpServer(input: {
   });
 
   return server;
-}
-
-/**
- * One stdout line per tool call, for usage dashboards:
- * `mcp-usage {"server":"skill-library","tool":...,"user":<email>,"ok":...,"ms":...,"client":...}`.
- * Tool arguments are never logged.
- */
-function logToolUsage(server: McpServer, user: McpUser) {
-  const register = server.registerTool.bind(server) as (
-    name: string,
-    config: unknown,
-    callback: (...args: unknown[]) => Promise<CallToolResult>
-  ) => unknown;
-
-  (server as { registerTool: unknown }).registerTool = (
-    name: string,
-    config: unknown,
-    callback: (...args: unknown[]) => Promise<CallToolResult>
-  ) =>
-    register(name, config, async (...args: unknown[]) => {
-      const started = Date.now();
-      let ok = false;
-      try {
-        const result = await callback(...args);
-        ok = !result.isError;
-        return result;
-      } finally {
-        console.log(
-          `mcp-usage ${JSON.stringify({ server: "skill-library", tool: name, user: user.email || "unknown", ok, ms: Date.now() - started, client: user.clientName })}`
-        );
-      }
-    });
 }
 
 function serverInstructions(appName: string, companyName: string): string {

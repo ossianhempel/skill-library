@@ -14,6 +14,9 @@ import { loadRegistryBrandingConfig } from "./registry-config.js";
 import { createRegistryApi } from "./index.js";
 import { nodeResponseHeaders } from "./node-response-headers.js";
 import { resolveStaticAssetPath } from "./static-asset-path.js";
+import { startTelemetry } from "./mcp/telemetry.js";
+
+await startTelemetry();
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "0.0.0.0";
