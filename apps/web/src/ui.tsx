@@ -395,6 +395,8 @@ function SkillLibraryAppContent({
               catalog={catalog}
               loading={!catalogLoaded}
               onOpen={(packageId) => {
+                // A search left over from the catalog would hide the skill.
+                setQuery("");
                 setActiveTab("catalog");
                 handleSelectSkill(packageId);
               }}
