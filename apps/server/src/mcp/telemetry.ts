@@ -6,8 +6,10 @@ import type { McpUser } from "./oauth.js";
 const tracer = trace.getTracer("skill-library-mcp");
 
 /**
- * Sends traces to Azure Monitor when APPLICATIONINSIGHTS_CONNECTION_STRING is
- * set; otherwise spans stay no-ops. Call once at startup.
+ * Sends tool-call spans to Azure Monitor when
+ * APPLICATIONINSIGHTS_CONNECTION_STRING is set; otherwise spans stay no-ops.
+ * OTEL_SERVICE_NAME becomes the cloud role name (AppRoleName) that usage
+ * dashboards group servers by. Call once at startup.
  */
 export async function startTelemetry(): Promise<void> {
   if (!process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
@@ -16,7 +18,28 @@ export async function startTelemetry(): Promise<void> {
 
   process.env.OTEL_SERVICE_NAME ??= "skill-library";
   const { useAzureMonitor } = await import("@azure/monitor-opentelemetry");
-  useAzureMonitor();
+  const off = { enabled: false };
+  // Only the tool-call spans: no HTTP or database spans, no console logs or
+  // metrics, and every call kept (the default rate limit drops bursts).
+  useAzureMonitor({
+    samplingRatio: 1,
+    tracesPerSecond: 0,
+    enableLiveMetrics: false,
+    enableStandardMetrics: false,
+    enablePerformanceCounters: false,
+    instrumentationOptions: {
+      http: off,
+      azureSdk: off,
+      mongoDb: off,
+      mySql: off,
+      postgreSql: off,
+      redis: off,
+      redis4: off,
+      bunyan: off,
+      winston: off,
+      console: off,
+    },
+  });
 }
 
 /**
