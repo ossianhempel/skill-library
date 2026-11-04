@@ -2,8 +2,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SkillRanking } from "@skill-library/domain";
 import { LOCALE_STORAGE_KEY, LocaleProvider } from "./i18n/locale.js";
+import type { CatalogSkill } from "./types.js";
 import {
-  ContributorsPanel,
+  LeaderboardTab,
   PopularityLine,
   UpvoteButton,
   sortCatalog,
@@ -23,6 +24,18 @@ const ranking = (overrides: Partial<SkillRanking> = {}): SkillRanking => ({
   authoredByMe: false,
   ...overrides,
 });
+
+const catalogSkill = (
+  name: string,
+  overrides: Partial<SkillRanking>
+): CatalogSkill =>
+  ({
+    pkg: { id: `id-${name}`, name },
+    latestApproved: { author: `Author of ${name}` },
+    downloads: 3,
+    lastModifiedAt: "2026-06-01T00:00:00.000Z",
+    ranking: ranking({ packageId: `id-${name}`, ...overrides }),
+  }) as unknown as CatalogSkill;
 
 const skill = (name: string, lastModifiedAt: string, score?: number) => ({
   pkg: { name },
@@ -102,28 +115,39 @@ describe("popularity", () => {
     expect(screen.getByText(/4 useful/)).toBeTruthy();
   });
 
-  it("lists the top ten contributors and marks you", () => {
-    const contributors = Array.from({ length: 12 }, (_, index) => ({
-      userId: `u${index}`,
-      name: `Person ${index}`,
-      image: null,
-      skills: 1,
-      colleaguesReached: 12 - index,
-      upvotes: 0,
-      score: 12 - index,
-    }));
+  it("ranks approved skills by colleagues and upvotes and names their author", () => {
+    const onOpen = vi.fn();
+    const catalog = [
+      catalogSkill("quiet", { colleagues: 1, score: 1 }),
+      catalogSkill("loved", { colleagues: 1, upvotes: 2, score: 5 }),
+      catalogSkill("mine", { colleagues: 2, score: 2, authoredByMe: true }),
+      catalogSkill("unused", {}),
+      {
+        ...catalogSkill("draft", { colleagues: 9, score: 9 }),
+        latestApproved: undefined,
+      },
+      ...Array.from({ length: 10 }, (_, index) =>
+        catalogSkill(`extra-${index}`, { colleagues: 1, score: 0.5 })
+      ),
+    ];
 
     render(
-      <ContributorsPanel
-        contributors={contributors}
-        loading={false}
-        currentUserId="u1"
-      />
+      <LeaderboardTab catalog={catalog} loading={false} onOpen={onOpen} />
     );
 
-    expect(screen.getAllByRole("listitem")).toHaveLength(10);
-    expect(screen.getByText("(you)")).toBeTruthy();
-    expect(screen.queryByText("Person 11")).toBeNull();
+    const rows = screen.getAllByRole("listitem");
+    expect(rows).toHaveLength(10);
+    expect(
+      rows.map((row) => row.querySelector("button")?.textContent).slice(0, 3)
+    ).toEqual(["loved", "mine", "quiet"]);
+    expect(screen.queryByText("unused")).toBeNull();
+    expect(screen.queryByText("draft")).toBeNull();
+    expect(rows[0]?.textContent).toContain("by Author of loved");
+    expect(rows[0]?.textContent).toContain("2 upvotes");
+    expect(rows[1]?.textContent).toContain("(yours)");
+
+    fireEvent.click(screen.getByRole("button", { name: "loved" }));
+    expect(onOpen).toHaveBeenCalledWith("id-loved");
   });
 
   it("speaks Swedish when the Swedish locale is chosen", () => {
@@ -132,19 +156,12 @@ describe("popularity", () => {
       <LocaleProvider>
         <PopularityLine ranking={ranking({ colleagues: 3, upvotes: 2 })} />
         <UpvoteButton ranking={ranking({ upvotes: 2 })} onVote={() => {}} />
-        <ContributorsPanel
-          contributors={[
-            {
-              userId: "u1",
-              name: "Ada",
-              image: null,
-              skills: 2,
-              colleaguesReached: 1,
-              upvotes: 1,
-              score: 3,
-            },
+        <LeaderboardTab
+          catalog={[
+            catalogSkill("Ada", { colleagues: 1, upvotes: 1, score: 3 }),
           ]}
           loading={false}
+          onOpen={() => {}}
         />
       </LocaleProvider>
     );
@@ -152,8 +169,8 @@ describe("popularity", () => {
     expect(screen.getByText("Installerad av 3 kollegor")).toBeTruthy();
     expect(screen.getByText("2 tycker att den är användbar")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Användbar/ })).toBeTruthy();
-    expect(screen.getByText("Flitigaste bidragsgivarna")).toBeTruthy();
-    expect(screen.getByText("kollega nådd")).toBeTruthy();
-    expect(screen.getByText("skills")).toBeTruthy();
+    expect(screen.getByText("Populäraste skills")).toBeTruthy();
+    expect(screen.getByText("kollega använder den")).toBeTruthy();
+    expect(screen.getByText("av Author of Ada")).toBeTruthy();
   });
 });

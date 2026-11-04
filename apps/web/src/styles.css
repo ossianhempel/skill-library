@@ -2068,7 +2068,7 @@ p {
   }
 }
 
-/* Popularity: "installed by N colleagues", upvotes, sort, contributor leaderboard */
+/* Popularity: "installed by N colleagues", upvotes, sort, skill leaderboard */
 .popularity-line {
   display: flex;
   flex-wrap: wrap;
@@ -2138,13 +2138,13 @@ p {
   text-transform: uppercase;
 }
 
-.contributors-intro {
+.leaderboard-intro {
   margin: 0;
   color: var(--muted);
   font-size: 0.88rem;
 }
 
-.contributors-list {
+.leaderboard-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -2152,9 +2152,9 @@ p {
   gap: var(--space-8);
 }
 
-.contributor-row {
+.leaderboard-row {
   display: grid;
-  grid-template-columns: 28px 34px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-12);
   padding: var(--space-12) var(--space-14);
@@ -2162,29 +2162,54 @@ p {
   background: var(--panel);
 }
 
-.contributor-row--me {
+.leaderboard-row--mine {
   border-color: var(--ink);
   box-shadow: 3px 3px 0 var(--ink);
 }
 
-.contributor-rank {
+.leaderboard-rank {
   font-size: var(--font-size-md);
   font-weight: 800;
   text-align: center;
   color: var(--accent-strong);
 }
 
-.contributor-name {
-  font-weight: 800;
-  overflow-wrap: anywhere;
+.leaderboard-skill {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 
-.contributor-you {
+.leaderboard-name {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.leaderboard-name:hover,
+.leaderboard-name:focus-visible {
+  text-decoration: underline;
+}
+
+.leaderboard-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--muted);
+  font-size: var(--font-size-xs);
+}
+
+.leaderboard-you {
   font-weight: 600;
 }
 
-.contributor-stats {
+.leaderboard-stats {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -2193,18 +2218,24 @@ p {
   font-size: var(--font-size-xs);
 }
 
-.contributor-stats strong {
+.leaderboard-stats > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.leaderboard-stats strong {
   color: var(--ink);
   font-size: var(--font-size-sm);
 }
 
 @media (max-width: 640px) {
-  .contributor-row {
-    grid-template-columns: 24px 34px minmax(0, 1fr);
+  .leaderboard-row {
+    grid-template-columns: 24px minmax(0, 1fr);
   }
 
-  .contributor-stats {
-    grid-column: 3;
+  .leaderboard-stats {
+    grid-column: 2;
     justify-content: flex-start;
   }
 }

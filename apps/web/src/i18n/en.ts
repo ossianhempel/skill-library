@@ -290,16 +290,19 @@ export const en = {
     sortName: "A–Z",
   },
   leaderboard: {
-    title: "Top contributors",
+    title: "Top skills",
     intro:
-      "Colleagues whose skills others install and find useful. Recent installs count most.",
-    loading: "Loading contributors…",
-    empty: "No approved skills yet. Publish one and you could be first here.",
-    you: " (you)",
-    skills: (count: number): string => (count === 1 ? "skill" : "skills"),
-    colleaguesReached: (count: number): string =>
-      count === 1 ? "colleague reached" : "colleagues reached",
+      "The skills colleagues install and upvote the most. Recent installs count most.",
+    loading: "Loading skills…",
+    empty:
+      "No one has installed or upvoted a skill yet. Find a useful one in the catalog and it could be first here.",
+    by: (author: string): string => `by ${author}`,
+    you: " (yours)",
+    colleagues: (count: number): string =>
+      count === 1 ? "colleague uses it" : "colleagues use it",
     upvotes: (count: number): string => (count === 1 ? "upvote" : "upvotes"),
+    downloads: (count: number): string =>
+      count === 1 ? "download" : "downloads",
   },
   notices: {
     upvoteSaved: "Thanks — upvote saved",

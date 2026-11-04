@@ -1,5 +1,4 @@
 import type {
-  ContributorRanking,
   SkillVersion,
   WorkspaceCatalogEntry,
 } from "@skill-library/domain";
@@ -29,7 +28,6 @@ export interface SkillFile {
 
 export interface CatalogView {
   entries: WorkspaceCatalogEntry[];
-  contributors: ContributorRanking[];
 }
 
 /** The catalog as the web app shows it to this person, with ranking. */
@@ -41,7 +39,6 @@ export async function loadCatalog(ctx: McpToolContext): Promise<CatalogView> {
 
   return {
     entries: visibleWorkspaceCatalog(snapshot, ctx.user, ranking.skills),
-    contributors: ranking.contributors,
   };
 }
 

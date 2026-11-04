@@ -170,6 +170,15 @@ describe("remote MCP", () => {
     });
     expect(text(vote)).toContain("1 upvote(s) and 1 colleague(s)");
 
+    // The leaderboard ranks skills and names who made each one, not people.
+    const leaderboard = await client.callTool({
+      name: "skills_leaderboard",
+      arguments: {},
+    });
+    expect(text(leaderboard)).toMatch(
+      /^1\. \*\*CV Tailor\*\* \(`cv-tailor`\)( by .+)?: used by 1 colleague\(s\), 1 upvote\(s\)$/
+    );
+
     const published = await client.callTool({
       name: "skills_publish",
       arguments: {

@@ -292,16 +292,19 @@ export const sv: Messages = {
     sortName: "A–Ö",
   },
   leaderboard: {
-    title: "Flitigaste bidragsgivarna",
+    title: "Populäraste skills",
     intro:
-      "Kollegor vars skills andra installerar och tycker är användbara. Nya installationer väger tyngst.",
-    loading: "Laddar bidragsgivare…",
-    empty: "Inga godkända skills än. Publicera en så kan du hamna först här.",
-    you: " (du)",
-    skills: (count: number) => (count === 1 ? "skill" : "skills"),
-    colleaguesReached: (count: number) =>
-      count === 1 ? "kollega nådd" : "kollegor nådda",
+      "De skills som kollegor installerar och röstar på mest. Nya installationer väger tyngst.",
+    loading: "Laddar skills…",
+    empty:
+      "Ingen har installerat eller röstat på en skill än. Hitta en användbar i katalogen så kan den hamna först här.",
+    by: (author: string) => `av ${author}`,
+    you: " (din)",
+    colleagues: (count: number) =>
+      count === 1 ? "kollega använder den" : "kollegor använder den",
     upvotes: (count: number) => (count === 1 ? "röst" : "röster"),
+    downloads: (count: number) =>
+      count === 1 ? "nedladdning" : "nedladdningar",
   },
   notices: {
     upvoteSaved: "Tack — din röst är sparad",

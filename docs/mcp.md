@@ -32,7 +32,7 @@ Tools (all signed-in users):
 | `skills_read_file`   | One file of a skill (a reference or template `SKILL.md` points to).                                                                                                           |
 | `skills_install`     | `claude-app`: download link plus upload steps. `claude-code`, `codex`, `project`: every file and the folder to write it to (records a download, which counts in the ranking). |
 | `skills_vote`        | Upvote a skill or take the upvote back (same rules as the web app).                                                                                                           |
-| `skills_leaderboard` | Top contributors.                                                                                                                                                             |
+| `skills_leaderboard` | Top skills by colleagues and upvotes, with who made each.                                                                                                                     |
 | `skills_publish`     | Submit a skill (files as text or base64) as a draft for review. Only its author or a maintainer can add versions to an existing skill.                                        |
 
 Maintainers also get `skills_review_queue` (drafts and published versions waiting) and `skills_set_status` (approve, hide, deprecate).
