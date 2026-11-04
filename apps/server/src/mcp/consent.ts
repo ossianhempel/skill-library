@@ -48,6 +48,9 @@ export function registerMcpConsent(
 
   app.get(MCP_CONSENT_PATH, async (context) => {
     const consentCode = context.req.query("consent_code") ?? "";
+    // Better Auth issues 32 letters and digits; anything else is not a code it
+    // made, and must never reach the inline script below.
+    const validCode = /^[A-Za-z0-9]{16,128}$/.test(consentCode);
     const clientId = context.req.query("client_id") ?? "";
     const session = await auth.api
       .getSession({ headers: context.req.raw.headers })
@@ -58,7 +61,7 @@ export function registerMcpConsent(
       .where("clientId" as never, "=", clientId as never)
       .executeTakeFirst();
 
-    if (!session?.user || !client || !consentCode) {
+    if (!session?.user || !client || !validCode) {
       return context.html(
         page(
           appName,
@@ -84,7 +87,7 @@ async function answer(accept) {
     method: "POST",
     credentials: "include",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ accept, consent_code: ${JSON.stringify(consentCode)} }),
+    body: JSON.stringify({ accept, consent_code: ${scriptString(consentCode)} }),
   });
   const body = await response.json().catch(() => ({}));
   if (body.redirectURI) { window.location.href = body.redirectURI; return; }
@@ -135,6 +138,11 @@ button.secondary { background: transparent; color: #1f4d3d; }
 #error { color: #9b1c1c; }
 .muted { color: #5b5a52; font-size: 0.92rem; }
 </style></head><body><main>${body}</main></body></html>`;
+}
+
+/** A JS string literal that cannot close the surrounding script element. */
+function scriptString(value: string): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 function escapeHtml(value: string): string {

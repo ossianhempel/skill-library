@@ -175,7 +175,7 @@ export function registerPublishTools(server: McpServer, ctx: McpToolContext) {
     {
       title: "Skills waiting for review",
       description:
-        "Maintainers: versions submitted but not approved yet (draft or published), newest first, with validation status.",
+        "Maintainers: versions submitted but not approved yet (draft or published), newest first, with validation status. Read one with skills_get, passing its version.",
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -207,7 +207,7 @@ export function registerPublishTools(server: McpServer, ctx: McpToolContext) {
     {
       title: "Approve, hide or deprecate a skill version",
       description:
-        "Maintainers: change a version's status. approved = colleagues can find and install it; hidden = taken out of the catalog; deprecated = marked as replaced. Read the skill with skills_get before approving it.",
+        "Maintainers: change a version's status. approved = colleagues can find and install it; hidden = taken out of the catalog; deprecated = marked as replaced. Read the version with skills_get (pass its version) before approving it.",
       inputSchema: {
         skill: z.string().min(1),
         version: z

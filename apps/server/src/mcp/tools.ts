@@ -20,6 +20,7 @@ import {
   type SkillFile,
 } from "./skills.js";
 import { fail, ok, skillLine } from "./format.js";
+import { hasRole } from "../auth.js";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
 /** Inline install payloads stay below this; bigger skills go by download link. */
@@ -44,6 +45,13 @@ const skillArg = z
   .min(1)
   .describe(
     'The skill\'s slug or name as skills_search shows it, e.g. "rebtech-cv-tailor".'
+  );
+
+const versionArg = z
+  .string()
+  .optional()
+  .describe(
+    "A specific version, e.g. a draft to review. Leave out for the version colleagues get."
   );
 
 export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
@@ -101,11 +109,11 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
       title: "Read a skill",
       description:
         "Read a skill: what it does, who made it, its full SKILL.md instructions and the list of its other files. To use the skill right away, follow the SKILL.md and fetch any file it refers to with skills_read_file. To keep it for later conversations, call skills_install.",
-      inputSchema: { skill: skillArg },
+      inputSchema: { skill: skillArg, version: versionArg },
       annotations: READ_ONLY,
     },
-    async ({ skill }) => {
-      const found = await resolve(ctx, skill);
+    async ({ skill, version: requested }) => {
+      const found = await resolve(ctx, skill, requested);
       if ("error" in found) return found.error;
       const { entry, version } = found;
       const { folder, files } = await readSkillFiles(ctx, entry, version);
@@ -147,11 +155,12 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
           .string()
           .min(1)
           .describe("File path inside the skill, as skills_get lists it."),
+        version: versionArg,
       },
       annotations: READ_ONLY,
     },
-    async ({ skill, path }) => {
-      const found = await resolve(ctx, skill);
+    async ({ skill, path, version: requested }) => {
+      const found = await resolve(ctx, skill, requested);
       if ("error" in found) return found.error;
       const { files } = await readSkillFiles(ctx, found.entry, found.version);
       const wanted = path.replace(/^\.?\//, "");
@@ -308,7 +317,8 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
 
 async function resolve(
   ctx: McpToolContext,
-  reference: string
+  reference: string,
+  requested?: string
 ): Promise<
   | { error: CallToolResult }
   | { entry: WorkspaceCatalogEntry; version: SkillVersion }
@@ -320,6 +330,10 @@ async function resolve(
     return { error: notFound(reference, match.suggestions) };
   }
 
+  if (requested) {
+    return resolveRequestedVersion(ctx, match.entry, requested);
+  }
+
   const version = versionFor(match.entry, ctx.user);
 
   if (!version) {
@@ -329,6 +343,38 @@ async function resolve(
   }
 
   return { entry: match.entry, version };
+}
+
+/**
+ * A specific version, e.g. a draft a maintainer is reviewing. Anyone may read
+ * approved versions; drafts and hidden ones only maintainers and their author.
+ */
+async function resolveRequestedVersion(
+  ctx: McpToolContext,
+  entry: WorkspaceCatalogEntry,
+  requested: string
+): Promise<
+  | { error: CallToolResult }
+  | { entry: WorkspaceCatalogEntry; version: SkillVersion }
+> {
+  const versions = await ctx.api.packageVersions(entry.package.id);
+  const version = versions.find(
+    (item) =>
+      item.version === requested &&
+      (item.lifecycleState === "approved" ||
+        hasRole(ctx.user, "maintainer") ||
+        item.provenance.actorId === ctx.user.id)
+  );
+
+  if (!version) {
+    return {
+      error: fail(
+        `${entry.package.slug} has no version ${requested} you can read.`
+      ),
+    };
+  }
+
+  return { entry, version };
 }
 
 function notFound(reference: string, suggestions: string[]) {
