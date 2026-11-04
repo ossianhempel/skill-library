@@ -31,21 +31,9 @@ export interface SkillRanking {
   authoredByMe: boolean;
 }
 
-export interface ContributorRanking {
-  userId: string;
-  name: string;
-  image: string | null;
-  /** Approved skills this person published. */
-  skills: number;
-  /** Distinct colleagues who installed any of their approved skills. */
-  colleaguesReached: number;
-  upvotes: number;
-  score: number;
-}
-
 export interface WorkspaceRanking {
+  /** Best first. */
   skills: SkillRanking[];
-  contributors: ContributorRanking[];
 }
 
 /** A colleague's install loses half its weight every this many days. */
@@ -56,11 +44,10 @@ export const RANKING_UPVOTE_WEIGHT = 2;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Score skills and their authors. A skill's score is the sum, over distinct
- * colleagues who installed it, of a weight that halves every
- * RANKING_HALF_LIFE_DAYS since their latest download, plus RANKING_UPVOTE_WEIGHT
- * per upvote. Authors' own installs and votes never count. An author's score is
- * the sum of their approved skills' scores.
+ * Score skills. A skill's score is the sum, over distinct colleagues who
+ * installed it, of a weight that halves every RANKING_HALF_LIFE_DAYS since their
+ * latest download, plus RANKING_UPVOTE_WEIGHT per upvote. Authors' own installs
+ * and votes never count. People are never ranked, only skills.
  */
 export function rankWorkspace(
   signals: RankingSignals,
@@ -123,38 +110,6 @@ export function rankWorkspace(
     if (vote.userId === options.viewerId) skill.votedByMe = true;
   }
 
-  const contributors = new Map<
-    string,
-    ContributorRanking & { reached: Set<string>; packages: Set<string> }
-  >();
-  for (const author of signals.authors) {
-    if (!author.approved || author.name === null) continue;
-    let contributor = contributors.get(author.userId);
-    if (!contributor) {
-      contributor = {
-        userId: author.userId,
-        name: author.name,
-        image: author.image,
-        skills: 0,
-        colleaguesReached: 0,
-        upvotes: 0,
-        score: 0,
-        reached: new Set(),
-        packages: new Set(),
-      };
-      contributors.set(author.userId, contributor);
-    }
-    if (contributor.packages.has(author.packageId)) continue;
-    contributor.packages.add(author.packageId);
-    const skill = skillFor(author.packageId);
-    contributor.skills += 1;
-    contributor.upvotes += skill.upvotes;
-    contributor.score += skill.score;
-    for (const installer of skill.installers) {
-      if (installer !== author.userId) contributor.reached.add(installer);
-    }
-  }
-
   return {
     skills: [...skills.values()]
       .map(({ installers: _installers, ...skill }) => ({
@@ -164,18 +119,6 @@ export function rankWorkspace(
       .sort(
         (left, right) =>
           right.score - left.score || right.colleagues - left.colleagues
-      ),
-    contributors: [...contributors.values()]
-      .map(({ reached, packages: _packages, ...contributor }) => ({
-        ...contributor,
-        colleaguesReached: reached.size,
-        score: round(contributor.score),
-      }))
-      .sort(
-        (left, right) =>
-          right.score - left.score ||
-          right.colleaguesReached - left.colleaguesReached ||
-          left.name.localeCompare(right.name)
       ),
   };
 }

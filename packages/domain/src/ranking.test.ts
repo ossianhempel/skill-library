@@ -83,43 +83,7 @@ describe("rankWorkspace", () => {
     expect(second).toMatchObject({ packageId: "skill-a", score: 0.5 });
   });
 
-  it("credits authors with their approved skills only", () => {
-    const ranking = rankWorkspace(
-      signals({
-        installs: [
-          { packageId: "skill-a", userId: "bo", lastAt: daysAgo(0) },
-          { packageId: "skill-a", userId: "u1", lastAt: daysAgo(0) },
-          { packageId: "skill-b", userId: "u1", lastAt: daysAgo(0) },
-          { packageId: "draft-c", userId: "u2", lastAt: daysAgo(0) },
-        ],
-        votes: [{ packageId: "skill-a", userId: "u1" }],
-      }),
-      { now }
-    );
-
-    expect(ranking.contributors).toEqual([
-      {
-        userId: "ada",
-        name: "ADA",
-        image: null,
-        skills: 1,
-        colleaguesReached: 2,
-        upvotes: 1,
-        score: 4,
-      },
-      {
-        userId: "bo",
-        name: "BO",
-        image: null,
-        skills: 1,
-        colleaguesReached: 1,
-        upvotes: 0,
-        score: 1,
-      },
-    ]);
-  });
-
-  it("excludes an author without a profile but keeps them off the leaderboard", () => {
+  it("excludes an author without a profile from their own skill's counts", () => {
     const ranking = rankWorkspace(
       signals({
         authors: [{ ...author("skill-a", "ci-key"), name: null }],
@@ -136,6 +100,5 @@ describe("rankWorkspace", () => {
       colleagues: 1,
       authoredByMe: true,
     });
-    expect(ranking.contributors).toEqual([]);
   });
 });

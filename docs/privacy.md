@@ -19,7 +19,7 @@ Reports do not require a local path, username, hostname, repository path, shell 
 
 Package and workspace reports are maintainer-only API responses.
 
-Views and downloads are counted as raw registry events. A download by a signed-in user also stores that user's id, so popularity can count distinct colleagues; it is never shown per skill or per person, only as a count ("installed by 4 colleagues"). Upvotes store the voter's id and are removed when the user is deleted. The contributor leaderboard shows the names of people who published approved skills, with their skill count, colleagues reached, and upvotes received. Install totals are deduplicated by `installId`; only the latest report timestamp for each install contributes to the current state counts. Repeated status checks can therefore move one install from `current` to `stale` without increasing the install total.
+Views and downloads are counted as raw registry events. A download by a signed-in user also stores that user's id, so popularity can count distinct colleagues; it is never shown per skill or per person, only as a count ("installed by 4 colleagues"). Upvotes store the voter's id and are removed when the user is deleted. The leaderboard ranks skills, not people; it shows each skill's author name, as the catalog does. Install totals are deduplicated by `installId`; only the latest report timestamp for each install contributes to the current state counts. Repeated status checks can therefore move one install from `current` to `stale` without increasing the install total.
 
 ## Consent
 

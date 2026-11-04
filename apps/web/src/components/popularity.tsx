@@ -1,7 +1,6 @@
-import { Loader2, ThumbsUp, Trophy, User, Users } from "lucide-react";
-import type { ContributorRanking, SkillRanking } from "@skill-library/domain";
-import type { CatalogSort, WebApiClient } from "../types.js";
-import { useContributors } from "../hooks/use-contributors.js";
+import { Download, Loader2, ThumbsUp, Trophy, User, Users } from "lucide-react";
+import type { SkillRanking } from "@skill-library/domain";
+import type { CatalogSkill, CatalogSort } from "../types.js";
 import { useI18n } from "../i18n/locale.js";
 
 /** One plain line: how many colleagues use the skill, and how many found it useful. */
@@ -132,21 +131,39 @@ export function sortCatalog<
 
 const LEADERBOARD_SIZE = 10;
 
-export function ContributorsPanel({
-  contributors,
+/**
+ * Approved skills that at least one colleague installed or upvoted, ranked the
+ * same way as the catalog's "Popular" sort. People are never ranked; each skill
+ * names who made it.
+ */
+export function topSkills(catalog: CatalogSkill[]): CatalogSkill[] {
+  return sortCatalog(
+    catalog.filter(
+      (skill) =>
+        skill.latestApproved &&
+        ((skill.ranking?.colleagues ?? 0) > 0 ||
+          (skill.ranking?.upvotes ?? 0) > 0)
+    ),
+    "popular"
+  ).slice(0, LEADERBOARD_SIZE);
+}
+
+/** The Leaderboard tab: the most popular skills, by colleagues and upvotes. */
+export function LeaderboardTab({
+  catalog,
   loading,
-  currentUserId,
+  onOpen,
 }: {
-  contributors: ContributorRanking[] | undefined;
+  catalog: CatalogSkill[];
   loading: boolean;
-  currentUserId?: string;
+  onOpen: (packageId: string) => void;
 }) {
-  const top = (contributors ?? []).slice(0, LEADERBOARD_SIZE);
+  const top = topSkills(catalog);
   const { t } = useI18n();
 
   return (
     <section
-      className="admin-panel contributors-panel"
+      className="admin-panel leaderboard-panel"
       aria-label={t.leaderboard.title}
     >
       <div className="admin-header">
@@ -155,11 +172,11 @@ export function ContributorsPanel({
             <Trophy size={17} />
             {t.leaderboard.title}
           </div>
-          <p className="contributors-intro">{t.leaderboard.intro}</p>
+          <p className="leaderboard-intro">{t.leaderboard.intro}</p>
         </div>
       </div>
 
-      {loading && !contributors ? (
+      {loading && top.length === 0 ? (
         <div className="skill-list-loading" role="status" aria-live="polite">
           <Loader2 size={22} className="spin" aria-hidden="true" />
           <p>{t.leaderboard.loading}</p>
@@ -167,75 +184,61 @@ export function ContributorsPanel({
       ) : top.length === 0 ? (
         <p className="empty-catalog-copy">{t.leaderboard.empty}</p>
       ) : (
-        <ol className="contributors-list">
-          {top.map((contributor, index) => (
-            <li
-              key={contributor.userId}
-              className={
-                contributor.userId === currentUserId
-                  ? "contributor-row contributor-row--me"
-                  : "contributor-row"
-              }
-            >
-              <span className="contributor-rank">{index + 1}</span>
-              <span className="session-avatar" aria-hidden="true">
-                {contributor.image ? (
-                  <img src={contributor.image} alt="" />
-                ) : (
-                  <User size={16} />
-                )}
-              </span>
-              <span className="contributor-name">
-                {contributor.name}
-                {contributor.userId === currentUserId && (
-                  <em className="contributor-you">{t.leaderboard.you}</em>
-                )}
-              </span>
-              <span className="contributor-stats">
-                <span>
-                  <strong>{contributor.skills}</strong>{" "}
-                  {t.leaderboard.skills(contributor.skills)}
-                </span>
-                <span>
-                  <strong>{contributor.colleaguesReached}</strong>{" "}
-                  {t.leaderboard.colleaguesReached(
-                    contributor.colleaguesReached
+        <ol className="leaderboard-list">
+          {top.map((skill, index) => {
+            const author =
+              skill.latestApproved?.author ?? skill.activeVersion?.author;
+            const mine = skill.ranking?.authoredByMe ?? false;
+            return (
+              <li
+                key={skill.pkg.id}
+                className={
+                  mine
+                    ? "leaderboard-row leaderboard-row--mine"
+                    : "leaderboard-row"
+                }
+              >
+                <span className="leaderboard-rank">{index + 1}</span>
+                <span className="leaderboard-skill">
+                  <button
+                    type="button"
+                    className="leaderboard-name"
+                    onClick={() => onOpen(skill.pkg.id)}
+                  >
+                    {skill.pkg.name}
+                  </button>
+                  {author && (
+                    <span className="leaderboard-author">
+                      <User size={12} aria-hidden="true" />
+                      {t.leaderboard.by(author)}
+                      {mine && (
+                        <em className="leaderboard-you">{t.leaderboard.you}</em>
+                      )}
+                    </span>
                   )}
                 </span>
-                <span>
-                  <strong>{contributor.upvotes}</strong>{" "}
-                  {t.leaderboard.upvotes(contributor.upvotes)}
+                <span className="leaderboard-stats">
+                  <span>
+                    <Users size={13} aria-hidden="true" />
+                    <strong>{skill.ranking?.colleagues ?? 0}</strong>{" "}
+                    {t.leaderboard.colleagues(skill.ranking?.colleagues ?? 0)}
+                  </span>
+                  <span>
+                    <ThumbsUp size={13} aria-hidden="true" />
+                    <strong>{skill.ranking?.upvotes ?? 0}</strong>{" "}
+                    {t.leaderboard.upvotes(skill.ranking?.upvotes ?? 0)}
+                  </span>
+                  <span>
+                    <Download size={13} aria-hidden="true" />
+                    <strong>{skill.downloads}</strong>{" "}
+                    {t.leaderboard.downloads(skill.downloads)}
+                  </span>
                 </span>
-              </span>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ol>
       )}
     </section>
-  );
-}
-
-/** The Leaderboard tab: loads the ranking each time it is opened. */
-export function LeaderboardTab({
-  apiClient,
-  workspaceId,
-  currentUserId,
-}: {
-  apiClient: WebApiClient;
-  workspaceId: string;
-  currentUserId?: string;
-}) {
-  const { contributors, loading } = useContributors({
-    apiClient,
-    workspaceId,
-    active: true,
-  });
-
-  return (
-    <ContributorsPanel
-      contributors={contributors}
-      loading={loading}
-      currentUserId={currentUserId}
-    />
   );
 }

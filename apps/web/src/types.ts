@@ -124,4 +124,4 @@ export type AppTab =
   | "reports"
   | "team"
   | "my-skills"
-  | "contributors";
+  | "leaderboard";

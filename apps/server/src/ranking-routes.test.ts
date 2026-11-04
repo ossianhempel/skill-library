@@ -28,7 +28,7 @@ const as = (id: string, role = "user") => ({
 });
 
 describe("ranking routes", () => {
-  it("ranks by distinct colleagues and credits the author", async () => {
+  it("ranks skills by distinct colleagues, not the author's own downloads", async () => {
     const { app } = await createApp();
 
     for (const user of ["bo", "bo", "cy"]) {
@@ -49,14 +49,6 @@ describe("ranking routes", () => {
         ["quiet", 1],
       ]
     );
-    expect(ranking.contributors).toEqual([
-      expect.objectContaining({
-        userId: "ada",
-        name: "Ada",
-        skills: 2,
-        colleaguesReached: 2,
-      }),
-    ]);
   });
 
   it("includes each skill's ranking in the batched catalog", async () => {

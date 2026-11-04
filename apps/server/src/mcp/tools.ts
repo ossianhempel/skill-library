@@ -290,24 +290,26 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
   server.registerTool(
     "skills_leaderboard",
     {
-      title: "Top contributors",
+      title: "Top skills",
       description:
-        "Who has shared the most useful skills: colleagues ranked by how many people use their skills and how many upvotes they got.",
+        "The most popular approved skills: ranked by how many colleagues installed them (recent installs count most) and how many upvotes they got. Each entry names who made it.",
       inputSchema: { limit: z.number().int().min(1).max(50).default(10) },
       annotations: READ_ONLY,
     },
     async ({ limit }) => {
-      const { contributors } = await loadCatalog(ctx);
-      const top = contributors.slice(0, limit);
-      if (top.length === 0) return ok("No ranked contributors yet.");
+      const { entries } = await loadCatalog(ctx);
+      const top = topSkills(entries).slice(0, limit);
+      if (top.length === 0)
+        return ok("No skill has been installed or upvoted yet.");
+      const skills = top.map((entry) => summary(ctx, entry));
       return ok(
-        top
+        skills
           .map(
-            (person, index) =>
-              `${index + 1}. ${person.name}: ${person.skills} skill(s), used by ${person.colleaguesReached} colleague(s), ${person.upvotes} upvote(s)`
+            (skill, index) =>
+              `${index + 1}. **${skill.name}** (\`${skill.slug}\`)${skill.author ? ` by ${skill.author}` : ""}: used by ${skill.colleagues} colleague(s), ${skill.upvotes} upvote(s)`
           )
           .join("\n"),
-        { contributors: top }
+        { skills }
       );
     }
   );
@@ -381,6 +383,23 @@ function notFound(reference: string, suggestions: string[]) {
   return fail(
     `No skill called "${reference}".${suggestions.length ? ` Did you mean: ${suggestions.join(", ")}?` : ""} Use skills_search to find the slug.`
   );
+}
+
+/** Approved skills someone installed or upvoted, best first. */
+function topSkills(entries: WorkspaceCatalogEntry[]) {
+  return entries
+    .filter(
+      (entry) =>
+        entry.latestApproved &&
+        ((entry.ranking?.colleagues ?? 0) > 0 ||
+          (entry.ranking?.upvotes ?? 0) > 0)
+    )
+    .sort(
+      (left, right) =>
+        (right.ranking?.score ?? 0) - (left.ranking?.score ?? 0) ||
+        (right.ranking?.colleagues ?? 0) - (left.ranking?.colleagues ?? 0) ||
+        left.package.name.localeCompare(right.package.name)
+    );
 }
 
 function summary(ctx: McpToolContext, entry: WorkspaceCatalogEntry) {

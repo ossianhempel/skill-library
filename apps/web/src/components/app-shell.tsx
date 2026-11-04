@@ -58,8 +58,8 @@ export function AppRail({
       <NavButton
         icon={<Trophy size={19} />}
         label={t.rail.leaderboard}
-        active={activeTab === "contributors"}
-        onClick={() => setActiveTab("contributors")}
+        active={activeTab === "leaderboard"}
+        onClick={() => setActiveTab("leaderboard")}
       />
       {hasSession && (
         <NavButton

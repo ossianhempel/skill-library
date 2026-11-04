@@ -390,11 +390,14 @@ function SkillLibraryAppContent({
             <ReportPanel catalog={catalog} summary={reportSummary} />
           )}
 
-          {activeTab === "contributors" && (
+          {activeTab === "leaderboard" && (
             <LeaderboardTab
-              apiClient={apiClient}
-              workspaceId={workspaceId}
-              currentUserId={session?.id}
+              catalog={catalog}
+              loading={!catalogLoaded}
+              onOpen={(packageId) => {
+                setActiveTab("catalog");
+                handleSelectSkill(packageId);
+              }}
             />
           )}
 
