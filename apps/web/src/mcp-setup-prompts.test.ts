@@ -6,7 +6,7 @@ import {
   buildMcpSetupContext,
   buildMcpSetupPrompt,
   fetchMcpSetupAgentAuth,
-  withMcpSetupAgentAuth,
+  mcpEndpointUrl,
 } from "./mcp-setup-prompts.js";
 
 describe("mcp-setup-prompts", () => {
@@ -16,10 +16,8 @@ describe("mcp-setup-prompts", () => {
       appName: "Rebtech Skills",
       companyName: "Rebtech",
       registryPublicUrl: "https://skills.rebtech.se",
-      defaultWorkspaceId: "workspace-1",
     },
-    "workspace-1",
-    "https://skills.rebtech.se"
+    "https://skills.rebtech.se/"
   );
 
   it("lists supported agent targets", () => {
@@ -32,96 +30,56 @@ describe("mcp-setup-prompts", () => {
     ]);
   });
 
-  it("states MCP uses API tokens and is not Microsoft SSO", () => {
-    const prompt = buildMcpSetupPrompt("claude-code", context);
+  it("points every agent at the hosted endpoint and needs no token", () => {
+    expect(context.mcpUrl).toBe("https://skills.rebtech.se/mcp");
 
-    expect(prompt).toContain("does **not** use Microsoft SSO");
-    expect(prompt).toContain("SKILL_LIBRARY_MCP_TOKEN");
-    expect(prompt).toContain("local stdio process");
-    expect(prompt).toContain(
-      "Ask me for my API token if I have not provided one yet"
-    );
-  });
-
-  it("embeds the signed-in user's personal MCP token when provided", () => {
-    const prompt = buildMcpSetupPrompt(
-      "cursor",
-      withMcpSetupAgentAuth(context, {
-        token: "sl_test_token_123",
-        role: "maintainer",
-        actorId: "user-abc",
-      })
-    );
-
-    expect(prompt).toContain("SKILL_LIBRARY_MCP_TOKEN=sl_test_token_123");
-    expect(prompt).toContain("SKILL_LIBRARY_MCP_ROLE=maintainer");
-    expect(prompt).toContain("SKILL_LIBRARY_MCP_ACTOR=user-abc");
-    expect(prompt).toContain('"SKILL_LIBRARY_MCP_TOKEN": "sl_test_token_123"');
-    expect(prompt).not.toContain("<my-api-token>");
-    expect(prompt).not.toContain("Ask me for my API token");
-  });
-
-  it("includes registry URL, workspace, and validation steps", () => {
-    const prompt = buildMcpSetupPrompt("cursor", context);
-
-    expect(prompt).toContain("https://skills.rebtech.se");
-    expect(prompt).toContain('workspaceId "workspace-1"');
-    expect(prompt).toContain("tools/list");
-    for (const tool of MCP_TOOL_NAMES) {
-      expect(prompt).toContain(tool);
+    for (const target of MCP_SETUP_TARGETS) {
+      const prompt = buildMcpSetupPrompt(target.id, context);
+      expect(prompt).toContain("https://skills.rebtech.se/mcp");
+      expect(prompt).toContain("There is no API key or token to paste");
+      expect(prompt).not.toContain("SKILL_LIBRARY_MCP_TOKEN");
+      expect(prompt).not.toContain("stdio");
+      for (const tool of MCP_TOOL_NAMES) {
+        expect(prompt).toContain(tool);
+      }
     }
   });
 
-  it("includes platform-specific config for Codex", () => {
-    const prompt = buildMcpSetupPrompt("codex", context);
-
-    expect(prompt).toContain("[mcp_servers.skill-library]");
-    expect(prompt).toContain("codex mcp add skill-library");
+  it("gives each agent its own connect command", () => {
+    expect(buildMcpSetupPrompt("claude-code", context)).toContain(
+      "claude mcp add --transport http --scope user skill-library https://skills.rebtech.se/mcp"
+    );
+    expect(buildMcpSetupPrompt("codex", context)).toContain(
+      "codex mcp login skill-library"
+    );
+    expect(buildMcpSetupPrompt("cursor", context)).toContain(
+      '"url": "https://skills.rebtech.se/mcp"'
+    );
+    expect(buildMcpSetupPrompt("claude-desktop", context)).toContain(
+      "Settings > Connectors"
+    );
   });
 
-  it("includes platform-specific config for Claude Desktop", () => {
-    const prompt = buildMcpSetupPrompt("claude-desktop", context);
-
-    expect(prompt).toContain("claude_desktop_config.json");
-    expect(prompt).toContain("mcpServers");
+  it("builds the endpoint from a base URL with or without a trailing slash", () => {
+    expect(mcpEndpointUrl("http://localhost:3000")).toBe(
+      "http://localhost:3000/mcp"
+    );
+    expect(mcpEndpointUrl("http://localhost:3000/")).toBe(
+      "http://localhost:3000/mcp"
+    );
   });
 
-  it("loads a personal MCP token for signed-in users", async () => {
+  it("loads a personal agent token for signed-in users", async () => {
     const auth = await fetchMcpSetupAgentAuth({
       registryUrl: "https://skills.rebtech.se",
       hasSession: true,
       request: async () =>
         new Response(
-          JSON.stringify({
-            token: "sl_test_token_123",
-            role: "user",
-            actorId: "user-abc",
-          }),
-          {
-            status: 200,
-            headers: { "content-type": "application/json" },
-          }
+          JSON.stringify({ token: "sl_test", role: "user", actorId: "u" }),
+          { status: 200, headers: { "content-type": "application/json" } }
         ),
     });
 
-    expect(auth).toEqual({
-      token: "sl_test_token_123",
-      role: "user",
-      actorId: "user-abc",
-    });
-  });
-
-  it("falls back to the local dev API key when there is no session", async () => {
-    const auth = await fetchMcpSetupAgentAuth({
-      registryUrl: "http://localhost:3000",
-      hasSession: false,
-      activeToken: "maintainer-secret",
-    });
-
-    expect(auth).toEqual({
-      token: "maintainer-secret",
-      role: "user",
-      actorId: "local-dev",
-    });
+    expect(auth).toEqual({ token: "sl_test", role: "user", actorId: "u" });
   });
 });

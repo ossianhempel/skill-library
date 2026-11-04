@@ -25,6 +25,7 @@ import {
   visibleWorkspaceCatalog,
 } from "./workspace-catalog.js";
 import { registerRankingRoutes } from "./ranking-routes.js";
+import { registerMcpRoutes } from "./mcp/routes.js";
 import {
   parseLifecycleState,
   parsePackageTreeBody,
@@ -63,6 +64,7 @@ export function createHttpApp(
     return !workspace || (await canAccessWorkspace(headers, workspace));
   }
 
+  registerMcpRoutes(app, { api, auth, store, branding });
   app.on(["POST", "GET"], "/api/auth/*", (context) =>
     auth.handler(context.req.raw)
   );
@@ -691,7 +693,7 @@ export function createHttpApp(
 
     const userId = context.req.param("userId");
     const body = (await context.req.json()) as { role?: string };
-    const role = parseAdminRole(body.role);
+    const role = parseRole(body.role ?? null);
 
     if (!role) {
       return context.json(
@@ -734,15 +736,6 @@ export function createHttpApp(
   });
 
   return app;
-}
-
-function parseAdminRole(
-  value: string | undefined
-): "user" | "maintainer" | "admin" | undefined {
-  if (value === "user" || value === "maintainer" || value === "admin") {
-    return value;
-  }
-  return undefined;
 }
 
 function mapTeamMemberRow(member: TeamMemberRecord) {

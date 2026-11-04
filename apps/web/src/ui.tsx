@@ -2,9 +2,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
   buildMcpSetupContext,
   buildMcpSetupPrompt,
-  fetchMcpSetupAgentAuth,
   MCP_SETUP_TARGETS,
-  withMcpSetupAgentAuth,
   type McpSetupTarget,
 } from "./mcp-setup-prompts.js";
 import {
@@ -294,21 +292,7 @@ function SkillLibraryAppContent({
   const resolvedRegistryUrl = resolveRegistryBaseUrl(registryUrl, branding);
 
   async function copyMcpSetupPrompt(target: McpSetupTarget) {
-    const agentAuth = await fetchMcpSetupAgentAuth({
-      registryUrl: resolvedRegistryUrl,
-      hasSession: Boolean(session),
-      activeToken,
-    });
-
-    if (!agentAuth) {
-      setNotice(session ? t.notices.mcpTokenFailed : t.notices.mcpSignIn);
-      return;
-    }
-
-    const context = withMcpSetupAgentAuth(
-      buildMcpSetupContext(branding, workspaceId, resolvedRegistryUrl),
-      agentAuth
-    );
+    const context = buildMcpSetupContext(branding, resolvedRegistryUrl);
     const prompt = buildMcpSetupPrompt(target, context);
     await navigator.clipboard?.writeText(prompt).catch(() => undefined);
     const label =
@@ -361,8 +345,6 @@ function SkillLibraryAppContent({
               totals={totals}
               selected={selected}
               resolvedRegistryUrl={resolvedRegistryUrl}
-              session={session}
-              activeToken={activeToken}
               copiedMcpTarget={copiedMcpTarget}
               setActiveTab={setActiveTab}
               copyMcpSetupPrompt={copyMcpSetupPrompt}

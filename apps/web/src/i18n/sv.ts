@@ -57,14 +57,12 @@ export const sv: Messages = {
     browseSkills: "Bläddra bland skills",
     shareSkill: "Dela en skill",
     developerSummary:
-      "För utvecklare: koppla Claude Code, Codex, Cursor eller ChatGPT",
+      "Använder du Claude Code, Codex, Cursor eller ChatGPT? Koppla in dem också",
     connectAria: "Koppla din agent via MCP",
     connectKicker: "Koppla din agent",
     connectTitle: "Kopiera installationsprompt för agenten",
-    connectSignedIn:
-      "Välj din agent nedan. Den kopierade prompten innehåller din personliga MCP-token. Klistra in den i Claude Code, Codex, Cursor eller en annan agent för att sätta upp lokal MCP och testa sökningen.",
-    connectSignedOut:
-      "Logga in först. Den kopierade prompten får då din personliga MCP-token så att agenten kan autentisera sig utan Microsoft-inloggning.",
+    connectBody:
+      "Välj din agent nedan och klistra in den kopierade prompten. Den kopplar upp sig mot den hostade MCP-servern och loggar in dig med ditt jobbkonto första gången. Ingen token att kopiera.",
     registry: "Register:",
     copyTargetAria: (label: string) =>
       `Kopiera MCP-installationsprompt för ${label}`,
@@ -76,6 +74,24 @@ export const sv: Messages = {
     needUpdate: "Behöver uppdateras",
     noSkillsYet: "Inga skills än",
     publishFirst: "Publicera första skillen",
+  },
+  connectClaude: {
+    kicker: "Enklast",
+    title: "Koppla Claude till biblioteket",
+    intro:
+      "Gör det en gång. Sedan frågar du bara Claude: den hittar skills åt dig, använder dem direkt och hjälper dig installera de du vill behålla. Inget att ladda ner.",
+    copy: "Kopiera adressen",
+    copied: "Kopierad",
+    step1Title: "Öppna Inställningar och sedan Anslutningar",
+    step1Body:
+      "I Claude (claude.ai eller appen), klicka på Lägg till anpassad anslutning (Add custom connector).",
+    step2Title: "Klistra in adressen",
+    step2Body: (appName: string) =>
+      `Döp den till ${appName}, klistra in adressen ovan och klicka Add.`,
+    step3Title: "Klicka Connect och logga in",
+    step3Body: "Med ditt vanliga jobbkonto. Bara första gången.",
+    tryIt:
+      'Testa sedan att fråga Claude: "Vilka skills har vi för att skriva CV?"',
   },
   howItWorks: {
     title: "Så funkar det",
@@ -294,12 +310,8 @@ export const sv: Messages = {
     ready: "Redo",
     installCopied:
       "Installationsprompten är kopierad. Klistra in den i din agent.",
-    mcpTokenFailed:
-      "Det gick inte att hämta din MCP-token. Logga ut och in igen och försök på nytt. Om felet kvarstår kan registret behöva uppdateras.",
-    mcpSignIn:
-      "Logga in för att kopiera en installationsprompt med din personliga MCP-token.",
     mcpCopied: (label: string) =>
-      `Installationsprompten för ${label} är kopierad, med din MCP-token`,
+      `Installationsprompten för ${label} är kopierad`,
     catalogSynced: "Katalogen är uppdaterad",
     catalogEmpty: "Katalogen är tom. Publicera en skill för att komma igång.",
     refreshFailed: (message?: string) =>

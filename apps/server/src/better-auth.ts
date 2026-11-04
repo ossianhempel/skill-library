@@ -1,4 +1,5 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthPlugin } from "better-auth";
+import { mcp } from "better-auth/plugins";
 import type { RegistryStore } from "@skill-library/storage";
 
 const developmentAuthSecret =
@@ -100,6 +101,11 @@ export function getBetterAuthInstance(store: RegistryStore) {
       },
     },
     secret: resolveBetterAuthSecret(),
+    // OAuth 2.1 authorization server (with dynamic client registration) for the
+    // remote MCP endpoint at /mcp. Sign-in reuses the Microsoft SSO above.
+    // Cast keeps the plugin's endpoint types (which reference unexported zod
+    // types) out of this module's emitted declarations; see mcp/oauth.ts.
+    plugins: [mcp(mcpOAuthOptions()) as BetterAuthPlugin],
     databaseHooks: {
       user: {
         create: {
@@ -116,6 +122,26 @@ export function getBetterAuthInstance(store: RegistryStore) {
       },
     },
   });
+}
+
+export const MCP_SIGN_IN_PATH = "/api/mcp/sign-in";
+
+function mcpOAuthOptions() {
+  const baseUrl = process.env.BETTER_AUTH_URL?.trim().replace(/\/$/, "");
+
+  return {
+    loginPage: MCP_SIGN_IN_PATH,
+    resource: baseUrl ? `${baseUrl}/mcp` : undefined,
+    oidcConfig: {
+      loginPage: MCP_SIGN_IN_PATH,
+      consentPage: "/api/mcp/consent",
+      requirePKCE: true,
+      // One hour per access token; clients that asked for offline_access refresh
+      // for 30 days before the colleague has to sign in again.
+      accessTokenExpiresIn: 60 * 60,
+      refreshTokenExpiresIn: 30 * 24 * 60 * 60,
+    },
+  };
 }
 
 export type BetterAuthInstance = ReturnType<typeof getBetterAuthInstance>;

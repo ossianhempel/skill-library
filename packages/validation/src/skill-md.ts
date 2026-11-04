@@ -111,6 +111,16 @@ export function readSkillName(content: string): string | undefined {
   return isValidNameFormat(name) ? name : undefined;
 }
 
+/** Returns the frontmatter `description` of a SKILL.md, or undefined when empty. */
+export function readSkillDescription(content: string): string | undefined {
+  const parsed = parseFrontmatter(content);
+  const description = parsed
+    ? readStringField(parsed.frontmatter, "description").trim()
+    : "";
+
+  return description || undefined;
+}
+
 function parseFrontmatter(
   content: string
 ): { frontmatter: Record<string, unknown>; body: string } | undefined {

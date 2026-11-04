@@ -6,8 +6,8 @@ import yazl from "yazl";
 import type { ArtifactFile, ValidationResult } from "@skill-library/domain";
 import { validateSkillMd } from "./skill-md.js";
 
-export { readSkillName } from "./skill-md.js";
-export { packForClaudeApp } from "./claude-app-zip.js";
+export { readSkillDescription, readSkillName } from "./skill-md.js";
+export { packForClaudeApp, readSkillFolder } from "./claude-app-zip.js";
 
 // Rule catalog: docs/validation-rules.md
 

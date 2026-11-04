@@ -138,7 +138,12 @@ const server = createServer(async (request, response) => {
       `http://${request.headers.host ?? `${host}:${port}`}`
     );
 
-    if (url.pathname.startsWith("/api/") || url.pathname === "/health") {
+    if (
+      url.pathname.startsWith("/api/") ||
+      url.pathname.startsWith("/.well-known/") ||
+      url.pathname === "/mcp" ||
+      url.pathname === "/health"
+    ) {
       const appResponse = await app.fetch(toWebRequest(request, url));
       await writeWebResponse(response, appResponse);
       return;

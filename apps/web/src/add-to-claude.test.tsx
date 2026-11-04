@@ -65,9 +65,18 @@ describe("non-technical install path", () => {
     expect(screen.getByText("How it works")).toBeTruthy();
     expect(screen.getByText("Add it to Claude")).toBeTruthy();
     expect(
-      screen.getByText(/For developers: connect Claude Code/).closest("details")
-        ?.open
+      screen
+        .getByText(/Using Claude Code, Codex, Cursor or ChatGPT/)
+        .closest("details")?.open
     ).toBe(false);
+  });
+
+  it("shows how to connect Claude to the hosted MCP server, with no token", () => {
+    render(<SkillLibraryApp skills={[approvedSkill()]} branding={branding} />);
+
+    expect(screen.getByText("Connect Claude to the library")).toBeTruthy();
+    expect(screen.getAllByText(/\/mcp$/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Click Connect and sign in")).toBeTruthy();
   });
 
   it("leads the skill detail with Claude app steps and a Claude-ready download", () => {

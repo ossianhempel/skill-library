@@ -58,14 +58,12 @@ export const en = {
     browseSkills: "Browse skills",
     shareSkill: "Share a skill",
     developerSummary:
-      "For developers: connect Claude Code, Codex, Cursor, or ChatGPT",
+      "Using Claude Code, Codex, Cursor or ChatGPT? Connect them too",
     connectAria: "Connect your agent via MCP",
     connectKicker: "Connect your agent",
     connectTitle: "Copy agent setup prompt",
-    connectSignedIn:
-      "Choose your agent below. The copied prompt embeds your personal MCP bearer token — paste it into Claude Code, Codex, Cursor, or another agent to configure local MCP and validate search.",
-    connectSignedOut:
-      "Sign in first. The copied prompt will embed your personal MCP bearer token so your agent can authenticate without Microsoft SSO.",
+    connectBody:
+      "Pick your agent below and paste the copied prompt into it. It connects to the hosted MCP server and signs you in with your company account the first time. No token to copy.",
     registry: "Registry:",
     copyTargetAria: (label: string) => `Copy ${label} MCP setup prompt`,
     copied: "Copied",
@@ -76,6 +74,23 @@ export const en = {
     needUpdate: "Need update",
     noSkillsYet: "No skills yet",
     publishFirst: "Publish first skill",
+  },
+  connectClaude: {
+    kicker: "Easiest way",
+    title: "Connect Claude to the library",
+    intro:
+      "Do this once. After that, just ask Claude: it finds skills for you, uses them right away, and helps you install the ones you want to keep. Nothing to download.",
+    copy: "Copy address",
+    copied: "Copied",
+    step1Title: "Open Settings, then Connectors",
+    step1Body:
+      "In Claude (claude.ai or the desktop app), click Add custom connector.",
+    step2Title: "Paste the address",
+    step2Body: (appName: string) =>
+      `Name it ${appName}, paste the address above and click Add.`,
+    step3Title: "Click Connect and sign in",
+    step3Body: "Use your usual work account. Only the first time.",
+    tryIt: 'Then try asking Claude: "Which skills do we have for writing CVs?"',
   },
   howItWorks: {
     title: "How it works",
@@ -292,11 +307,7 @@ export const en = {
     upvoteFailed: "Upvote failed",
     ready: "Ready",
     installCopied: "Install prompt copied — paste it into your agent",
-    mcpTokenFailed:
-      "Could not load your MCP token. Sign out and back in, then try again. If this persists, the registry may need an update.",
-    mcpSignIn: "Sign in to copy a setup prompt with your personal MCP token.",
-    mcpCopied: (label: string) =>
-      `Copied ${label} agent setup prompt with your MCP token`,
+    mcpCopied: (label: string) => `Copied the ${label} setup prompt`,
     catalogSynced: "Catalog synced",
     catalogEmpty: "Catalog is empty. Publish a skill to get started.",
     refreshFailed: (message?: string) =>

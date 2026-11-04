@@ -368,7 +368,7 @@ async function ensureWorkspace(
   });
 }
 
-function stableId(...parts: string[]) {
+export function stableId(...parts: string[]) {
   return parts
     .join(":")
     .toLowerCase()
