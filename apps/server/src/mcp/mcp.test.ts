@@ -164,6 +164,19 @@ describe("remote MCP", () => {
     });
     expect(text(code)).toContain("~/.claude/skills/cv-tailor/");
     expect(text(code)).toContain("=== logo.png (base64) ===");
+    expect(text(code)).toContain("Keep it to two pages.");
+    // Claude Code shows the model structuredContent instead of the text when
+    // both are present, which would drop the file contents.
+    expect(code.structuredContent).toBeUndefined();
+
+    const logo = await client.callTool({
+      name: "skills_read_file",
+      arguments: { skill: "cv-tailor", path: "logo.png" },
+    });
+    expect(logo.isError).toBeFalsy();
+    expect(text(logo)).toContain(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2]).toString("base64")
+    );
 
     // The Claude Code install counts Ada as a colleague using the skill.
     const vote = await client.callTool({

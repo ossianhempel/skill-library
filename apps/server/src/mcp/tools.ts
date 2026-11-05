@@ -94,11 +94,7 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
           ...(more
             ? ["", `More: call again with offset ${offset + page.length}.`]
             : []),
-        ].join("\n"),
-        {
-          total: matches.length,
-          skills: page.map((entry) => summary(ctx, entry)),
-        }
+        ].join("\n")
       );
     }
   );
@@ -133,12 +129,7 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
           "",
           "--- SKILL.md ---",
           skillMd?.text ?? "(SKILL.md is not text)",
-        ].join("\n"),
-        {
-          ...summary(ctx, entry),
-          folder,
-          files: files.map((file) => file.path),
-        }
+        ].join("\n")
       );
     }
   );
@@ -173,8 +164,13 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
       }
 
       if (file.text === undefined) {
-        return fail(
-          `${file.path} is a binary file (${formatSize(file.size)}) and cannot be shown as text. To get it, install the skill with skills_install.`
+        if (file.size > INLINE_INSTALL_LIMIT) {
+          return fail(
+            `${file.path} is a binary file (${formatSize(file.size)}), too large to send. To get it, install the skill with skills_install.`
+          );
+        }
+        return ok(
+          `${file.path} is a binary file (${formatSize(file.size)}). Its bytes follow as base64: decode them before writing the file.\n\n${file.bytes.toString("base64")}`
         );
       }
 
@@ -221,8 +217,7 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
             "4. Turn the skill on with the switch next to it. Claude then uses it whenever it fits.",
             "",
             "Until then, it can be used in this conversation: read it with skills_get and follow its SKILL.md.",
-          ].join("\n"),
-          { downloadUrl: download }
+          ].join("\n")
         );
       }
 
@@ -250,8 +245,7 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
           `Then tell the person it is installed in ${dir} and to restart ${client === "codex" ? "Codex" : client === "claude-code" ? "Claude Code" : "their agent"} so it loads.`,
           "",
           ...files.map(fileBlock),
-        ].join("\n"),
-        { directory: dir, files: files.map((file) => file.path) }
+        ].join("\n")
       );
     }
   );
@@ -308,8 +302,7 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
             (skill, index) =>
               `${index + 1}. **${skill.name}** (\`${skill.slug}\`)${skill.author ? ` by ${skill.author}` : ""}: used by ${skill.colleagues} colleague(s), ${skill.upvotes} upvote(s)`
           )
-          .join("\n"),
-        { skills }
+          .join("\n")
       );
     }
   );
