@@ -49,7 +49,11 @@ export function TeamPanel({
             {t.team.title}
           </div>
           <p
-            style={{ margin: "0", color: "var(--muted)", fontSize: "0.88rem" }}
+            style={{
+              margin: "0",
+              color: "var(--muted)",
+              fontSize: "var(--text-body)",
+            }}
           >
             {teammates.length === 0
               ? t.team.onlyYou

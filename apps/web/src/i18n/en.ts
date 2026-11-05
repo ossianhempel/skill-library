@@ -6,6 +6,9 @@ import type { LifecycleState, WorkspaceRole } from "@skill-library/domain";
  * an agent, not copy for the reader.
  */
 export const en = {
+  common: {
+    moreInfo: "More information",
+  },
   language: {
     label: "Language",
     switchTo: (name: string) => `Switch language to ${name}`,
@@ -121,6 +124,7 @@ export const en = {
     enableBody:
       "Use the switch next to it in your list of skills. After that, just ask Claude for help as usual. It uses the skill when it fits.",
     promptTitle: "Or let Claude add it for you",
+    showPrompt: "Show the prompt",
     promptHint:
       "Copy this prompt and paste it into Claude, in the desktop app or Claude Code. Claude checks your access, downloads the skill and saves it so it works in all your conversations. Your personal access key is added when you copy, so don't share the copied text.",
     copied: "Copied",
@@ -148,12 +152,9 @@ export const en = {
     mineEmptyAll: "You haven't uploaded any skills in this category yet.",
   },
   stats: {
-    version: "Version",
-    author: "Author",
-    downloads: "Downloads",
-    uploaded: "Uploaded",
-    lastModified: "Last modified",
-    downloadTrend: "Download trend",
+    by: (name: string) => `by ${name}`,
+    versionValue: (version: string) => `Version ${version}`,
+    updated: (date: string) => `Updated ${date}`,
   },
   detail: {
     aria: "Skill detail",

@@ -1,8 +1,8 @@
 import { Loader2 } from "lucide-react";
 import type { CatalogSkill } from "../types.js";
 import { titleize } from "../lib/format.js";
-import { SkillStatsMeta } from "../skill-stats.js";
-import { LifecycleBadge } from "./chrome.js";
+import { SkillMeta } from "../skill-stats.js";
+import { ExceptionBadge } from "./chrome.js";
 import { useI18n } from "../i18n/locale.js";
 import type { Messages } from "../i18n/en.js";
 
@@ -20,7 +20,6 @@ export function emptyListMessage(
   }
   return mine ? t.catalog.mineEmptyAll : t.catalog.emptyAll;
 }
-import { PopularityLine } from "./popularity.js";
 
 export function StatusFilter({
   selectedStatus,
@@ -185,27 +184,15 @@ export function SkillRow({
       <div className="skill-row-main">
         <div className="skill-row-copy">
           <h2>{skill.pkg.name}</h2>
-          <p>{skill.pkg.description}</p>
-          <PopularityLine ranking={skill.ranking} />
-          <div className="tags">
-            {skill.pkg.categories.map((category) => (
-              <span key={category}>{category}</span>
-            ))}
-          </div>
+          <p className="skill-row-description">{skill.pkg.description}</p>
+          <SkillMeta
+            author={skill.latestApproved?.author ?? skill.activeVersion?.author}
+            ranking={skill.ranking}
+            categories={skill.pkg.categories}
+          />
         </div>
-        <SkillStatsMeta
-          compact
-          version={
-            skill.latestApproved?.version ?? skill.activeVersion?.version
-          }
-          author={skill.activeVersion?.author ?? skill.latestApproved?.author}
-          downloads={skill.downloads}
-          downloadHistory={skill.downloadHistory}
-          uploadedAt={skill.activeVersion?.createdAt ?? skill.pkg.createdAt}
-          lastModifiedAt={skill.lastModifiedAt}
-        />
       </div>
-      <LifecycleBadge
+      <ExceptionBadge
         state={
           skill.activeVersion?.lifecycleState ??
           skill.latestApproved?.lifecycleState ??
@@ -227,19 +214,12 @@ export function FeaturedSkill({
   return (
     <article className="featured-skill">
       <div>
-        <p className="kicker">{t.catalog.featured}</p>
         <h2>{skill.pkg.name}</h2>
-        <p>{skill.pkg.description}</p>
-        <SkillStatsMeta
-          compact
-          version={
-            skill.latestApproved?.version ?? skill.activeVersion?.version
-          }
-          author={skill.activeVersion?.author ?? skill.latestApproved?.author}
-          downloads={skill.downloads}
-          downloadHistory={skill.downloadHistory}
-          uploadedAt={skill.activeVersion?.createdAt ?? skill.pkg.createdAt}
-          lastModifiedAt={skill.lastModifiedAt}
+        <p className="skill-row-description">{skill.pkg.description}</p>
+        <SkillMeta
+          author={skill.latestApproved?.author ?? skill.activeVersion?.author}
+          ranking={skill.ranking}
+          categories={skill.pkg.categories}
         />
       </div>
       <button onClick={onOpen}>{t.catalog.openCatalog}</button>

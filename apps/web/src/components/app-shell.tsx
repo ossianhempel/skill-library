@@ -158,7 +158,6 @@ export function AppTopbar({
   return (
     <header className="topbar">
       <div>
-        <p className="kicker">{branding.registryTagline}</p>
         <div
           style={{
             display: "flex",
@@ -168,30 +167,32 @@ export function AppTopbar({
           }}
         >
           <h1 style={{ margin: 0 }}>{branding.appName}</h1>
-          <div className="role-select-wrapper">
-            <select
-              className="role-select"
-              value={workspaceId}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === "__new__") {
-                  setIsCreatingCustomWorkspace(true);
-                  setActiveTab("publish");
-                } else {
-                  setIsCreatingCustomWorkspace(false);
-                  setSelectedWorkspaceId(val);
-                }
-              }}
-              title={t.topbar.activeWorkspace}
-            >
-              {availableWorkspaces.map((ws) => (
-                <option key={ws} value={ws}>
-                  {t.topbar.workspaceOption(ws)}
-                </option>
-              ))}
-              <option value="__new__">{t.topbar.newWorkspace}</option>
-            </select>
-          </div>
+          {availableWorkspaces.length > 1 && (
+            <div className="role-select-wrapper">
+              <select
+                className="role-select"
+                value={workspaceId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "__new__") {
+                    setIsCreatingCustomWorkspace(true);
+                    setActiveTab("publish");
+                  } else {
+                    setIsCreatingCustomWorkspace(false);
+                    setSelectedWorkspaceId(val);
+                  }
+                }}
+                title={t.topbar.activeWorkspace}
+              >
+                {availableWorkspaces.map((ws) => (
+                  <option key={ws} value={ws}>
+                    {t.topbar.workspaceOption(ws)}
+                  </option>
+                ))}
+                <option value="__new__">{t.topbar.newWorkspace}</option>
+              </select>
+            </div>
+          )}
         </div>
       </div>
       <div className="topbar-tools">

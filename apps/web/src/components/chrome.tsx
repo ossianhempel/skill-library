@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import { Info } from "lucide-react";
 import type {
   LifecycleState,
   RegistryBrandingConfig,
@@ -44,6 +45,35 @@ export function Metric({
       <strong>{value}</strong>
     </div>
   );
+}
+
+/**
+ * A small (i) that shows help text on hover or keyboard focus. Screen readers
+ * get the text as the button's description, so nothing is lost by hiding it.
+ */
+export function InfoTip({ text, label }: { text: string; label?: string }) {
+  const { t } = useI18n();
+  const id = useId();
+  return (
+    <span className="info-tip">
+      <button
+        type="button"
+        className="info-tip-button"
+        aria-label={label ?? t.common.moreInfo}
+        aria-describedby={id}
+      >
+        <Info size={14} aria-hidden="true" />
+      </button>
+      <span role="tooltip" id={id} className="info-tip-text">
+        {text}
+      </span>
+    </span>
+  );
+}
+
+/** Lifecycle badge, shown only when the state is not the normal "approved". */
+export function ExceptionBadge({ state }: { state: LifecycleState }) {
+  return state === "approved" ? null : <LifecycleBadge state={state} />;
 }
 
 export function LifecycleBadge({ state }: { state: LifecycleState }) {

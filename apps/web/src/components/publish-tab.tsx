@@ -13,6 +13,7 @@ import {
 import { usePublish } from "../hooks/use-publish.js";
 import { ValidationPanel } from "../validation-panel.js";
 import { useI18n } from "../i18n/locale.js";
+import { InfoTip } from "./chrome.js";
 
 export function PublishTab({
   apiClient,
@@ -91,16 +92,8 @@ export function PublishTab({
         <div className="panel-title">
           <UploadCloud size={17} />
           {t.publish.localTitle}
+          <InfoTip text={branding.uploadDescription} />
         </div>
-        <p
-          style={{
-            margin: "-8px 0 16px",
-            color: "var(--muted)",
-            fontSize: "0.92rem",
-          }}
-        >
-          {branding.uploadDescription}
-        </p>
         <div className="form-grid">
           <label>
             {t.publish.workspace}
@@ -173,7 +166,7 @@ export function PublishTab({
                 <span
                   style={{
                     color: "var(--muted)",
-                    fontSize: "0.85rem",
+                    fontSize: "var(--text-small)",
                     fontStyle: "italic",
                   }}
                 >
@@ -203,7 +196,7 @@ export function PublishTab({
                         <span
                           style={{
                             marginLeft: "4px",
-                            fontSize: "0.8em",
+                            fontSize: "var(--text-small)",
                           }}
                         >
                           ✓
@@ -287,7 +280,7 @@ export function PublishTab({
                 <p
                   style={{
                     margin: "4px 0 0",
-                    fontSize: "0.82rem",
+                    fontSize: "var(--text-small)",
                     color: "var(--muted)",
                   }}
                 >
@@ -313,7 +306,7 @@ export function PublishTab({
                 <p
                   style={{
                     margin: "4px 0 0",
-                    fontSize: "0.82rem",
+                    fontSize: "var(--text-small)",
                     color: "var(--muted)",
                   }}
                 >
@@ -369,16 +362,8 @@ export function PublishTab({
         <div className="panel-title">
           <GitBranch size={17} />
           {t.publish.gitTitle}
+          <InfoTip text={t.publish.gitDescription} />
         </div>
-        <p
-          style={{
-            margin: "-8px 0 16px",
-            color: "var(--muted)",
-            fontSize: "0.92rem",
-          }}
-        >
-          {t.publish.gitDescription}
-        </p>
         <div className="form-grid git-fields">
           <label>
             {t.publish.repository}

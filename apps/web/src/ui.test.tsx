@@ -70,10 +70,7 @@ describe("SkillLibraryApp", () => {
     render(<SkillLibraryApp skills={[skill]} branding={testBranding} />);
 
     expect(screen.getByRole("main")).toBeTruthy();
-    expect(screen.getByText("Rebtech skill registry")).toBeTruthy();
-    expect(screen.getByText("Start here")).toBeTruthy();
     expect(screen.getByText("Find a skill and add it to Claude.")).toBeTruthy();
-    expect(screen.getByText("Connect your agent")).toBeTruthy();
     expect(screen.getByText("Copy agent setup prompt")).toBeTruthy();
 
     // In simplified UI, detail pane is hidden on Overview tab
@@ -89,7 +86,7 @@ describe("SkillLibraryApp", () => {
     fireEvent.click(screen.getByRole("button", { name: "Catalog" }));
     expect(screen.getAllByText("Review Helper").length).toBeGreaterThan(0);
     expect(screen.getAllByText("1.0.0").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("9").length).toBeGreaterThan(0);
+    expect(screen.getByText("Version 1.0.0")).toBeTruthy();
     expect(screen.getByText("SKILL.md")).toBeTruthy();
     expect(
       screen.getByText(/npx @skill-library\/cli install review-helper/)

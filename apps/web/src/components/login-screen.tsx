@@ -32,7 +32,7 @@ export function LoginScreen({
         />
         <h1
           style={{
-            fontSize: "2.2rem",
+            fontSize: "var(--text-title)",
             textAlign: "center",
             marginBottom: "8px",
           }}
@@ -45,7 +45,7 @@ export function LoginScreen({
             maxWidth: "360px",
             margin: "0 auto 8px",
             color: "var(--muted)",
-            fontSize: "0.92rem",
+            fontSize: "var(--text-body)",
           }}
         >
           {branding.registryTagline}

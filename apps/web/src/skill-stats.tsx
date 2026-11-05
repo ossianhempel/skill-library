@@ -1,5 +1,8 @@
-import type { DownloadHistoryPoint } from "@skill-library/domain";
+import { Tag, User } from "lucide-react";
+import type { SkillRanking } from "@skill-library/domain";
 import { useI18n } from "./i18n/locale.js";
+import { PopularityLine } from "./components/popularity.js";
+import { titleize } from "./lib/format.js";
 
 export function formatSkillDate(iso: string, locale = "en-US"): string {
   if (!iso || iso === new Date(0).toISOString()) {
@@ -13,102 +16,44 @@ export function formatSkillDate(iso: string, locale = "en-US"): string {
   });
 }
 
-export function DownloadSparkline({
-  history,
-  width = 72,
-  height = 24,
-  label,
-}: {
-  history: DownloadHistoryPoint[];
-  width?: number;
-  height?: number;
-  label?: string;
-}) {
-  const { t } = useI18n();
-  const values = history.map((point) => point.count);
-  const max = Math.max(...values, 1);
-  const step = values.length > 1 ? width / (values.length - 1) : 0;
-  const points = values
-    .map((value, index) => {
-      const x = values.length > 1 ? index * step : width / 2;
-      const y = height - (value / max) * (height - 2) - 1;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <svg
-      className="download-sparkline"
-      width={width}
-      height={height}
-      viewBox={`0 0 ${width} ${height}`}
-      role="img"
-      aria-label={label ?? t.stats.downloadTrend}
-    >
-      <polyline
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-    </svg>
-  );
-}
-
-export function SkillStatsMeta({
-  version,
-  downloads,
-  downloadHistory,
-  uploadedAt,
-  lastModifiedAt,
+/**
+ * The one line of facts under a skill's name: who made it, how many colleagues
+ * use it and found it useful, and its categories. The detail view adds the
+ * version and when it last changed.
+ */
+export function SkillMeta({
   author,
-  compact = false,
+  ranking,
+  categories = [],
+  version,
+  updatedAt,
 }: {
-  version?: string;
-  downloads: number;
-  downloadHistory: DownloadHistoryPoint[];
-  uploadedAt: string;
-  lastModifiedAt: string;
   author?: string;
-  compact?: boolean;
+  ranking?: SkillRanking;
+  categories?: string[];
+  version?: string;
+  updatedAt?: string;
 }) {
   const { t, dateLocale } = useI18n();
   return (
-    <div
-      className={compact ? "skill-stats skill-stats--compact" : "skill-stats"}
-    >
-      <span className="skill-stat">
-        <em>{t.stats.version}</em>
-        <strong>{version ?? "—"}</strong>
-      </span>
+    <div className="skill-meta">
       {author && (
-        <span className="skill-stat">
-          <em>{t.stats.author}</em>
-          <strong>{author}</strong>
+        <span>
+          <User size={13} aria-hidden="true" />
+          {t.stats.by(author)}
         </span>
       )}
-      <span className="skill-stat">
-        <em>{t.stats.downloads}</em>
-        <strong>{downloads}</strong>
-      </span>
-      {!compact && (
-        <span className="skill-stat">
-          <em>{t.stats.uploaded}</em>
-          <strong>{formatSkillDate(uploadedAt, dateLocale)}</strong>
+      {version && <span>{t.stats.versionValue(version)}</span>}
+      {updatedAt && (
+        <span>{t.stats.updated(formatSkillDate(updatedAt, dateLocale))}</span>
+      )}
+      <PopularityLine ranking={ranking} />
+      {categories.length > 0 && (
+        <span>
+          <Tag size={13} aria-hidden="true" />
+          {categories.map(titleize).join(", ")}
         </span>
       )}
-      <span className="skill-stat">
-        <em>{t.stats.lastModified}</em>
-        <strong>{formatSkillDate(lastModifiedAt, dateLocale)}</strong>
-      </span>
-      <span
-        className="skill-stat skill-stat--sparkline"
-        aria-hidden={downloadHistory.every((point) => point.count === 0)}
-      >
-        <DownloadSparkline history={downloadHistory} />
-      </span>
     </div>
   );
 }
