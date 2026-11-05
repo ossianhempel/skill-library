@@ -1,14 +1,12 @@
 import { forwardRef } from "react";
 import {
   Archive,
-  BarChart3,
   CheckCircle2,
   ChevronDown,
   ClipboardCheck,
   Copy,
   Download,
   FileCode2,
-  GitBranch,
   Link2,
   RefreshCw,
   ShieldCheck,
@@ -16,7 +14,6 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import {
-  DOWNLOAD_HISTORY_DAYS,
   type InstallTargetKind,
   type LifecycleState,
   type RegistryBrandingConfig,
@@ -28,11 +25,11 @@ import {
   INSTALL_PROVIDER_OPTIONS,
 } from "../lib/install-prompts.js";
 import { ValidationPanel } from "../validation-panel.js";
-import { SkillStatsMeta } from "../skill-stats.js";
-import { LifecycleBadge } from "./chrome.js";
+import { SkillMeta } from "../skill-stats.js";
+import { ExceptionBadge, InfoTip } from "./chrome.js";
 import { AddToClaudeSteps, ClaudePromptInstall } from "./add-to-claude.js";
 import { useI18n } from "../i18n/locale.js";
-import { PopularityLine, UpvoteButton } from "./popularity.js";
+import { UpvoteButton } from "./popularity.js";
 import { ProposalPanel } from "./proposal-panel.js";
 
 export const SkillDetailPane = forwardRef<
@@ -90,20 +87,23 @@ export const SkillDetailPane = forwardRef<
     <section className="detail-pane" aria-label={t.detail.aria} ref={ref}>
       <div className="detail-head">
         <div>
-          <p className="kicker">{t.detail.selected}</p>
           <h2>{selected.pkg.name}</h2>
           <p>{selected.pkg.description}</p>
-          <PopularityLine ranking={selected.ranking} />
-          {selected.pkg.categories && selected.pkg.categories.length > 0 && (
-            <div className="tags" style={{ marginTop: "8px" }}>
-              {selected.pkg.categories.map((category) => (
-                <span key={category}>{category}</span>
-              ))}
-            </div>
-          )}
+          <SkillMeta
+            author={
+              selected.latestApproved?.author ?? selected.activeVersion?.author
+            }
+            version={
+              selected.latestApproved?.version ??
+              selected.activeVersion?.version
+            }
+            updatedAt={selected.lastModifiedAt}
+            ranking={selected.ranking}
+            categories={selected.pkg.categories}
+          />
         </div>
         <div className="detail-head-actions">
-          <LifecycleBadge
+          <ExceptionBadge
             state={selected.activeVersion?.lifecycleState ?? "draft"}
           />
           {/* New votes need an approved version; an existing vote can always be withdrawn. */}
@@ -227,27 +227,6 @@ export const SkillDetailPane = forwardRef<
         )}
       </div>
 
-      <div className="panel">
-        <div className="panel-title">
-          <BarChart3 size={17} />
-          {t.detail.usage}
-        </div>
-        <SkillStatsMeta
-          version={
-            selected.latestApproved?.version ?? selected.activeVersion?.version
-          }
-          author={
-            selected.activeVersion?.author ?? selected.latestApproved?.author
-          }
-          downloads={selected.downloads}
-          downloadHistory={selected.downloadHistory}
-          uploadedAt={
-            selected.activeVersion?.createdAt ?? selected.pkg.createdAt
-          }
-          lastModifiedAt={selected.lastModifiedAt}
-        />
-      </div>
-
       <details className="technical-details">
         <summary>{t.detail.technical}</summary>
         <div className="split">
@@ -320,8 +299,8 @@ export const SkillDetailPane = forwardRef<
           <div className="panel-title">
             <RefreshCw size={17} />
             {t.detail.lifecycle}
+            <InfoTip text={t.detail.lifecycleCopy} />
           </div>
-          <p className="lifecycle-copy">{t.detail.lifecycleCopy}</p>
           <div className="actions">
             {selected.activeVersion?.lifecycleState !== "approved" && (
               <button
@@ -351,11 +330,6 @@ export const SkillDetailPane = forwardRef<
           </div>
         </div>
       )}
-
-      <div className="activity-strip">
-        <GitBranch size={18} />
-        <span>{t.detail.activity(DOWNLOAD_HISTORY_DAYS)}</span>
-      </div>
     </section>
   );
 });

@@ -7,6 +7,7 @@ import {
 import { fetchMcpSetupAgentAuth } from "../mcp-setup-prompts.js";
 import { browserToken } from "../lib/browser.js";
 import { useI18n } from "../i18n/locale.js";
+import { InfoTip } from "./chrome.js";
 
 export const CLAUDE_APP_URL = "https://claude.ai";
 export const CLAUDE_DOWNLOAD_URL = "https://claude.com/download";
@@ -109,9 +110,12 @@ export function ClaudePromptInstall({
       <p className="claude-prompt-title">
         <Bot size={17} />
         <strong>{t.addToClaude.promptTitle}</strong>
+        <InfoTip text={t.addToClaude.promptHint} />
       </p>
-      <p className="install-hint">{t.addToClaude.promptHint}</p>
-      <code>{buildClaudeSkillPrompt(promptInput)}</code>
+      <details className="prompt-preview">
+        <summary>{t.addToClaude.showPrompt}</summary>
+        <code>{buildClaudeSkillPrompt(promptInput)}</code>
+      </details>
       <div className="actions">
         <button type="button" onClick={() => void copyPrompt()}>
           {copyState === "copied" ? (
@@ -138,7 +142,7 @@ export function HowItWorks({ onBrowse }: { onBrowse: () => void }) {
   const { t } = useI18n();
   return (
     <section className="how-it-works" aria-label={t.howItWorks.title}>
-      <p className="kicker">{t.howItWorks.title}</p>
+      <h3>{t.howItWorks.title}</h3>
       <ol className="how-it-works-steps">
         <li>
           <strong>{t.howItWorks.findTitle}</strong>

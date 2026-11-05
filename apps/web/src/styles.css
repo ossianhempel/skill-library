@@ -16,15 +16,11 @@
     "Avenir Next Condensed", "DIN Condensed", "Bahnschrift", sans-serif;
   --font-mono: "SF Mono", "Cascadia Mono", monospace;
 
-  /* Centralized Font Sizes */
-  --font-size-xxs: 0.62rem;
-  --font-size-xs: 0.78rem;
-  --font-size-sm: 0.84rem;
-  --font-size-base: 0.92rem;
-  --font-size-md: 1.3rem;
-  --font-size-lg: 1.45rem;
-  --font-size-xl: 2rem;
-  --font-size-xxl: 3.1rem;
+  /* Type scale: four sizes, two weights (400 and 600). Nothing else. */
+  --text-title: 1.625rem;
+  --text-section: 1.125rem;
+  --text-body: 0.9375rem;
+  --text-small: 0.8125rem;
 
   /* Centralized Spacing Scale */
   --space-4: 4px;
@@ -72,6 +68,12 @@
 body {
   margin: 0;
   min-width: 320px;
+  font-size: var(--text-body);
+}
+strong,
+b,
+th {
+  font-weight: 600;
 }
 button {
   font: inherit;
@@ -118,7 +120,7 @@ button {
   border: 2px solid var(--ink);
   display: grid;
   place-items: center;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0;
   overflow: hidden;
   background: var(--panel);
@@ -185,9 +187,8 @@ button {
 }
 
 .rail button span {
-  font-size: var(--font-size-xxs);
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: var(--text-small);
+  font-weight: 600;
 }
 
 .rail button.active {
@@ -228,9 +229,8 @@ button:disabled {
 .kicker {
   margin: 0 0 var(--space-6);
   color: var(--accent);
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  font-weight: 800;
+  font-size: var(--text-small);
+  font-weight: 600;
 }
 
 h1,
@@ -240,16 +240,16 @@ p {
   margin-top: 0;
 }
 h1 {
-  font-size: clamp(2rem, 4vw, 4.4rem);
+  font-size: var(--text-title);
   line-height: 0.88;
   margin-bottom: 0;
 }
 h2 {
-  font-size: var(--font-size-lg);
+  font-size: var(--text-section);
   margin-bottom: var(--space-8);
 }
 h3 {
-  font-size: var(--font-size-md);
+  font-size: var(--text-section);
   margin-bottom: 0;
 }
 p {
@@ -302,7 +302,7 @@ p {
 }
 
 .decision-panel h2 {
-  font-size: clamp(1.8rem, 3vw, var(--font-size-xxl));
+  font-size: var(--text-title);
   line-height: 0.98;
   max-width: 760px;
 }
@@ -325,7 +325,7 @@ p {
 }
 
 .mcp-connect-copy h3 {
-  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+  font-size: var(--text-title);
   line-height: 1.05;
   margin: 0 0 10px;
 }
@@ -375,12 +375,12 @@ p {
 }
 
 .mcp-connect-button-label {
-  font-weight: 700;
-  font-size: 1rem;
+  font-weight: 600;
+  font-size: var(--text-body);
 }
 
 .mcp-connect-button-hint {
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
   color: var(--muted);
 }
 
@@ -389,9 +389,7 @@ p {
   align-items: center;
   gap: 6px;
   margin-top: 4px;
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: var(--text-small);
   color: var(--accent);
 }
 
@@ -425,12 +423,11 @@ p {
 }
 .metric span {
   color: var(--muted);
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
+  font-size: var(--text-small);
 }
 .metric strong {
   display: block;
-  font-size: var(--font-size-xl);
+  font-size: var(--text-title);
 }
 .metric.warn strong {
   color: var(--signal);
@@ -462,9 +459,8 @@ p {
   display: grid;
   gap: var(--space-6);
   color: var(--muted);
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  font-weight: 800;
+  font-size: var(--text-small);
+  font-weight: 600;
 }
 
 .form-grid input,
@@ -557,6 +553,7 @@ p {
   color: var(--ink);
   overflow-wrap: anywhere;
   flex: 1;
+  font-size: var(--text-small);
 }
 
 .git-import button {
@@ -590,7 +587,7 @@ p {
   margin: var(--space-12) 0 0;
   min-height: 20px;
   color: var(--accent);
-  font-size: var(--font-size-base);
+  font-size: var(--text-body);
 }
 
 .skill-row {
@@ -621,12 +618,12 @@ p {
   align-items: center;
   gap: var(--space-10) var(--space-14);
   color: var(--muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
 }
 
 .skill-stats--compact .skill-stat em {
-  font-size: var(--font-size-xxs);
-  font-weight: 700;
+  font-size: var(--text-small);
+  font-weight: 600;
 }
 
 .skill-stat {
@@ -638,15 +635,13 @@ p {
 
 .skill-stat em {
   font-style: normal;
-  text-transform: uppercase;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-weight: 600;
 }
 
 .skill-stat strong {
   color: var(--ink);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 600;
 }
 
 .skill-stat--sparkline {
@@ -682,9 +677,8 @@ p {
 .badge {
   border: 1px solid var(--line);
   padding: var(--space-4) var(--space-8);
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  font-weight: 800;
+  font-size: var(--text-small);
+  font-weight: 600;
 }
 
 .badge {
@@ -756,7 +750,7 @@ p {
 
 .panel-title {
   gap: var(--space-8);
-  font-weight: 800;
+  font-weight: 600;
   margin-bottom: var(--space-14);
 }
 
@@ -773,7 +767,7 @@ p {
   padding: var(--space-8) var(--space-10);
   background: #eee8d8;
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
 }
 
 .toggle-files-button {
@@ -788,8 +782,8 @@ p {
   border: 1px dashed var(--line);
   color: var(--accent);
   font-family: var(--font-sans);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -828,10 +822,8 @@ p {
 }
 
 .validation-group-title {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--muted);
 }
 
@@ -852,7 +844,7 @@ p {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm, 8px);
   background: rgba(251, 250, 244, 0.9);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
 }
 
 .validation-errors .validation-issue {
@@ -865,13 +857,13 @@ p {
 
 .validation-rule-id {
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: var(--text-small);
 }
 
 .validation-issue-path {
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: var(--text-small);
 }
 
 .version-line {
@@ -899,7 +891,7 @@ p {
   background: #171a16;
   color: #f8f0d9;
   padding: var(--space-12);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
   font-family: var(--font-mono);
   margin-bottom: var(--space-12);
 }
@@ -907,7 +899,7 @@ p {
 .install-hint {
   margin: 0 0 var(--space-12);
   color: var(--muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
 }
 
 .install-target-toggle {
@@ -925,7 +917,7 @@ p {
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -971,14 +963,14 @@ p {
 }
 
 .report-row strong {
-  font-size: var(--font-size-base);
+  font-size: var(--text-body);
 }
 
 .report-row em {
   color: var(--signal);
   font-style: normal;
-  font-weight: 800;
-  font-size: var(--font-size-sm);
+  font-weight: 600;
+  font-size: var(--text-body);
 }
 
 .install-panel code {
@@ -988,7 +980,7 @@ p {
   background: #171a16;
   color: #f8f0d9;
   padding: var(--space-16);
-  font-size: var(--font-size-base);
+  font-size: var(--text-body);
   font-family: var(--font-mono);
 }
 
@@ -1088,9 +1080,8 @@ p {
 }
 
 .token-config label {
-  font-size: var(--font-size-xxs);
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: var(--text-small);
+  font-weight: 600;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -1102,7 +1093,7 @@ p {
   border: 1px solid var(--line);
   background: var(--panel);
   padding: var(--space-6);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
   font-family: inherit;
   outline: 0;
 }
@@ -1169,9 +1160,7 @@ p {
   gap: var(--space-10);
   cursor: pointer;
   font: inherit;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-weight: 600;
   transition:
     transform 0.12s ease,
     box-shadow 0.12s ease;
@@ -1208,7 +1197,7 @@ p {
 
 .login-loading p {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
 }
 
 .login-spinner {
@@ -1229,7 +1218,7 @@ p {
 
 .skill-list-loading p {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
 }
 
 .skill-list-loading .spin {
@@ -1277,9 +1266,8 @@ p {
 }
 
 .session-name {
-  font-size: var(--font-size-xxs);
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: var(--text-small);
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1288,9 +1276,8 @@ p {
 }
 
 .session-role {
-  font-size: 9px;
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: var(--text-small);
+  font-weight: 600;
   padding: 1px 6px;
   border-radius: 3px;
 }
@@ -1361,7 +1348,7 @@ p {
   padding: 0 var(--space-14);
   cursor: pointer;
   font: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
   transition:
     transform 0.1s cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow 0.1s cubic-bezier(0.16, 1, 0.3, 1),
@@ -1384,7 +1371,7 @@ p {
   padding: 40px;
   text-align: center;
   color: var(--muted);
-  font-size: var(--font-size-base);
+  font-size: var(--text-body);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1398,10 +1385,8 @@ p {
 
 .admin-section-title {
   margin: 0 0 var(--space-12);
-  font-size: var(--font-size-sm);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+  font-size: var(--text-body);
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -1425,12 +1410,12 @@ p {
 
 .admin-self-joined,
 .admin-self-submissions {
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
   color: var(--muted);
 }
 
 .admin-self-submissions {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--ink);
 }
 
@@ -1450,7 +1435,7 @@ p {
 .admin-role-legend-item p {
   margin: 0;
   color: var(--muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
 }
 
 .workspace-branding-form {
@@ -1476,9 +1461,8 @@ p {
 .workspace-branding-fields label {
   display: grid;
   gap: var(--space-6);
-  font-size: var(--font-size-xs);
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: var(--text-small);
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -1489,7 +1473,7 @@ p {
   color: var(--ink);
   padding: 10px 12px;
   font: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
   text-transform: none;
 }
 
@@ -1501,7 +1485,7 @@ p {
 .admin-field-hint,
 .field-error {
   margin: 0;
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
 }
 
 .admin-field-hint {
@@ -1510,7 +1494,7 @@ p {
 
 .field-error {
   color: var(--signal);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .workspace-branding-actions {
@@ -1526,7 +1510,7 @@ p {
 .lifecycle-copy {
   margin: -4px 0 12px;
   color: var(--muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
 }
 
 .admin-table {
@@ -1541,9 +1525,8 @@ p {
   padding: var(--space-10) var(--space-16);
   background: #e7e1d0;
   border-bottom: 1px solid var(--line);
-  font-size: var(--font-size-xs);
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: var(--text-small);
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -1583,7 +1566,7 @@ p {
 
 .admin-user-cell strong {
   display: block;
-  font-size: var(--font-size-base);
+  font-size: var(--text-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1591,7 +1574,7 @@ p {
 
 .admin-user-email {
   display: block;
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1634,9 +1617,8 @@ p {
   border: 1px solid var(--line);
   padding: var(--space-4) var(--space-24) var(--space-4) var(--space-8);
   font: inherit;
-  font-size: var(--font-size-xs);
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: var(--text-small);
+  font-weight: 600;
   cursor: pointer;
   background: var(--panel);
   color: var(--ink);
@@ -1674,12 +1656,12 @@ p {
 
 .admin-date-cell,
 .admin-submissions-cell {
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
   color: var(--muted);
 }
 
 .admin-submissions-cell {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--ink);
 }
 
@@ -1695,9 +1677,8 @@ p {
   height: 30px;
   padding: 0 var(--space-10);
   font: inherit;
-  font-size: var(--font-size-xs);
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: var(--text-small);
+  font-weight: 600;
   cursor: pointer;
   transition:
     background-color 0.12s ease,
@@ -1761,9 +1742,8 @@ p {
   border: 1px solid var(--line);
   background: rgba(251, 250, 244, 0.7);
   color: var(--muted);
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  font-weight: 800;
+  font-size: var(--text-small);
+  font-weight: 600;
   padding: var(--space-6) var(--space-12);
   cursor: pointer;
   display: inline-flex;
@@ -1792,7 +1772,7 @@ p {
 }
 
 .category-pill .count {
-  font-size: var(--font-size-xxs);
+  font-size: var(--text-small);
   opacity: 0.8;
 }
 
@@ -1874,14 +1854,14 @@ p {
   place-items: center;
   background: var(--accent);
   color: var(--panel);
-  font-weight: 700;
-  font-size: var(--font-size-sm);
+  font-weight: 600;
+  font-size: var(--text-body);
 }
 
 .claude-steps span,
 .how-it-works-steps span {
   color: var(--muted);
-  font-size: var(--font-size-base);
+  font-size: var(--text-body);
 }
 
 .install-section .claude-steps code {
@@ -1890,7 +1870,7 @@ p {
   padding: 0;
   margin: 0;
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
   color: var(--ink);
 }
 
@@ -1916,7 +1896,7 @@ p {
 .how-it-works-note {
   margin: var(--space-16) 0 0;
   color: var(--muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
 }
 
 .how-it-works-note a,
@@ -1953,16 +1933,21 @@ p {
 
 .developer-install,
 .developer-connect,
+.prompt-preview,
 .technical-details {
   margin-top: var(--space-18);
+}
+.prompt-preview {
+  margin: var(--space-6) 0 var(--space-12);
 }
 
 .developer-install > summary,
 .developer-connect > summary,
+.prompt-preview > summary,
 .technical-details > summary {
   cursor: pointer;
   color: var(--muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
   display: flex;
   align-items: center;
   gap: var(--space-6);
@@ -1970,18 +1955,21 @@ p {
 }
 
 .developer-install[open] > summary,
-.developer-connect[open] > summary {
+.developer-connect[open] > summary,
+.prompt-preview[open] > summary {
   margin-bottom: var(--space-12);
 }
 
 .developer-install > summary::-webkit-details-marker,
 .developer-connect > summary::-webkit-details-marker,
+.prompt-preview > summary::-webkit-details-marker,
 .technical-details > summary::-webkit-details-marker {
   display: none;
 }
 
 .developer-install > summary::before,
 .developer-connect > summary::before,
+.prompt-preview > summary::before,
 .technical-details > summary::before {
   content: "\25B8";
   transition: transform 0.15s ease;
@@ -1989,6 +1977,7 @@ p {
 
 .developer-install[open] > summary::before,
 .developer-connect[open] > summary::before,
+.prompt-preview[open] > summary::before,
 .technical-details[open] > summary::before {
   transform: rotate(90deg);
 }
@@ -2019,9 +2008,8 @@ p {
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: var(--text-small);
+  font-weight: 600;
   cursor: pointer;
   transition:
     border-color 120ms ease,
@@ -2076,8 +2064,8 @@ p {
   gap: var(--space-6);
   margin: var(--space-6) 0 0;
   color: var(--accent);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-size: var(--text-small);
+  font-weight: 600;
 }
 
 .popularity-line svg + span {
@@ -2093,8 +2081,8 @@ p {
   align-items: center;
   gap: var(--space-6);
   padding: 0 var(--space-12);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -2133,15 +2121,14 @@ p {
 
 .sort-control-label {
   color: var(--muted);
-  font-size: var(--font-size-xs);
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: var(--text-small);
+  font-weight: 600;
 }
 
 .leaderboard-intro {
   margin: 0;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: var(--text-body);
 }
 
 .leaderboard-list {
@@ -2168,8 +2155,8 @@ p {
 }
 
 .leaderboard-rank {
-  font-size: var(--font-size-md);
-  font-weight: 800;
+  font-size: var(--text-section);
+  font-weight: 600;
   text-align: center;
   color: var(--accent-strong);
 }
@@ -2186,7 +2173,7 @@ p {
   padding: 0;
   color: var(--ink);
   font: inherit;
-  font-weight: 800;
+  font-weight: 600;
   text-align: left;
   overflow-wrap: anywhere;
   cursor: pointer;
@@ -2202,7 +2189,7 @@ p {
   align-items: center;
   gap: 4px;
   color: var(--muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
 }
 
 .leaderboard-you {
@@ -2215,7 +2202,7 @@ p {
   justify-content: flex-end;
   gap: var(--space-6) var(--space-14);
   color: var(--muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-small);
 }
 
 .leaderboard-stats > span {
@@ -2226,7 +2213,7 @@ p {
 
 .leaderboard-stats strong {
   color: var(--ink);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
 }
 
 @media (max-width: 640px) {
@@ -2249,10 +2236,15 @@ p {
   gap: var(--space-14);
 }
 
-.connect-claude h3 {
-  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
-  line-height: 1.05;
-  margin: 0;
+.connect-claude h3,
+.how-it-works h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-section);
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 var(--space-12);
 }
 
 .connect-claude p {
@@ -2274,7 +2266,7 @@ p {
 
 .connect-claude-url code {
   font-family: var(--font-mono);
-  font-size: var(--font-size-base);
+  font-size: var(--text-body);
   padding: var(--space-4) var(--space-14);
   border: 1px solid var(--line);
   background: var(--panel);
@@ -2284,4 +2276,105 @@ p {
 .connect-claude-steps {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-18);
+}
+
+/* (i) help: hover or focus shows the text; it never takes layout space. */
+.info-tip {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: var(--space-6);
+}
+.info-tip > button.info-tip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  min-width: 0;
+  box-shadow: none;
+  color: var(--muted);
+  cursor: help;
+}
+.info-tip > button.info-tip-button:hover,
+.info-tip > button.info-tip-button:focus-visible {
+  background: transparent;
+  color: var(--ink);
+}
+.info-tip-text {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: -8px;
+  width: max-content;
+  max-width: 320px;
+  padding: var(--space-8) var(--space-10);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  font-size: var(--text-small);
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.info-tip:hover .info-tip-text,
+.info-tip-button:focus-visible + .info-tip-text {
+  visibility: visible;
+  opacity: 1;
+}
+/* Narrow screens: the inline position can run off the right edge, so the
+ * help opens as a full-width strip at the bottom of the viewport instead. */
+@media (max-width: 640px) {
+  .info-tip-text {
+    position: fixed;
+    top: auto;
+    left: var(--space-16);
+    right: var(--space-16);
+    bottom: var(--space-16);
+    width: auto;
+    max-width: none;
+  }
+}
+/* One meta line on cards and the detail head: author, version, usage. */
+.skill-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-12);
+  margin: var(--space-8) 0 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.skill-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.skill-row-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+.skill-meta .popularity-line {
+  display: inline-flex;
+  margin: 0;
+  font-weight: 400;
+}
+.topbar h1 {
+  white-space: nowrap;
+}
+.badge,
+.session-role,
+.role-select {
+  text-transform: capitalize;
 }

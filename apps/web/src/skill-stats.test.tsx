@@ -1,10 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  DownloadSparkline,
-  SkillStatsMeta,
-  formatSkillDate,
-} from "./skill-stats.js";
+import { SkillMeta, formatSkillDate } from "./skill-stats.js";
 
 afterEach(() => cleanup());
 
@@ -14,61 +10,39 @@ describe("skill stats", () => {
     expect(formatSkillDate(new Date(0).toISOString())).toBe("—");
   });
 
-  it("renders version, author, downloads, sparkline, and date metadata", () => {
-    const { rerender } = render(
-      <SkillStatsMeta
-        version="1.2.0"
+  it("shows author, usage and categories on one line", () => {
+    render(
+      <SkillMeta
         author="Alice"
-        downloads={42}
-        downloadHistory={[
-          { date: "2026-06-01", count: 1 },
-          { date: "2026-06-02", count: 3 },
-          { date: "2026-06-03", count: 2 },
-        ]}
-        uploadedAt="2026-06-07T10:00:00.000Z"
-        lastModifiedAt="2026-06-07T12:00:00.000Z"
+        categories={["sales"]}
+        ranking={{
+          packageId: "p",
+          score: 1,
+          colleagues: 3,
+          upvotes: 2,
+          votedByMe: false,
+          authoredByMe: false,
+        }}
       />
     );
 
-    expect(screen.getByText("1.2.0")).toBeTruthy();
-    expect(screen.getByText("Alice")).toBeTruthy();
-    expect(screen.getByText("42")).toBeTruthy();
-    expect(screen.getByText("Uploaded")).toBeTruthy();
-    expect(screen.getByText("Last modified")).toBeTruthy();
-    expect(screen.getByLabelText("Download trend")).toBeTruthy();
-
-    // Rerender in compact mode to ensure "Uploaded" label is hidden
-    rerender(
-      <SkillStatsMeta
-        version="1.2.0"
-        author="Alice"
-        downloads={42}
-        downloadHistory={[
-          { date: "2026-06-01", count: 1 },
-          { date: "2026-06-02", count: 3 },
-          { date: "2026-06-03", count: 2 },
-        ]}
-        uploadedAt="2026-06-07T10:00:00.000Z"
-        lastModifiedAt="2026-06-07T12:00:00.000Z"
-        compact
-      />
-    );
-
-    expect(screen.queryByText("Uploaded")).toBeNull();
-    expect(screen.getByText("Last modified")).toBeTruthy();
+    expect(screen.getByText("by Alice")).toBeTruthy();
+    expect(screen.getByText("Installed by 3 colleagues")).toBeTruthy();
+    expect(screen.getByText("2 found it useful")).toBeTruthy();
+    expect(screen.getByText("Sales")).toBeTruthy();
+    expect(screen.queryByText(/Version/)).toBeNull();
   });
 
-  it("renders a sparkline svg", () => {
-    const { container } = render(
-      <DownloadSparkline
-        history={[
-          { date: "2026-06-01", count: 0 },
-          { date: "2026-06-02", count: 4 },
-          { date: "2026-06-03", count: 2 },
-        ]}
+  it("adds version and last change in the detail view", () => {
+    render(
+      <SkillMeta
+        author="Alice"
+        version="1.2.0"
+        updatedAt="2026-06-07T12:00:00.000Z"
       />
     );
 
-    expect(container.querySelector("polyline")).toBeTruthy();
+    expect(screen.getByText("Version 1.2.0")).toBeTruthy();
+    expect(screen.getByText("Updated Jun 7, 2026")).toBeTruthy();
   });
 });

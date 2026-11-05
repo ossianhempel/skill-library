@@ -5,6 +5,9 @@ import type { Messages } from "./en.js";
  * skill") stay in English because that is what people see in Claude.
  */
 export const sv: Messages = {
+  common: {
+    moreInfo: "Mer information",
+  },
   language: {
     label: "Språk",
     switchTo: (name: string) => `Byt språk till ${name}`,
@@ -122,6 +125,7 @@ export const sv: Messages = {
     enableBody:
       "Använd reglaget bredvid den i listan med skills. Sedan ber du bara Claude om hjälp som vanligt. Claude använder skillen när den passar.",
     promptTitle: "Eller låt Claude lägga till den åt dig",
+    showPrompt: "Visa prompten",
     promptHint:
       "Kopiera prompten och klistra in den i Claude, i skrivbordsappen eller Claude Code. Claude kontrollerar din behörighet, laddar ner skillen och sparar den så att den fungerar i alla dina konversationer. Din personliga åtkomstnyckel läggs till när du kopierar, så dela inte den kopierade texten.",
     copied: "Kopierad",
@@ -150,12 +154,9 @@ export const sv: Messages = {
     mineEmptyAll: "Du har inte laddat upp några skills i den här kategorin än.",
   },
   stats: {
-    version: "Version",
-    author: "Författare",
-    downloads: "Nedladdningar",
-    uploaded: "Uppladdad",
-    lastModified: "Senast ändrad",
-    downloadTrend: "Nedladdningstrend",
+    by: (name: string) => `av ${name}`,
+    versionValue: (version: string) => `Version ${version}`,
+    updated: (date: string) => `Uppdaterad ${date}`,
   },
   detail: {
     aria: "Skilldetaljer",

@@ -34,7 +34,6 @@ export function OverviewTab({
   return (
     <section className="overview-stack" aria-label={t.overview.startHere}>
       <div className="decision-panel">
-        <p className="kicker">{t.overview.startHere}</p>
         <h2>{branding.overviewHeading}</h2>
         <p>{branding.overviewDescription}</p>
         <div className="actions">
@@ -60,7 +59,6 @@ export function OverviewTab({
           aria-label={t.overview.connectAria}
         >
           <div className="mcp-connect-copy">
-            <p className="kicker">{t.overview.connectKicker}</p>
             <h3>{t.overview.connectTitle}</h3>
             <p>
               {t.overview.connectBody} {t.overview.registry}{" "}

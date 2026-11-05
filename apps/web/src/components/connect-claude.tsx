@@ -31,10 +31,9 @@ export function ConnectClaude({
 
   return (
     <section className="connect-claude" aria-label={t.connectClaude.title}>
-      <p className="kicker">
-        <Plug size={14} /> {t.connectClaude.kicker}
-      </p>
-      <h3>{t.connectClaude.title}</h3>
+      <h3>
+        <Plug size={17} aria-hidden="true" /> {t.connectClaude.title}
+      </h3>
       <p>{t.connectClaude.intro}</p>
       <div className="connect-claude-url actions">
         <code>{url}</code>

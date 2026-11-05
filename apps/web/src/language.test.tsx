@@ -66,14 +66,16 @@ describe("language switcher", () => {
     expect(screen.getByText("Så funkar det")).toBeTruthy();
   });
 
-  it("translates the skill detail and its lifecycle badge", () => {
+  it("translates the skill detail, with no badge for an approved skill", () => {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, "sv");
     renderApp();
 
     fireEvent.click(screen.getByRole("button", { name: "Katalog" }));
 
     expect(screen.getByText("Lägg till skillen i Claude")).toBeTruthy();
-    expect(screen.getAllByText("godkänd").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Uppdaterad /).length).toBeGreaterThan(0);
+    // Approved is the normal state, so only other states get a badge.
+    expect(screen.queryByText("godkänd")).toBeNull();
   });
 });
 

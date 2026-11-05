@@ -2,6 +2,7 @@ import { Download, Loader2, ThumbsUp, Trophy, User, Users } from "lucide-react";
 import type { SkillRanking } from "@skill-library/domain";
 import type { CatalogSkill, CatalogSort } from "../types.js";
 import { useI18n } from "../i18n/locale.js";
+import { InfoTip } from "./chrome.js";
 
 /** One plain line: how many colleagues use the skill, and how many found it useful. */
 export function PopularityLine({ ranking }: { ranking?: SkillRanking }) {
@@ -171,8 +172,8 @@ export function LeaderboardTab({
           <div className="panel-title">
             <Trophy size={17} />
             {t.leaderboard.title}
+            <InfoTip text={t.leaderboard.intro} />
           </div>
-          <p className="leaderboard-intro">{t.leaderboard.intro}</p>
         </div>
       </div>
 
