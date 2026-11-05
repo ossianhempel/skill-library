@@ -26,6 +26,7 @@ import {
 } from "./workspace-catalog.js";
 import { registerRankingRoutes } from "./ranking-routes.js";
 import { registerMcpRoutes } from "./mcp/routes.js";
+import { publishingAuthor } from "./publishing-author.js";
 import {
   parseLifecycleState,
   parsePackageTreeBody,
@@ -308,20 +309,7 @@ export function createHttpApp(
       );
     }
 
-    let actorName = body.actorName;
-    let actorEmail = body.actorEmail;
-
-    if (actor && actor.id && (!actorName || !actorEmail)) {
-      const userRow = await store.kysely
-        ?.selectFrom("user")
-        .select(["name", "email"])
-        .where("id", "=", actor.id)
-        .executeTakeFirst();
-      if (userRow) {
-        if (!actorName) actorName = userRow.name;
-        if (!actorEmail) actorEmail = userRow.email;
-      }
-    }
+    const author = await publishingAuthor(store, actor, body);
 
     try {
       const version = await api.createUploadedVersion({
@@ -332,9 +320,7 @@ export function createHttpApp(
         categories: body.categories,
         version: body.version,
         entries: body.entries,
-        actorId: body.actorId ?? actor?.id,
-        actorName,
-        actorEmail,
+        ...author,
       });
 
       return context.json({ version }, 201);
@@ -390,20 +376,7 @@ export function createHttpApp(
         );
       }
 
-      let actorName = body.actorName;
-      let actorEmail = body.actorEmail;
-
-      if (actor && actor.id && (!actorName || !actorEmail)) {
-        const userRow = await store.kysely
-          ?.selectFrom("user")
-          .select(["name", "email"])
-          .where("id", "=", actor.id)
-          .executeTakeFirst();
-        if (userRow) {
-          if (!actorName) actorName = userRow.name;
-          if (!actorEmail) actorEmail = userRow.email;
-        }
-      }
+      const author = await publishingAuthor(store, actor, body);
 
       try {
         const version = await api.createGitImportedVersion({
@@ -418,9 +391,7 @@ export function createHttpApp(
             ref: body.ref,
             subdirectory: body.subdirectory,
           },
-          actorId: body.actorId ?? actor?.id,
-          actorName,
-          actorEmail,
+          ...author,
         });
 
         return context.json({ version }, 201);
