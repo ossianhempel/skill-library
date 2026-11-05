@@ -33,6 +33,7 @@ import { LifecycleBadge } from "./chrome.js";
 import { AddToClaudeSteps, ClaudePromptInstall } from "./add-to-claude.js";
 import { useI18n } from "../i18n/locale.js";
 import { PopularityLine, UpvoteButton } from "./popularity.js";
+import { ProposalPanel } from "./proposal-panel.js";
 
 export const SkillDetailPane = forwardRef<
   HTMLElement,
@@ -47,12 +48,15 @@ export const SkillDetailPane = forwardRef<
     copiedLink: boolean;
     filesExpanded: boolean;
     canManageLifecycle: boolean;
+    /** The signed-in person, to tell whether they decide on a proposal. */
+    viewerId?: string;
+    isMaintainer: boolean;
     loading: boolean;
     setInstallTarget: (target: InstallTargetKind) => void;
     copyInstallPrompt: () => void;
     copyShareLink: () => void;
     setFilesExpanded: (expanded: boolean) => void;
-    handleLifecycle: (toState: LifecycleState) => void;
+    handleLifecycle: (toState: LifecycleState, versionId?: string) => void;
     onVote: (voted: boolean) => void;
     votePending: boolean;
   }
@@ -68,6 +72,8 @@ export const SkillDetailPane = forwardRef<
     copiedLink,
     filesExpanded,
     canManageLifecycle,
+    viewerId,
+    isMaintainer,
     loading,
     setInstallTarget,
     copyInstallPrompt,
@@ -119,6 +125,15 @@ export const SkillDetailPane = forwardRef<
           </button>
         </div>
       </div>
+
+      <ProposalPanel
+        selected={selected}
+        registryUrl={registryUrl}
+        viewerId={viewerId}
+        isMaintainer={isMaintainer}
+        loading={loading}
+        handleLifecycle={handleLifecycle}
+      />
 
       <div className="install-section">
         <div className="panel-title">

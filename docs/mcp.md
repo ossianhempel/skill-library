@@ -25,15 +25,19 @@ The web Overview shows the URL with these steps, and per-agent copy prompts unde
 
 Tools (all signed-in users):
 
-| Tool                 | What it does                                                                                                                                                                  |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `skills_search`      | Find skills by words in name, description or category; sort by popularity, newest or name. Paginated.                                                                         |
-| `skills_get`         | A skill's details, full `SKILL.md` and file list, so the assistant can use it right away. Records a view.                                                                     |
-| `skills_read_file`   | One file of a skill (a reference or template `SKILL.md` points to).                                                                                                           |
-| `skills_install`     | `claude-app`: download link plus upload steps. `claude-code`, `codex`, `project`: every file and the folder to write it to (records a download, which counts in the ranking). |
-| `skills_vote`        | Upvote a skill or take the upvote back (same rules as the web app).                                                                                                           |
-| `skills_leaderboard` | Top skills by colleagues and upvotes, with who made each.                                                                                                                     |
-| `skills_publish`     | Submit a skill (files as text or base64) as a draft for review. Only its author or a maintainer can add versions to an existing skill.                                        |
+| Tool                     | What it does                                                                                                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `skills_search`          | Find skills by words in name, description or category; sort by popularity, newest or name. Paginated.                                                                         |
+| `skills_get`             | A skill's details, full `SKILL.md` and file list, so the assistant can use it right away. Records a view.                                                                     |
+| `skills_read_file`       | One file of a skill (a reference or template `SKILL.md` points to).                                                                                                           |
+| `skills_install`         | `claude-app`: download link plus upload steps. `claude-code`, `codex`, `project`: every file and the folder to write it to (records a download, which counts in the ranking). |
+| `skills_vote`            | Upvote a skill or take the upvote back (same rules as the web app).                                                                                                           |
+| `skills_leaderboard`     | Top skills by colleagues and upvotes, with who made each.                                                                                                                     |
+| `skills_publish`         | Submit a skill (files as text or base64) as a draft for review. A new version of someone else's skill becomes a proposed change for its owner.                                |
+| `skills_proposals`       | Proposed changes waiting for the person's decision (on skills they own), and the ones they proposed.                                                                          |
+| `skills_review_proposal` | Approve or reject a proposed change to a skill the person owns.                                                                                                               |
+
+A skill's owner is whoever published its first version. When someone else publishes a version, it is a proposal: colleagues keep getting the approved version, the catalog entry keeps the owner's name and description, and the owner (or a maintainer) approves or rejects it here or on the skill's page in the web app. Approving brings in the proposal's `SKILL.md` description. Owners are told in the web app and through `skills_proposals`; there is no email.
 
 Maintainers also get `skills_review_queue` (drafts and published versions waiting) and `skills_set_status` (approve, hide, deprecate).
 

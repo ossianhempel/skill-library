@@ -26,8 +26,10 @@ import {
 } from "./workspace-catalog.js";
 import { registerRankingRoutes } from "./ranking-routes.js";
 import { registerMcpRoutes } from "./mcp/routes.js";
+import { publishingAuthor } from "./publishing-author.js";
+import { mayReadVersion } from "./proposals.js";
+import { registerLifecycleRoute } from "./lifecycle-route.js";
 import {
-  parseLifecycleState,
   parsePackageTreeBody,
   parseUsageEventType,
 } from "./request-parsers.js";
@@ -238,11 +240,9 @@ export function createHttpApp(
     }
 
     const actor = await resolveActor(context.req.raw.headers);
+    const versions = await api.packageVersions(version.packageId);
 
-    if (
-      !hasRole(actor, "maintainer") &&
-      version.lifecycleState !== "approved"
-    ) {
+    if (!mayReadVersion(actor, version, versions)) {
       return context.json({ error: "Approved version required" }, 403);
     }
 
@@ -308,20 +308,7 @@ export function createHttpApp(
       );
     }
 
-    let actorName = body.actorName;
-    let actorEmail = body.actorEmail;
-
-    if (actor && actor.id && (!actorName || !actorEmail)) {
-      const userRow = await store.kysely
-        ?.selectFrom("user")
-        .select(["name", "email"])
-        .where("id", "=", actor.id)
-        .executeTakeFirst();
-      if (userRow) {
-        if (!actorName) actorName = userRow.name;
-        if (!actorEmail) actorEmail = userRow.email;
-      }
-    }
+    const author = await publishingAuthor(store, actor, body);
 
     try {
       const version = await api.createUploadedVersion({
@@ -332,9 +319,7 @@ export function createHttpApp(
         categories: body.categories,
         version: body.version,
         entries: body.entries,
-        actorId: body.actorId ?? actor?.id,
-        actorName,
-        actorEmail,
+        ...author,
       });
 
       return context.json({ version }, 201);
@@ -390,20 +375,7 @@ export function createHttpApp(
         );
       }
 
-      let actorName = body.actorName;
-      let actorEmail = body.actorEmail;
-
-      if (actor && actor.id && (!actorName || !actorEmail)) {
-        const userRow = await store.kysely
-          ?.selectFrom("user")
-          .select(["name", "email"])
-          .where("id", "=", actor.id)
-          .executeTakeFirst();
-        if (userRow) {
-          if (!actorName) actorName = userRow.name;
-          if (!actorEmail) actorEmail = userRow.email;
-        }
-      }
+      const author = await publishingAuthor(store, actor, body);
 
       try {
         const version = await api.createGitImportedVersion({
@@ -418,9 +390,7 @@ export function createHttpApp(
             ref: body.ref,
             subdirectory: body.subdirectory,
           },
-          actorId: body.actorId ?? actor?.id,
-          actorName,
-          actorEmail,
+          ...author,
         });
 
         return context.json({ version }, 201);
@@ -438,54 +408,7 @@ export function createHttpApp(
     }
   );
 
-  app.post("/api/versions/:versionId/lifecycle", async (context) => {
-    const actor = await resolveActor(context.req.raw.headers);
-
-    if (!hasRole(actor, "maintainer")) {
-      return context.json({ error: "Maintainer role required" }, 403);
-    }
-
-    const body = (await context.req.json()) as {
-      toState?: string;
-      actorId?: string;
-      replacementVersionId?: string;
-    };
-    const toState = parseLifecycleState(body.toState);
-
-    if (!toState) {
-      return context.json(
-        { error: "Request body must include a valid toState." },
-        400
-      );
-    }
-
-    let version;
-
-    try {
-      version = await api.transitionVersion({
-        versionId: context.req.param("versionId"),
-        toState,
-        actorId: body.actorId ?? actor?.id,
-        replacementVersionId: body.replacementVersionId,
-      });
-    } catch (error) {
-      return context.json(
-        {
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to transition version.",
-        },
-        422
-      );
-    }
-
-    if (!version) {
-      return context.json({ error: "Version not found" }, 404);
-    }
-
-    return context.json({ version });
-  });
+  registerLifecycleRoute(app, api, resolveActor);
 
   app.get("/api/artifacts/:digest/download", async (context) => {
     const packageId = context.req.query("packageId");
@@ -513,11 +436,9 @@ export function createHttpApp(
     }
 
     const actor = await resolveActor(context.req.raw.headers);
+    const versions = await api.packageVersions(packageId);
 
-    if (
-      !hasRole(actor, "maintainer") &&
-      version.lifecycleState !== "approved"
-    ) {
+    if (!mayReadVersion(actor, version, versions)) {
       return context.json({ error: "Approved version required" }, 403);
     }
 

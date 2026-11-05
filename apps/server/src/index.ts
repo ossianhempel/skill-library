@@ -9,6 +9,7 @@ import type {
   WorkspaceRanking,
 } from "@skill-library/domain";
 import { rankWorkspace } from "@skill-library/domain";
+import { adoptApprovedProposal, skillOwner } from "./proposals.js";
 import type { Workspace } from "@skill-library/domain";
 import {
   createRegistryStore,
@@ -261,17 +262,7 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         : undefined;
 
       await ensureWorkspace(store, input.workspaceId);
-      const slug = await persistedSlug(store, packageId, input.packageSlug);
-      await store.upsertPackage({
-        id: packageId,
-        workspaceId: input.workspaceId,
-        slug,
-        name: input.packageName,
-        description: input.description,
-        categories: input.categories ?? [],
-        createdAt: now,
-        updatedAt: now,
-      });
+      await savePackageDetails(store, packageId, input, now);
 
       return store.createVersion({
         id: randomUUID(),
@@ -307,17 +298,7 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         : undefined;
 
       await ensureWorkspace(store, input.workspaceId);
-      const slug = await persistedSlug(store, packageId, input.packageSlug);
-      await store.upsertPackage({
-        id: packageId,
-        workspaceId: input.workspaceId,
-        slug,
-        name: input.packageName,
-        description: input.description,
-        categories: input.categories ?? [],
-        createdAt: now,
-        updatedAt: now,
-      });
+      await savePackageDetails(store, packageId, input, now);
 
       return store.createVersion({
         id: randomUUID(),
@@ -338,7 +319,13 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
         throw new Error("Cannot approve a version with validation errors.");
       }
 
-      return store.transitionVersion(input);
+      const updated = await store.transitionVersion(input);
+
+      if (input.toState === "approved" && updated) {
+        await adoptApprovedProposal(store, updated);
+      }
+
+      return updated;
     },
     async artifactDownload(digest) {
       const artifact = await store.getArtifact(digest);
@@ -377,19 +364,44 @@ export function stableId(...parts: string[]) {
 }
 
 /**
- * Resolve the slug to persist for a package. The slug is immutable after the
- * first publish: once a package exists, its originally-published slug is kept
- * even when a later upload supplies a case/format variant (e.g. "Cool Skill"
- * then "cool-skill" both map to the same packageId via {@link stableId}). This
- * keeps shareable `/s/<workspace>/<slug>` links stable across re-publishes.
+ * Creates the catalog entry, or updates its name, description and categories.
+ * Only the skill's owner changes them: a colleague's new version is a proposal,
+ * so the entry everyone sees stays as it is until the owner publishes. The slug
+ * never changes once a package exists.
  */
-async function persistedSlug(
+async function savePackageDetails(
   store: RegistryStore,
   packageId: string,
-  requestedSlug: string
-): Promise<string> {
+  input: Pick<
+    CreateUploadedVersionInput,
+    | "workspaceId"
+    | "packageSlug"
+    | "packageName"
+    | "description"
+    | "categories"
+    | "actorId"
+  >,
+  now: string
+): Promise<void> {
   const existing = await store.getPackage(packageId);
-  return existing?.slug ?? requestedSlug;
+  const owner = existing
+    ? skillOwner(await store.listVersions(packageId))
+    : undefined;
+
+  if (existing && owner && owner.id !== input.actorId) {
+    return;
+  }
+
+  await store.upsertPackage({
+    id: packageId,
+    workspaceId: input.workspaceId,
+    slug: existing?.slug ?? input.packageSlug,
+    name: input.packageName,
+    description: input.description,
+    categories: input.categories ?? [],
+    createdAt: now,
+    updatedAt: now,
+  });
 }
 
 export async function createDefaultRegistryApi(

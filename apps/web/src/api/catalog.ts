@@ -1,6 +1,7 @@
 import type {
   CatalogPackageStats,
   PackageReport,
+  SkillOwner,
   SkillPackage,
   SkillRanking,
   SkillVersion,
@@ -73,6 +74,8 @@ export async function loadWorkspaceCatalog(
           report: entry.report,
           versions: [],
           ranking: entry.ranking,
+          owner: entry.owner,
+          proposal: entry.proposal,
         })
       ),
     };
@@ -132,6 +135,8 @@ function toCatalogSkill({
   report,
   versions,
   ranking,
+  owner,
+  proposal,
 }: {
   pkg: SkillPackage;
   latestApproved?: SkillVersion;
@@ -140,6 +145,8 @@ function toCatalogSkill({
   report?: PackageReport;
   versions: SkillVersion[];
   ranking?: SkillRanking;
+  owner?: SkillOwner;
+  proposal?: SkillVersion;
 }): CatalogSkill {
   const validation = activeVersion?.validation;
 
@@ -164,6 +171,8 @@ function toCatalogSkill({
       (report?.installs.byState["modified-local-content"] ?? 0),
     report,
     ranking,
+    owner,
+    proposal,
   };
 }
 
@@ -186,10 +195,9 @@ export function summarizeReports(reports: PackageReport[]) {
 export function artifactDownloadUrl(
   registryUrl: string,
   skill: CatalogSkill,
-  layout?: "claude-app"
+  layout?: "claude-app",
+  version: SkillVersion | undefined = skill.latestApproved
 ) {
-  const version = skill.latestApproved;
-
   if (!version) {
     return "#";
   }

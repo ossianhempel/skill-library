@@ -20,7 +20,7 @@ import {
   type SkillFile,
 } from "./skills.js";
 import { fail, ok, skillLine } from "./format.js";
-import { hasRole } from "../auth.js";
+import { mayReadVersion } from "../proposals.js";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
 /** Inline install payloads stay below this; bigger skills go by download link. */
@@ -362,10 +362,7 @@ async function resolveRequestedVersion(
   const versions = await ctx.api.packageVersions(entry.package.id);
   const version = versions.find(
     (item) =>
-      item.version === requested &&
-      (item.lifecycleState === "approved" ||
-        hasRole(ctx.user, "maintainer") ||
-        item.provenance.actorId === ctx.user.id)
+      item.version === requested && mayReadVersion(ctx.user, item, versions)
   );
 
   if (!version) {

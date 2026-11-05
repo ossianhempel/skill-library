@@ -186,6 +186,21 @@ export const en = {
     approve: "Approve",
     hide: "Hide",
     deprecate: "Deprecate",
+    proposal: {
+      title: "Proposed change",
+      summary: (by: string, version: string, date: string) =>
+        `${by} proposed version ${version} on ${date}.`,
+      current: (version: string) =>
+        `Colleagues keep getting ${version} until the change is approved.`,
+      noCurrent: "Colleagues see it once the change is approved.",
+      decide: "Read the change, then approve it or reject it.",
+      waiting: (owner: string) => `Waiting for ${owner} to approve it.`,
+      theOwner: "the skill's owner",
+      someone: "A colleague",
+      approve: "Approve change",
+      reject: "Reject",
+      download: "Download proposed version",
+    },
     activity: (days: number) =>
       `Download counts and sparklines reflect the last ${days} days of artifact downloads.`,
   },

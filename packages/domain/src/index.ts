@@ -178,6 +178,18 @@ export interface WorkspaceCatalogEntry {
   report?: PackageReport;
   /** Popularity among colleagues; see rankWorkspace. */
   ranking?: SkillRanking;
+  /** Who first published the skill. They review changes others propose. */
+  owner?: SkillOwner;
+  /**
+   * The newest change someone other than the owner proposed and nobody has
+   * decided on yet. Shown to the owner, the proposal's author and maintainers.
+   */
+  proposal?: SkillVersion;
+}
+
+export interface SkillOwner {
+  id: string;
+  name?: string;
 }
 
 export interface WorkspaceCatalogResponse {
