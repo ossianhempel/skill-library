@@ -33,10 +33,14 @@ export async function cleanup() {
 
 export type App = ReturnType<typeof createHttpApp>;
 
-export async function setup() {
+/** Builds the app on PGlite, or on the database at `databaseUrl` when given. */
+export async function setup(databaseUrl?: string) {
   const dataDir = await mkdtemp(join(tmpdir(), "skill-library-mcp-"));
   tmpDirs.push(dataDir);
-  const store = (await createRegistryStore({ dataDir })) as SqlRegistryStore;
+  const store = (await createRegistryStore({
+    dataDir,
+    databaseUrl,
+  })) as SqlRegistryStore;
   stores.push(store);
   await store.migrate();
   const api = createRegistryApi(store);
@@ -103,6 +107,8 @@ export async function addUser(
       email: `${id}@example.com`,
       emailVerified: true,
       role,
+      // Unique column; SQL Server allows only one NULL (see prepareNewUser).
+      agent_api_token: `sl_${randomBytes(24).toString("hex")}`,
     } as never)
     .execute();
 }

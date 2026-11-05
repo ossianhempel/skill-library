@@ -18,13 +18,14 @@
     "@skill-library/domain": "workspace:*",
     "@skill-library/storage": "workspace:*",
     "@skill-library/validation": "workspace:*",
-    "better-auth": "^1.6.14",
+    "better-auth": "^1.6.34",
     "hono": "^4.12.23",
     "tar": "^7.5.16",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@opentelemetry/sdk-trace-base": "^2.12.0",
-    "@types/tar": "^7.0.87"
+    "@types/tar": "^7.0.87",
+    "kysely": "^0.29.2"
   }
 }
