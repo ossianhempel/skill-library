@@ -44,11 +44,22 @@ export function isProposal(
 }
 
 /** The newest pending proposal (versions newest first, as stored). */
+/**
+ * The newest proposal `actor` may see: any, for maintainers and the owner;
+ * their own, for a colleague who proposed one.
+ */
 export function pendingProposal(
   versions: SkillVersion[],
+  actor: Actor | undefined,
   owner = skillOwner(versions)
 ): SkillVersion | undefined {
-  return versions.find((version) => isProposal(version, owner));
+  const seesAll = hasRole(actor, "maintainer") || actor?.id === owner?.id;
+  return versions.find(
+    (version) =>
+      isProposal(version, owner) &&
+      (seesAll ||
+        (actor !== undefined && version.provenance.actorId === actor.id))
+  );
 }
 
 /** Approved versions are public; others only to maintainers, author and owner. */

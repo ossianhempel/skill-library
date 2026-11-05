@@ -125,6 +125,18 @@ describe("proposed changes on the web API", () => {
     expect(after.package.name).toBe("CV Tailor");
   });
 
+  it("keeps a proposer's own change visible when someone proposes after them", async () => {
+    const app = await createApp();
+    const first = await upload(app, "ossian", "1.0.0", "Tailor a CV.");
+    await decide(app, first, as("max", "maintainer"), "approved");
+    const alices = await upload(app, "alice", "1.0.1", "Alice's change.");
+    const bobs = await upload(app, "bob", "1.0.2", "Bob's change.");
+
+    expect((await catalogEntry(app, "alice")).proposal?.id).toBe(alices);
+    expect((await catalogEntry(app, "bob")).proposal?.id).toBe(bobs);
+    expect((await catalogEntry(app, "ossian")).proposal?.id).toBe(bobs);
+  });
+
   it("still needs a maintainer to approve the owner's own versions", async () => {
     const app = await createApp();
     const first = await upload(app, "ossian", "1.0.0", "Tailor a CV.");
