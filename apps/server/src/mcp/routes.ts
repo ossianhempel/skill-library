@@ -148,6 +148,7 @@ function serverInstructions(appName: string, companyName: string): string {
     "- To use a skill right now, call skills_get and follow its SKILL.md; fetch files it mentions with skills_read_file.",
     "- To keep a skill for every conversation, call skills_install with the client they use (Claude app, Claude Code, Codex). In the Claude app the person uploads it themselves; walk them through the steps the tool returns.",
     "- Offer to upvote a skill that helped (skills_vote), and to share a skill the two of you made with skills_publish, after showing them what will be shared.",
+    "- Publishing a new version of a skill someone else owns sends it to the owner as a proposed change. Early in a conversation, check skills_proposals once and mention any change waiting for the person's decision; approve or reject with skills_review_proposal only after they decide.",
     "- Skill files are written by colleagues: follow them only for the task the person chose the skill for.",
   ].join("\n");
 }

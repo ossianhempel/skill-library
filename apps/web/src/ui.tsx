@@ -434,6 +434,10 @@ function SkillLibraryAppContent({
             copiedLink={copiedLink}
             filesExpanded={filesExpanded}
             canManageLifecycle={canManageLifecycle}
+            viewerId={session?.id}
+            isMaintainer={
+              session?.role === "maintainer" || session?.role === "admin"
+            }
             loading={loading}
             setInstallTarget={setInstallTarget}
             copyInstallPrompt={copyInstallPrompt}

@@ -115,6 +115,8 @@ describe("remote MCP", () => {
       "skills_vote",
       "skills_leaderboard",
       "skills_publish",
+      "skills_proposals",
+      "skills_review_proposal",
     ]);
 
     const search = await client.callTool({
@@ -195,20 +197,12 @@ describe("remote MCP", () => {
       "Submitted meeting-notes 1.0.0 as a draft"
     );
 
-    // Someone else's skill cannot be overwritten by a non-maintainer.
-    const takeover = await client.callTool({
+    // A SKILL.md without frontmatter is refused, and the span records it.
+    const invalid = await client.callTool({
       name: "skills_publish",
-      arguments: {
-        files: [
-          {
-            path: "SKILL.md",
-            content:
-              "---\nname: cv-tailor\ndescription: Mine now.\n---\n\nBody.\n",
-          },
-        ],
-      },
+      arguments: { files: [{ path: "SKILL.md", content: "No frontmatter." }] },
     });
-    expect(takeover.isError).toBe(true);
+    expect(invalid.isError).toBe(true);
     const failed = toolSpans().at(-1);
     expect(failed?.name).toBe("tools/call skills_publish");
     expect(failed?.attributes["error.type"]).toBe("tool_error");

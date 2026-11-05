@@ -188,6 +188,21 @@ export const sv: Messages = {
     approve: "Godkänn",
     hide: "Dölj",
     deprecate: "Fasa ut",
+    proposal: {
+      title: "Föreslagen ändring",
+      summary: (by: string, version: string, date: string) =>
+        `${by} föreslog version ${version} den ${date}.`,
+      current: (version: string) =>
+        `Kollegorna får ${version} tills ändringen är godkänd.`,
+      noCurrent: "Kollegorna ser den när ändringen är godkänd.",
+      decide: "Läs ändringen och godkänn eller avvisa den.",
+      waiting: (owner: string) => `Väntar på att ${owner} godkänner den.`,
+      theOwner: "skillens ägare",
+      someone: "En kollega",
+      approve: "Godkänn ändringen",
+      reject: "Avvisa",
+      download: "Ladda ner föreslagen version",
+    },
     activity: (days: number) =>
       `Antal nedladdningar och trendlinjer gäller de senaste ${days} dagarna.`,
   },

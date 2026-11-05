@@ -8,6 +8,7 @@ import type {
 import type { WorkspaceCatalogSnapshot } from "@skill-library/storage";
 import type { RegistryApi } from "./index.js";
 import { hasRole } from "./auth.js";
+import { pendingProposal, skillOwner } from "./proposals.js";
 
 /**
  * The catalog a given actor may see, with the same rules as the per-package
@@ -41,6 +42,13 @@ export function visibleWorkspaceCatalog(
       ? versions
       : versions.filter((version) => version.lifecycleState === "approved");
     const stats = statsByPackage.get(pkg.id);
+    const owner = skillOwner(versions);
+    const proposal = pendingProposal(versions, owner);
+    const seesProposal =
+      proposal !== undefined &&
+      (maintainer ||
+        actor?.id === owner?.id ||
+        actor?.id === proposal.provenance.actorId);
 
     return [
       {
@@ -55,6 +63,8 @@ export function visibleWorkspaceCatalog(
         },
         report: maintainer ? reportsByPackage.get(pkg.id) : undefined,
         ranking: rankingByPackage.get(pkg.id),
+        owner,
+        proposal: seesProposal ? proposal : undefined,
       },
     ];
   });

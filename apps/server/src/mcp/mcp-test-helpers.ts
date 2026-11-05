@@ -173,6 +173,11 @@ export async function signIn(
   role: string
 ) {
   await addUser(store, id, role);
+  return tokenFor(app, store, id);
+}
+
+/** Runs the OAuth flow Claude runs for an existing user `id`. */
+export async function tokenFor(app: App, store: SqlRegistryStore, id: string) {
   const cookie = await sessionCookie(store, id);
 
   const clientId = await registerClient(app);

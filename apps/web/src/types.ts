@@ -3,6 +3,7 @@ import type {
   LifecycleState,
   PackageReport,
   RegistryBrandingConfig,
+  SkillOwner,
   SkillPackage,
   SkillRanking,
   SkillVersion,
@@ -44,6 +45,10 @@ export interface CatalogSkill {
   report?: PackageReport;
   /** Popularity among colleagues; absent when the registry has no ranking yet. */
   ranking?: SkillRanking;
+  /** Who published the skill's first version. */
+  owner?: SkillOwner;
+  /** A colleague's version waiting for the owner's decision, when the viewer may see it. */
+  proposal?: SkillVersion;
 }
 
 export type CatalogSort = "popular" | "newest" | "name";

@@ -9,6 +9,8 @@ import {
 import { hasRole } from "../auth.js";
 import { stableId } from "../index.js";
 import { fail, ok } from "./format.js";
+import { skillOwner } from "../proposals.js";
+import { registerProposalTools } from "./proposal-tools.js";
 import { findSkill, type McpToolContext } from "./skills.js";
 
 const PENDING: LifecycleState[] = ["draft", "published"];
@@ -24,7 +26,7 @@ export function registerPublishTools(server: McpServer, ctx: McpToolContext) {
     {
       title: "Share a skill",
       description: [
-        "Submit a skill to the library, either a new one or a new version of a skill the person made before.",
+        "Submit a skill to the library: a new one, a new version of the person's own skill, or a proposed change to someone else's skill (its owner approves it). Show the person what will be shared first.",
         "Pass every file of the skill folder. SKILL.md is required, with frontmatter `name` (lowercase-with-dashes, becomes the slug) and `description`.",
         "The skill is saved as a draft; a maintainer approves it before colleagues see it. Validation problems come back as a list to fix.",
         "Before calling, show the person what will be shared and get their OK.",
@@ -89,19 +91,11 @@ export function registerPublishTools(server: McpServer, ctx: McpToolContext) {
 
       const packageId = stableId(ctx.workspaceId, slug);
       const existing = await ctx.api.packageVersions(packageId);
-      const isAuthor = existing.some(
-        (item) => item.provenance.actorId === ctx.user.id
-      );
-
-      if (
-        existing.length > 0 &&
-        !isAuthor &&
-        !hasRole(ctx.user, "maintainer")
-      ) {
-        return fail(
-          `A skill called "${slug}" already exists and was made by someone else. Pick another name in SKILL.md, or ask its author or a maintainer to publish the change.`
-        );
-      }
+      const owner = skillOwner(existing);
+      const proposing =
+        owner !== undefined &&
+        owner.id !== ctx.user.id &&
+        !hasRole(ctx.user, "maintainer");
 
       const nextVersion = version ?? nextPatch(existing);
 
@@ -142,12 +136,15 @@ export function registerPublishTools(server: McpServer, ctx: McpToolContext) {
         );
       }
 
+      const skillUrl = `${ctx.baseUrl}/s/${encodeURIComponent(ctx.workspaceId)}/${encodeURIComponent(slug)}`;
       const warnings = created.validation.issues.filter(
         (issue) => issue.severity === "warning"
       );
       return ok(
         [
-          `Submitted ${slug} ${nextVersion} as a draft. A maintainer reviews and approves it before colleagues can find it; the person can follow it at ${ctx.baseUrl}/s/${encodeURIComponent(ctx.workspaceId)}/${encodeURIComponent(slug)}.`,
+          proposing
+            ? `Sent ${slug} ${nextVersion} to ${owner.name ?? "the skill's owner"} as a proposed change. They (or a maintainer) approve or reject it; until then colleagues keep getting the current version. Follow it at ${skillUrl}.`
+            : `Submitted ${slug} ${nextVersion} as a draft. A maintainer reviews and approves it before colleagues can find it; the person can follow it at ${skillUrl}.`,
           ...(warnings.length
             ? [
                 "",
@@ -161,10 +158,13 @@ export function registerPublishTools(server: McpServer, ctx: McpToolContext) {
           version: nextVersion,
           versionId: created.id,
           status: created.lifecycleState,
+          proposal: proposing,
         }
       );
     }
   );
+
+  registerProposalTools(server, ctx);
 
   if (!hasRole(ctx.user, "maintainer")) {
     return;

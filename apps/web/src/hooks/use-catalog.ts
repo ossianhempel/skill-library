@@ -397,9 +397,10 @@ export function useCatalog({
     }
   }
 
-  async function handleLifecycle(toState: LifecycleState) {
-    const versionId = selected?.activeVersion?.id;
-
+  async function handleLifecycle(
+    toState: LifecycleState,
+    versionId = selected?.activeVersion?.id
+  ) {
     if (!versionId) {
       setNotice(t.notices.noVersion);
       return;
