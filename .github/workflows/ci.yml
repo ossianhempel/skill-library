@@ -108,3 +108,7 @@ jobs:
           # self-signed cert) in its own setup.
           MSSQL_TEST_URL: "sqlserver://sa:Skill_Lib_CI_2026!@localhost:1433"
         run: pnpm --filter @skill-library/storage exec vitest run src/mssql.integration.test.ts
+      - name: Run the live SQL Server MCP sign-in suite
+        env:
+          MSSQL_TEST_URL: "sqlserver://sa:Skill_Lib_CI_2026!@localhost:1433"
+        run: pnpm --filter @skill-library/server exec vitest run src/mcp/mcp.mssql.integration.test.ts
