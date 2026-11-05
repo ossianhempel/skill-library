@@ -3,6 +3,6 @@
   "apps/server/src/http.test.ts": 1254,
   "packages/cli/src/index.ts": 965,
   "packages/cli/src/index.test.ts": 862,
-  "apps/server/src/http.ts": 751,
+  "apps/server/src/http.ts": 722,
   "apps/web/src/ui.test.tsx": 654
 }
