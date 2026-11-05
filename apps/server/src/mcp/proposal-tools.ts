@@ -41,11 +41,7 @@ export function registerProposalTools(server: McpServer, ctx: McpToolContext) {
           ...(fromMe.length
             ? ["", `You proposed:\n${fromMe.map(line).join("\n")}`]
             : []),
-        ].join("\n"),
-        {
-          waitingForYou: forMe.map(summary),
-          proposedByYou: fromMe.map(summary),
-        }
+        ].join("\n")
       );
     }
   );
@@ -84,7 +80,7 @@ export function registerProposalTools(server: McpServer, ctx: McpToolContext) {
       }
 
       try {
-        const updated = await ctx.api.transitionVersion({
+        await ctx.api.transitionVersion({
           versionId: row.version.id,
           toState: decision === "approve" ? "approved" : "hidden",
           actorId: ctx.user.id,
@@ -92,8 +88,7 @@ export function registerProposalTools(server: McpServer, ctx: McpToolContext) {
         return ok(
           decision === "approve"
             ? `Approved: ${row.pkg.slug} ${row.version.version} by ${row.version.provenance.actorName ?? "a colleague"} is now the version everyone gets.`
-            : `Rejected ${row.pkg.slug} ${row.version.version}. Colleagues keep the current version.`,
-          { status: updated?.lifecycleState }
+            : `Rejected ${row.pkg.slug} ${row.version.version}. Colleagues keep the current version.`
         );
       } catch (error) {
         return fail(error instanceof Error ? error.message : String(error));
@@ -131,14 +126,4 @@ async function listProposals(ctx: McpToolContext, includeAsMaintainer = false) {
 
 function line({ pkg, version, ownerName }: ProposalRow): string {
   return `- ${pkg.name} (\`${pkg.slug}\`) ${version.version} by ${version.provenance.actorName ?? "unknown"}, ${version.createdAt.slice(0, 10)}${ownerName ? `, owner ${ownerName}` : ""}${version.validation.ok ? "" : ", INVALID"}`;
-}
-
-function summary({ pkg, version, ownerName }: ProposalRow) {
-  return {
-    slug: pkg.slug,
-    version: version.version,
-    by: version.provenance.actorName,
-    owner: ownerName,
-    valid: version.validation.ok,
-  };
 }

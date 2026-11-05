@@ -3,15 +3,14 @@ import type { WorkspaceCatalogEntry } from "@skill-library/domain";
 import type { McpUser } from "./oauth.js";
 import { versionFor } from "./skills.js";
 
-/** A successful tool result: markdown for the model, JSON for clients that use it. */
-export function ok(
-  text: string,
-  structured?: Record<string, unknown>
-): CallToolResult {
-  return {
-    content: [{ type: "text", text }],
-    ...(structured ? { structuredContent: structured } : {}),
-  };
+/**
+ * A successful tool result, as markdown text only. No structuredContent:
+ * Claude Code hands the model the structured result instead of the text when
+ * both are present, so anything only in the text (file contents, steps) would
+ * be lost.
+ */
+export function ok(text: string): CallToolResult {
+  return { content: [{ type: "text", text }] };
 }
 
 /** A tool error the model can act on (MCP `isError`, not a protocol error). */

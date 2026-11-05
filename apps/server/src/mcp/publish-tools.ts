@@ -152,14 +152,7 @@ export function registerPublishTools(server: McpServer, ctx: McpToolContext) {
                 ...warnings.map((issue) => `- ${issue.message}`),
               ]
             : []),
-        ].join("\n"),
-        {
-          slug,
-          version: nextVersion,
-          versionId: created.id,
-          status: created.lifecycleState,
-          proposal: proposing,
-        }
+        ].join("\n")
       );
     }
   );
