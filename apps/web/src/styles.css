@@ -2330,6 +2330,19 @@ p {
   visibility: visible;
   opacity: 1;
 }
+/* Narrow screens: the inline position can run off the right edge, so the
+ * help opens as a full-width strip at the bottom of the viewport instead. */
+@media (max-width: 640px) {
+  .info-tip-text {
+    position: fixed;
+    top: auto;
+    left: var(--space-16);
+    right: var(--space-16);
+    bottom: var(--space-16);
+    width: auto;
+    max-width: none;
+  }
+}
 /* One meta line on cards and the detail head: author, version, usage. */
 .skill-meta {
   display: flex;
