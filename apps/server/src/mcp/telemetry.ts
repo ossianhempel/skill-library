@@ -1,9 +1,16 @@
-import { SpanKind, SpanStatusCode, trace, type Span } from "@opentelemetry/api";
+import {
+  ProxyTracerProvider,
+  SpanKind,
+  SpanStatusCode,
+  trace,
+  type Span,
+  type TracerProvider,
+} from "@opentelemetry/api";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { McpUser } from "./oauth.js";
 
-const tracer = trace.getTracer("skill-library-mcp");
+const TRACER_NAME = "skill-library-mcp";
 
 /**
  * Sends tool-call spans to Azure Monitor when
@@ -40,6 +47,19 @@ export async function startTelemetry(): Promise<void> {
       console: off,
     },
   });
+
+  // Libraries such as Better Auth create their own spans through the global
+  // API; keep them out so only tool calls reach the usage stats.
+  const azure = (
+    trace.getTracerProvider() as ProxyTracerProvider
+  ).getDelegate();
+  const noop = new ProxyTracerProvider();
+  const toolSpansOnly: TracerProvider = {
+    getTracer: (name, version, options) =>
+      (name === TRACER_NAME ? azure : noop).getTracer(name, version, options),
+  };
+  trace.disable();
+  trace.setGlobalTracerProvider(toolSpansOnly);
 }
 
 /**
@@ -60,7 +80,9 @@ export function traceToolCalls(server: McpServer, user: McpUser) {
     callback: (...args: unknown[]) => Promise<CallToolResult>
   ) =>
     register(name, config, (...args: unknown[]) =>
-      tracer.startActiveSpan(
+      // Looked up per call: useAzureMonitor replaces the global tracer
+      // provider, so a tracer taken before startup would stay a no-op.
+      trace.getTracer(TRACER_NAME).startActiveSpan(
         `tools/call ${name}`,
         {
           kind: SpanKind.SERVER,
