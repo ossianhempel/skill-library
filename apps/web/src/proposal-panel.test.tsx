@@ -71,8 +71,6 @@ describe("ProposalPanel", () => {
     renderPanel("ossian");
 
     expect(screen.getByText("Föreslagen ändring")).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Godkänn ändringen" })
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Godkänn" })).toBeTruthy();
   });
 });

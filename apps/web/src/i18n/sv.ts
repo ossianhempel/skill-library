@@ -199,9 +199,9 @@ export const sv: Messages = {
       waiting: (owner: string) => `Väntar på att ${owner} godkänner den.`,
       theOwner: "skillens ägare",
       someone: "En kollega",
-      approve: "Godkänn ändringen",
+      approve: "Godkänn",
       reject: "Avvisa",
-      download: "Ladda ner föreslagen version",
+      download: "Ladda ner förslaget",
     },
     activity: (days: number) =>
       `Antal nedladdningar och trendlinjer gäller de senaste ${days} dagarna.`,
