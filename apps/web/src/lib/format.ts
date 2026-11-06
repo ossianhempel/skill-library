@@ -7,6 +7,7 @@ import {
   type SkillVersion,
   type WorkspaceRole,
 } from "@skill-library/domain";
+import { parse as parseYaml } from "yaml";
 
 export function titleize(slug: string) {
   return slug
@@ -26,52 +27,22 @@ export function formatRoleLabel(
   return role;
 }
 
+/**
+ * Reads a SKILL.md's YAML frontmatter with a real YAML parser, so folded and
+ * literal blocks (`description: >-`) come back as their text, not as ">-".
+ * Returns {} when there is no frontmatter or it is not a YAML mapping.
+ */
 export function parseSimpleFrontmatter(content: string): Record<string, any> {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) return {};
-  const yamlText = match[1] || "";
-  const result: Record<string, any> = {};
-  const lines = yamlText.split(/\r?\n/);
-  let currentKey: string | null = null;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    if (trimmed.startsWith("-") && currentKey) {
-      const val = trimmed
-        .slice(1)
-        .trim()
-        .replace(/^["']|["']$/g, "");
-      if (val) {
-        if (!Array.isArray(result[currentKey])) {
-          result[currentKey] = [];
-        }
-        result[currentKey].push(val);
-      }
-      continue;
-    }
-
-    const colonIndex = line.indexOf(":");
-    if (colonIndex !== -1) {
-      const key = line.slice(0, colonIndex).trim();
-      const val = line.slice(colonIndex + 1).trim();
-      currentKey = key;
-
-      if (val.startsWith("[") && val.endsWith("]")) {
-        result[key] = val
-          .slice(1, -1)
-          .split(",")
-          .map((s) => s.trim().replace(/^["']|["']$/g, ""))
-          .filter(Boolean);
-      } else if (val) {
-        result[key] = val.replace(/^["']|["']$/g, "");
-      }
-    } else {
-      currentKey = null;
-    }
+  try {
+    const parsed = parseYaml(match[1] || "");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, any>)
+      : {};
+  } catch {
+    return {};
   }
-  return result;
 }
 
 export function renderCatalogTitle(
