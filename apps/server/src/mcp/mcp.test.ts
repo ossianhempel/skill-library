@@ -106,6 +106,13 @@ describe("remote MCP", () => {
     const token = await signIn(app, store, "ada", "user");
     const client = await connect(app, token);
 
+    const info = client.getServerVersion();
+    expect(info?.websiteUrl).toBe(BASE);
+    expect(info?.icons?.map((icon) => icon.src)).toEqual([
+      `${BASE}/favicon.svg`,
+      `${BASE}/apple-touch-icon.png`,
+    ]);
+
     const tools = (await client.listTools()).tools.map((tool) => tool.name);
     expect(tools).toEqual([
       "skills_search",
