@@ -125,6 +125,20 @@ export function createMcpServer(input: {
       name: "skill-library",
       title: branding.appName,
       version: MCP_SERVER_VERSION,
+      websiteUrl: input.baseUrl,
+      // The site's own favicons (MCP 2025-11-25 serverInfo.icons), so a fork's branding follows.
+      icons: [
+        {
+          src: `${input.baseUrl}/favicon.svg`,
+          mimeType: "image/svg+xml",
+          sizes: ["any"],
+        },
+        {
+          src: `${input.baseUrl}/apple-touch-icon.png`,
+          mimeType: "image/png",
+          sizes: ["180x180"],
+        },
+      ],
     },
     { instructions: serverInstructions(branding.appName, branding.companyName) }
   );
