@@ -26,7 +26,7 @@ import {
 } from "./workspace-catalog.js";
 import { registerRankingRoutes } from "./ranking-routes.js";
 import { registerMcpRoutes } from "./mcp/routes.js";
-import { publishingAuthor } from "./publishing-author.js";
+import { publishingAuthor, uploadDescription } from "./publishing-author.js";
 import { mayReadVersion } from "./proposals.js";
 import { registerLifecycleRoute } from "./lifecycle-route.js";
 import {
@@ -315,7 +315,7 @@ export function createHttpApp(
         workspaceId: context.req.param("workspaceId"),
         packageSlug: body.packageSlug,
         packageName: body.packageName,
-        description: body.description,
+        description: uploadDescription(body.description, body.entries),
         categories: body.categories,
         version: body.version,
         entries: body.entries,
