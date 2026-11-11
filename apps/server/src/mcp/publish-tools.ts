@@ -265,7 +265,7 @@ export function registerPublishTools(server: McpServer, ctx: McpToolContext) {
     {
       title: "Delete a skill",
       description: [
-        "Maintainers: permanently delete a skill with all its versions, files, votes and usage history. It cannot be undone.",
+        "Maintainers: permanently delete a skill with all its versions, votes and usage history. It cannot be undone.",
         "Pass the exact slug. Tell the person what will be deleted and get their OK first. To only take a skill out of the catalog, use skills_set_status with hidden instead.",
       ].join("\n"),
       inputSchema: {

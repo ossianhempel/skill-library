@@ -306,7 +306,7 @@ describe("remote MCP", () => {
     const db = store.kysely!;
     for (const table of ["usage_events", "skill_votes", "artifacts"] as const) {
       const rows = await db.selectFrom(table).selectAll().execute();
-      expect(rows, table).toHaveLength(table === "artifacts" ? 1 : 0);
+      expect(rows, table).toHaveLength(table === "artifacts" ? 2 : 0);
     }
     const left = await db.selectFrom("skill_packages").select("slug").execute();
     expect(left.map((row) => row.slug)).toEqual(["draft-only"]);
