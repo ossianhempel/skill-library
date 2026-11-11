@@ -231,3 +231,6 @@ summary {
 .section {
   margin-top: 16px;
 }
+button.more {
+  margin-top: 8px;
+}
