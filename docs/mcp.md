@@ -45,6 +45,15 @@ The first time a person connects an assistant, they see an approval page ("Allow
 
 Visibility follows the web catalog: people see approved skills, plus their own drafts; maintainers see everything. Each tool call is one OpenTelemetry SERVER span, `tools/call <tool>`, following the MCP semantic conventions: `mcp.method.name`, `gen_ai.operation.name` (`execute_tool`), `gen_ai.tool.name`, `enduser.id` (the signed-in email), `mcp.client.name` (the OAuth client name, such as "Claude") and, on failure, `error.type` `tool_error` with ERROR status. Arguments and results are never recorded. Spans are exported to Azure Monitor only when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set (service name `skill-library`, override with `OTEL_SERVICE_NAME`); otherwise they are no-ops.
 
+### Interactive view (MCP Apps)
+
+Hosts that support [MCP Apps](https://modelcontextprotocol.io/extensions/apps) (Claude on the web and desktop, ChatGPT, VS Code) show a view next to three tools' results: `skills_search` and `skills_leaderboard` show skill cards, `skills_proposals` shows each proposed change as a file-by-file diff. Claude Code and other text-only clients get the same text as before.
+
+- The page is the `ui://skill-library/skills-v1.html` resource (`text/html;profile=mcp-app`), built from `apps/server/src/mcp/view/` with no external scripts, styles or network access. Change the URI's version when the page changes. `_meta.ui.domain` is the per-server Claude sandbox origin: the first 32 hex characters of the SHA-256 of `<registry>/mcp`, then `.claudemcpcontent.com`.
+- The view's data travels in the result's `_meta["skill-library/view"]`, which hosts pass to the view and never to the model. Results carry no `structuredContent`, because Claude Code gives the model `structuredContent` instead of the text.
+- Every button calls a tool the model can also call: Upvote calls `skills_vote`, Install calls `skills_install` (`claude-app`) and opens the download link, Approve and Reject call `skills_review_proposal` after a second click to confirm, and Use now asks Claude in the chat to use the skill. There are no view-only tools.
+- The view marks its own calls with `_meta["skill-library/caller"]: "view"` on the request, and the tool span gets `mcp.tool.caller` = `view`. Calls without it come from the model, or from a host that drops request `_meta`.
+
 Access tokens last one hour; clients that ask for `offline_access` get a refresh token valid for 30 days. OAuth tables (`oauthApplication`, `oauthAccessToken`, `oauthConsent`) are created by the store's auth migrations. `BETTER_AUTH_URL` must be the public origin: it is the OAuth issuer and the resource URL.
 
 ## Local stdio package (`packages/mcp`)

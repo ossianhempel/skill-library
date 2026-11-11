@@ -21,6 +21,7 @@ import {
 } from "./skills.js";
 import { fail, ok, skillLine } from "./format.js";
 import { mayReadVersion } from "../proposals.js";
+import { VIEW_TOOL_META, skillCard, withView } from "./views.js";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
 /** Inline install payloads stay below this; bigger skills go by download link. */
@@ -71,6 +72,7 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
         offset: z.number().int().min(0).default(0),
       },
       annotations: READ_ONLY,
+      _meta: VIEW_TOOL_META,
     },
     async ({ query, sort, limit, offset }) => {
       const { entries } = await loadCatalog(ctx);
@@ -86,15 +88,24 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
         );
       }
 
-      return ok(
-        [
-          `${matches.length} skill(s)${query ? ` matching "${query}"` : ""}, showing ${offset + 1}-${offset + page.length}:`,
-          "",
-          ...page.map((entry) => skillLine(entry, ctx.user)),
-          ...(more
-            ? ["", `More: call again with offset ${offset + page.length}.`]
-            : []),
-        ].join("\n")
+      return withView(
+        ok(
+          [
+            `${matches.length} skill(s)${query ? ` matching "${query}"` : ""}, showing ${offset + 1}-${offset + page.length}:`,
+            "",
+            ...page.map((entry) => skillLine(entry, ctx.user)),
+            ...(more
+              ? ["", `More: call again with offset ${offset + page.length}.`]
+              : []),
+          ].join("\n")
+        ),
+        {
+          kind: "catalog",
+          title: query ? `Skills matching "${query}"` : "Skills",
+          query,
+          total: matches.length,
+          skills: page.map((entry) => skillCard(ctx, entry)),
+        }
       );
     }
   );
@@ -207,7 +218,7 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
       const download = claudeAppDownloadUrl(ctx, entry, version);
 
       if (client === "claude-app") {
-        return ok(
+        const install = ok(
           [
             `To add ${entry.package.name} to Claude, give the person these steps:`,
             `1. Download the skill: ${download}`,
@@ -219,6 +230,12 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
             "Until then, it can be used in this conversation: read it with skills_get and follow its SKILL.md.",
           ].join("\n")
         );
+        return withView(install, {
+          kind: "install",
+          slug: entry.package.slug,
+          name: entry.package.name,
+          downloadUrl: download,
+        });
       }
 
       const { folder, files } = await readSkillFiles(ctx, entry, version);
@@ -275,8 +292,17 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
         useful
       );
       if ("error" in result) return fail(result.error);
-      return ok(
-        `${useful ? "Upvoted" : "Removed your upvote from"} ${match.entry.package.name}. It now has ${result.skill.upvotes} upvote(s) and ${result.skill.colleagues} colleague(s) using it.`
+      return withView(
+        ok(
+          `${useful ? "Upvoted" : "Removed your upvote from"} ${match.entry.package.name}. It now has ${result.skill.upvotes} upvote(s) and ${result.skill.colleagues} colleague(s) using it.`
+        ),
+        {
+          kind: "vote",
+          slug: match.entry.package.slug,
+          upvotes: result.skill.upvotes,
+          colleagues: result.skill.colleagues,
+          upvotedByMe: useful,
+        }
       );
     }
   );
@@ -289,20 +315,24 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
         "The most popular approved skills: ranked by how many colleagues installed them (recent installs count most) and how many upvotes they got. Each entry names who made it.",
       inputSchema: { limit: z.number().int().min(1).max(50).default(10) },
       annotations: READ_ONLY,
+      _meta: VIEW_TOOL_META,
     },
     async ({ limit }) => {
       const { entries } = await loadCatalog(ctx);
       const top = topSkills(entries).slice(0, limit);
       if (top.length === 0)
         return ok("No skill has been installed or upvoted yet.");
-      const skills = top.map((entry) => summary(ctx, entry));
-      return ok(
-        skills
-          .map(
-            (skill, index) =>
-              `${index + 1}. **${skill.name}** (\`${skill.slug}\`)${skill.author ? ` by ${skill.author}` : ""}: used by ${skill.colleagues} colleague(s), ${skill.upvotes} upvote(s)`
-          )
-          .join("\n")
+      const skills = top.map((entry) => skillCard(ctx, entry));
+      return withView(
+        ok(
+          skills
+            .map(
+              (skill, index) =>
+                `${index + 1}. **${skill.name}** (\`${skill.slug}\`)${skill.author ? ` by ${skill.author}` : ""}: used by ${skill.colleagues} colleague(s), ${skill.upvotes} upvote(s)`
+            )
+            .join("\n")
+        ),
+        { kind: "catalog", title: "Top skills", total: top.length, skills }
       );
     }
   );
@@ -390,23 +420,6 @@ function topSkills(entries: WorkspaceCatalogEntry[]) {
         (right.ranking?.colleagues ?? 0) - (left.ranking?.colleagues ?? 0) ||
         left.package.name.localeCompare(right.package.name)
     );
-}
-
-function summary(ctx: McpToolContext, entry: WorkspaceCatalogEntry) {
-  const version = versionFor(entry, ctx.user);
-  return {
-    slug: entry.package.slug,
-    name: entry.package.name,
-    description: entry.package.description,
-    categories: entry.package.categories,
-    version: version?.version,
-    status: version?.lifecycleState,
-    author: version?.provenance.actorName,
-    colleagues: entry.ranking?.colleagues ?? 0,
-    upvotes: entry.ranking?.upvotes ?? 0,
-    upvotedByMe: entry.ranking?.votedByMe ?? false,
-    url: skillPageUrl(ctx, entry),
-  };
 }
 
 function fileBlock(file: SkillFile): string {

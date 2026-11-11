@@ -125,7 +125,7 @@ export function versionFor(
 /** The skill's files, relative to its SKILL.md folder. */
 export async function readSkillFiles(
   ctx: McpToolContext,
-  entry: WorkspaceCatalogEntry,
+  entry: Pick<WorkspaceCatalogEntry, "package">,
   version: SkillVersion
 ): Promise<{ folder: string; files: SkillFile[] }> {
   const download = await ctx.api.artifactDownload(version.artifactDigest);
