@@ -14,6 +14,8 @@ export interface FileDiff {
   binary?: boolean;
   /** Set when the file was too long to diff line by line. */
   tooLarge?: boolean;
+  /** Set when only line endings or the final newline changed (no hunks). */
+  lineEndingsOnly?: boolean;
 }
 
 const CONTEXT = 3;
@@ -50,7 +52,12 @@ export function diffSkillFiles(
       diffs.push({ path, status, hunks: [], tooLarge: true });
       continue;
     }
-    diffs.push({ path, status, hunks: hunks(diffLines(left, right)) });
+    const changes = hunks(diffLines(left, right));
+    diffs.push(
+      changes.length || status !== "changed"
+        ? { path, status, hunks: changes }
+        : { path, status, hunks: [], lineEndingsOnly: true }
+    );
   }
 
   return diffs;

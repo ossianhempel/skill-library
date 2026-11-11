@@ -383,6 +383,13 @@
           body = el("div", { class: "diff" }, [
             el("div", { class: "gap", text: "Binary file " + file.status }),
           ]);
+        else if (file.lineEndingsOnly)
+          body = el("div", { class: "diff" }, [
+            el("div", {
+              class: "gap",
+              text: "Only line endings or the final newline changed",
+            }),
+          ]);
         else if (file.tooLarge)
           body = el("div", { class: "diff" }, [
             el("div", {

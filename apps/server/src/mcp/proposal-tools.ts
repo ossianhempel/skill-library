@@ -130,11 +130,7 @@ async function listProposals(ctx: McpToolContext, includeAsMaintainer = false) {
   for (const pkg of snapshot.packages) {
     const versions = snapshot.versionsByPackage.get(pkg.id) ?? [];
     const owner = skillOwner(versions);
-    const current = versions
-      .filter((item) => item.lifecycleState === "approved")
-      .sort((a, b) =>
-        (b.approvedAt ?? b.createdAt).localeCompare(a.approvedAt ?? a.createdAt)
-      )[0];
+    const current = snapshot.latestApprovedByPackage.get(pkg.id);
 
     for (const version of versions.filter((item) => isProposal(item, owner))) {
       const row = { pkg, version, ownerName: owner?.name, current };
