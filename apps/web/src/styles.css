@@ -2485,3 +2485,17 @@ p {
   color: var(--signal);
   font-size: var(--text-small);
 }
+
+.mcp-panel .admin-header {
+  flex-wrap: wrap;
+}
+
+.mcp-panel .panel-title {
+  white-space: nowrap;
+}
+
+.mcp-copy-line button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+}
