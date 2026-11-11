@@ -9,6 +9,7 @@ import {
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { McpUser } from "./oauth.js";
+import { VIEW_CALL_KEY } from "./views.js";
 
 const TRACER_NAME = "skill-library-mcp";
 
@@ -92,6 +93,7 @@ export function traceToolCalls(server: McpServer, user: McpUser) {
             "gen_ai.tool.name": name,
             "enduser.id": user.email || "unknown",
             ...clientAttributes(server, user),
+            ...(calledByView(args) ? { "mcp.tool.caller": "view" } : {}),
           },
         },
         async (span) => {
@@ -121,6 +123,15 @@ function clientAttributes(server: McpServer, user: McpUser) {
     "mcp.client.name": info?.name ?? user.clientName,
     ...(info?.version ? { "mcp.client.version": info.version } : {}),
   };
+}
+
+/**
+ * True when an MCP Apps view (a button in the host's UI) made the call rather
+ * than the model; the view marks its calls in the request `_meta`.
+ */
+function calledByView(args: unknown[]): boolean {
+  const extra = args.at(-1) as { _meta?: Record<string, unknown> } | undefined;
+  return extra?._meta?.[VIEW_CALL_KEY] === "view";
 }
 
 function markFailed(span: Span) {

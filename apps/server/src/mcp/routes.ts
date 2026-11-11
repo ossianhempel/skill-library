@@ -15,6 +15,7 @@ import {
   type McpUser,
 } from "./oauth.js";
 import { registerSkillTools } from "./tools.js";
+import { registerViewResource } from "./views.js";
 import { registerMcpConsent } from "./consent.js";
 
 export const MCP_SERVER_VERSION = "1.0.0";
@@ -143,14 +144,16 @@ export function createMcpServer(input: {
     { instructions: serverInstructions(branding.appName, branding.companyName) }
   );
 
-  traceToolCalls(server, input.user);
-  registerSkillTools(server, {
+  const ctx = {
     api: input.api,
     user: input.user,
     workspaceId: branding.defaultWorkspaceId,
     baseUrl: input.baseUrl,
     appName: branding.appName,
-  });
+  };
+  traceToolCalls(server, input.user);
+  registerSkillTools(server, ctx);
+  registerViewResource(server, ctx);
 
   return server;
 }
