@@ -14,7 +14,7 @@ import {
   text,
   tokenFor,
 } from "./mcp-test-helpers.js";
-import { claudeViewDomain, VIEW_URI } from "./views.js";
+import { VIEW_URI } from "./views.js";
 
 const spans = new InMemorySpanExporter();
 
@@ -75,13 +75,9 @@ describe("MCP Apps view", () => {
     expect(page._meta).toEqual({
       ui: {
         csp: {},
-        domain: claudeViewDomain(`${BASE}/mcp`),
         prefersBorder: false,
       },
     });
-    expect(claudeViewDomain("https://example.com/mcp")).toMatch(
-      /^[0-9a-f]{32}\.claudemcpcontent\.com$/
-    );
   });
 
   it("sends skill cards to the view without changing what the model reads", async () => {

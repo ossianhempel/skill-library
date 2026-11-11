@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -128,9 +127,11 @@ export function registerViewResource(server: McpServer, ctx: McpToolContext) {
           _meta: {
             ui: {
               // The page loads nothing from the network and calls tools
-              // through the host, so the default (deny-all) CSP fits.
+              // through the host, so the default (deny-all) CSP fits. No
+              // `domain`: the view needs no fixed origin, and in Claude a value
+              // that differs from the connector URL as typed (a trailing
+              // slash, another host) stops the view from loading.
               csp: {},
-              domain: claudeViewDomain(`${ctx.baseUrl}/mcp`),
               prefersBorder: false,
             },
           },
@@ -138,15 +139,6 @@ export function registerViewResource(server: McpServer, ctx: McpToolContext) {
       ],
     })
   );
-}
-
-/**
- * Claude serves each server's views from its own sandbox origin: the first 32
- * hex characters of the SHA-256 of the server URL under claudemcpcontent.com.
- */
-export function claudeViewDomain(serverUrl: string): string {
-  const hash = createHash("sha256").update(serverUrl).digest("hex");
-  return `${hash.slice(0, 32)}.claudemcpcontent.com`;
 }
 
 let cachedHtml: string | undefined;
