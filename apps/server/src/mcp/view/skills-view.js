@@ -5,8 +5,8 @@
   "use strict";
 
   var DATA_KEY = "skill-library/view";
-  /** Cards shown before "Show more". */
-  var FIRST_SHOWN = 3;
+  /** Cards shown before "Show more": a 2x2 grid in Claude. */
+  var FIRST_SHOWN = 4;
   var root = document.getElementById("root");
   var callTool = skillHost.callTool;
   var openLink = skillHost.openLink;
