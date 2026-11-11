@@ -1,4 +1,4 @@
-import { traceToolCalls } from "./telemetry.js";
+import { traceListRequests, traceToolCalls } from "./telemetry.js";
 import type { Hono } from "hono";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -154,6 +154,7 @@ export function createMcpServer(input: {
   traceToolCalls(server, input.user);
   registerSkillTools(server, ctx);
   registerViewResource(server, ctx);
+  traceListRequests(server, input.user);
 
   return server;
 }

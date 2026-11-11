@@ -14,7 +14,7 @@ import { VIEW_CALL_KEY } from "./views.js";
 const TRACER_NAME = "skill-library-mcp";
 
 /**
- * Sends tool-call spans to Azure Monitor when
+ * Sends MCP request spans to Azure Monitor when
  * APPLICATIONINSIGHTS_CONNECTION_STRING is set; otherwise spans stay no-ops.
  * OTEL_SERVICE_NAME becomes the cloud role name (AppRoleName) that usage
  * dashboards group servers by. Call once at startup.
@@ -110,6 +110,56 @@ export function traceToolCalls(server: McpServer, user: McpUser) {
         }
       )
     );
+}
+
+/** Protocol methods, besides tool calls, that get one span per request. */
+const LISTED_METHODS = ["initialize", "tools/list"];
+
+/**
+ * One SERVER span per initialize and tools/list request, so the usage data
+ * shows how often a client connects and re-reads the tool list (Claude keeps
+ * its own copy of the list, so new tools or views reach a user only when it
+ * fetches the list again). Call after the tools are registered: McpServer
+ * installs its tools/list handler with the first tool. Usage reports count
+ * only `mcp.method.name == "tools/call"`.
+ */
+export function traceListRequests(server: McpServer, user: McpUser) {
+  // The SDK has no public way to wrap a handler it installed itself.
+  const handlers = (
+    server.server as unknown as {
+      _requestHandlers: Map<string, (...args: unknown[]) => Promise<unknown>>;
+    }
+  )._requestHandlers;
+
+  for (const method of LISTED_METHODS) {
+    const handler = handlers.get(method);
+    if (!handler) throw new Error(`No ${method} handler to trace`);
+    handlers.set(method, (...args: unknown[]) =>
+      trace.getTracer(TRACER_NAME).startActiveSpan(
+        method,
+        {
+          kind: SpanKind.SERVER,
+          attributes: {
+            "mcp.method.name": method,
+            "enduser.id": user.email || "unknown",
+          },
+        },
+        async (span) => {
+          try {
+            return await handler(...args);
+          } catch (error) {
+            span.setAttribute("error.type", "request_error");
+            span.setStatus({ code: SpanStatusCode.ERROR });
+            throw error;
+          } finally {
+            // After the handler, so initialize already saw the clientInfo.
+            span.setAttributes(clientAttributes(server, user));
+            span.end();
+          }
+        }
+      )
+    );
+  }
 }
 
 /**
