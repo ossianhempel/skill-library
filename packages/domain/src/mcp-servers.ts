@@ -142,12 +142,23 @@ function isWebUrl(value: string): boolean {
 export function claudeCodeAddCommand(
   entry: Pick<McpServerEntry, "slug" | "url">
 ): string {
-  return `claude mcp add --transport http --scope user ${entry.slug} ${entry.url}`;
+  return `claude mcp add --transport http --scope user ${shellArg(entry.slug)} ${shellArg(entry.url)}`;
 }
 
 /** The Codex CLI command that connects to an entry. */
 export function codexAddCommand(
   entry: Pick<McpServerEntry, "slug" | "url">
 ): string {
-  return `codex mcp add ${entry.slug} --url ${entry.url}`;
+  return `codex mcp add ${shellArg(entry.slug)} --url ${shellArg(entry.url)}`;
+}
+
+/**
+ * Quotes a value for a POSIX shell when it holds anything beyond plain URL
+ * characters, so a pasted command can never run more than the CLI: anyone
+ * signed in can add an entry, and colleagues paste its command into a terminal.
+ */
+export function shellArg(value: string): string {
+  return /^[A-Za-z0-9_./:@%+=,~-]+$/.test(value)
+    ? value
+    : `'${value.replace(/'/g, `'\\''`)}'`;
 }
