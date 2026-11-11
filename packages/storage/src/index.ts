@@ -25,6 +25,15 @@ import {
 } from "./team-members.js";
 import * as mcp from "./mcp-servers.js";
 import { fromWorkspaceRow } from "./workspace-row.js";
+import { deletePackageRows } from "./delete-package.js";
+import {
+  fromPackageRow,
+  fromVersionRow,
+  parseJson,
+  toIsoString,
+  type PackageRow,
+  type VersionRow,
+} from "./rows.js";
 import type {
   CatalogPackageStats,
   DownloadHistoryPoint,
@@ -85,6 +94,8 @@ export interface RegistryStore {
   listTeamMembers(): Promise<TeamMemberRecord[]>;
   updateUserRole(userId: string, role: string): Promise<UserRecord | undefined>;
   deleteUser(userId: string): Promise<void>;
+  /** Permanently deletes a skill and everything recorded about it. False if unknown. */
+  deletePackage(packageId: string): Promise<boolean>;
   putArtifact(artifact: ArtifactInput): Promise<StoredArtifact>;
   getArtifact(digest: string): Promise<StoredArtifact | undefined>;
   readArtifactContent(digest: string): Promise<Buffer | undefined>;
@@ -782,6 +793,10 @@ export class SqlRegistryStore implements RegistryStore {
     await this.kysely.deleteFrom("user").where("id", "=", userId).execute();
   }
 
+  deletePackage(packageId: string): Promise<boolean> {
+    return deletePackageRows(this.kysely, packageId);
+  }
+
   async getDownloadHistory(
     filter: UsageEventFilter,
     days: number = DOWNLOAD_HISTORY_DAYS
@@ -1034,6 +1049,30 @@ export class MemoryRegistryStore implements RegistryStore {
   }
 
   async deleteUser(_userId: string): Promise<void> {}
+
+  async deletePackage(packageId: string): Promise<boolean> {
+    if (!this.packages.delete(packageId)) return false;
+    const versionIds = new Set(
+      (this.versions.get(packageId) ?? []).map((version) => version.id)
+    );
+    this.versions.delete(packageId);
+    const keep = <T extends { packageId?: string; versionId?: string }>(
+      rows: T[]
+    ) => {
+      const kept = rows.filter(
+        (row) =>
+          row.packageId !== packageId &&
+          !(row.versionId && versionIds.has(row.versionId))
+      );
+      rows.splice(0, rows.length, ...kept);
+    };
+    keep(this.reports);
+    keep(this.usageEvents);
+    for (const key of [...this.votes]) {
+      if (key.startsWith(`${packageId}\u0000`)) this.votes.delete(key);
+    }
+    return true;
+  }
 
   async putArtifact(artifact: ArtifactInput): Promise<StoredArtifact> {
     return {
@@ -1322,32 +1361,6 @@ export class MemoryRegistryStore implements RegistryStore {
   }
 }
 
-interface PackageRow {
-  id: string;
-  workspace_id: string;
-  slug: string;
-  name: string;
-  description: string;
-  categories: string[] | string;
-  created_at: string | Date;
-  updated_at: string | Date;
-}
-
-interface VersionRow {
-  id: string;
-  package_id: string;
-  version: string;
-  lifecycle_state: SkillVersion["lifecycleState"];
-  artifact_digest: string;
-  validation: SkillVersion["validation"] | string;
-  provenance: SkillVersion["provenance"] | string;
-  created_at: string | Date;
-  approved_at?: string | Date | null;
-  replacement_version_id?: string | null;
-  actor_name?: string | null;
-  actor_email?: string | null;
-}
-
 interface ArtifactRow {
   digest: string;
   storage_path: string;
@@ -1381,83 +1394,6 @@ function toDayString(value: string | Date): string {
   return new Date(value).toISOString().slice(0, 10);
 }
 
-function fromPackageRow(row: PackageRow): SkillPackage {
-  return {
-    id: row.id,
-    workspaceId: row.workspace_id,
-    slug: row.slug,
-    name: row.name,
-    description: row.description,
-    categories: parseJson(row.categories),
-    createdAt: toIsoString(row.created_at),
-    updatedAt: toIsoString(row.updated_at),
-  };
-}
-
-function fromVersionRow(row: VersionRow): SkillVersion {
-  const provenance = parseJson(row.provenance);
-
-  let author: string | undefined = undefined;
-  if (row.actor_name) {
-    author = row.actor_name;
-  } else if (row.actor_email) {
-    author = row.actor_email;
-  } else if (
-    provenance &&
-    typeof provenance === "object" &&
-    "actorName" in provenance &&
-    typeof (provenance as any).actorName === "string" &&
-    (provenance as any).actorName
-  ) {
-    author = (provenance as any).actorName;
-  } else if (
-    provenance &&
-    typeof provenance === "object" &&
-    "actorEmail" in provenance &&
-    typeof (provenance as any).actorEmail === "string" &&
-    (provenance as any).actorEmail
-  ) {
-    author = (provenance as any).actorEmail;
-  } else if (
-    provenance &&
-    typeof provenance === "object" &&
-    "gitAuthorName" in provenance &&
-    typeof (provenance as any).gitAuthorName === "string" &&
-    (provenance as any).gitAuthorName
-  ) {
-    author = (provenance as any).gitAuthorName;
-  } else if (
-    provenance &&
-    typeof provenance === "object" &&
-    "gitAuthorEmail" in provenance &&
-    typeof (provenance as any).gitAuthorEmail === "string" &&
-    (provenance as any).gitAuthorEmail
-  ) {
-    author = (provenance as any).gitAuthorEmail;
-  } else if (
-    provenance &&
-    typeof provenance === "object" &&
-    "actorId" in provenance &&
-    typeof (provenance as any).actorId === "string"
-  ) {
-    author = (provenance as any).actorId;
-  }
-
-  return {
-    id: row.id,
-    packageId: row.package_id,
-    version: row.version,
-    lifecycleState: row.lifecycle_state,
-    artifactDigest: row.artifact_digest,
-    validation: parseJson(row.validation),
-    provenance,
-    createdAt: toIsoString(row.created_at),
-    approvedAt: row.approved_at ? toIsoString(row.approved_at) : undefined,
-    replacementVersionId: row.replacement_version_id ?? undefined,
-    author,
-  };
-}
-
 function fromArtifactRow(row: ArtifactRow): StoredArtifact {
   return {
     digest: row.digest,
@@ -1465,16 +1401,6 @@ function fromArtifactRow(row: ArtifactRow): StoredArtifact {
     sizeBytes: Number(row.size_bytes),
     createdAt: toIsoString(row.created_at),
   };
-}
-
-function parseJson<T>(value: T | string): T {
-  return typeof value === "string" ? (JSON.parse(value) as T) : value;
-}
-
-function toIsoString(value: string | Date): string {
-  return value instanceof Date
-    ? value.toISOString()
-    : new Date(value).toISOString();
 }
 
 function artifactPath(artifactDir: string, digest: string): string {

@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 import { afterAll, describe, expect, it } from "vitest";
 import { createKyselyInstance } from "@skill-library/storage";
-import { cleanup, connect, setup, signIn } from "./mcp-test-helpers.js";
+import { cleanup, connect, setup, signIn, text } from "./mcp-test-helpers.js";
 
 /**
  * The OAuth sign-in Claude runs, against a live SQL Server. Skipped unless
@@ -34,6 +34,32 @@ describe.skipIf(!ADMIN_URL)("remote MCP on SQL Server (live)", () => {
     const client = await connect(app, token);
     const tools = (await client.listTools()).tools.map((tool) => tool.name);
     expect(tools).toContain("skills_search");
+
+    // Deleting goes child-first: SQL Server can't cascade along every path.
+    await client.callTool({
+      name: "skills_install",
+      arguments: { skill: "cv-tailor", client: "claude-code" },
+    });
+    await client.callTool({
+      name: "skills_vote",
+      arguments: { skill: "cv-tailor" },
+    });
+    const max = await connect(
+      app,
+      await signIn(app, store, "max", "maintainer")
+    );
+    const deleted = await max.callTool({
+      name: "skills_delete",
+      arguments: { skill: "cv-tailor" },
+    });
+    expect(text(deleted)).toBe("CV Tailor (`cv-tailor`) is deleted.");
+    const left = await store
+      .kysely!.selectFrom("skill_packages")
+      .select("slug")
+      .execute();
+    expect(left.map((row) => row.slug)).toEqual(["draft-only"]);
+
+    await max.close();
     await client.close();
   }, 120000);
 });

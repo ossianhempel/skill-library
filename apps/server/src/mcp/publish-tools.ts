@@ -259,6 +259,39 @@ export function registerPublishTools(server: McpServer, ctx: McpToolContext) {
       }
     }
   );
+
+  server.registerTool(
+    "skills_delete",
+    {
+      title: "Delete a skill",
+      description: [
+        "Maintainers: permanently delete a skill with all its versions, files, votes and usage history. It cannot be undone.",
+        "Pass the exact slug. Tell the person what will be deleted and get their OK first. To only take a skill out of the catalog, use skills_set_status with hidden instead.",
+      ].join("\n"),
+      inputSchema: {
+        skill: z.string().min(1).describe('The exact slug, e.g. "docx".'),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ skill }) => {
+      const { packages } = await ctx.api.workspaceCatalog(ctx.workspaceId);
+      const pkg = packages.find((item) => item.slug === skill.trim());
+      if (!pkg)
+        return fail(
+          `No skill with the slug "${skill}". Slugs: ${packages.map((item) => item.slug).join(", ")}`
+        );
+
+      const deleted = await ctx.api.deletePackage(pkg.id);
+      return deleted
+        ? ok(`${pkg.name} (\`${pkg.slug}\`) is deleted.`)
+        : fail(`${pkg.slug} was already gone.`);
+    }
+  );
 }
 
 function nextPatch(existing: SkillVersion[]): string {
