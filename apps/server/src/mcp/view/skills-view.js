@@ -5,6 +5,8 @@
   "use strict";
 
   var DATA_KEY = "skill-library/view";
+  /** Cards shown before "Show more": a 2x2 grid in Claude. */
+  var FIRST_SHOWN = 4;
   var root = document.getElementById("root");
   var callTool = skillHost.callTool;
   var openLink = skillHost.openLink;
@@ -87,11 +89,31 @@
       data.skills.length < data.total
         ? "Showing " + data.skills.length + " of " + data.total
         : plural(data.total, "skill");
+    // The skills arrive best first; show a few so the view doesn't push
+    // Claude's answer off screen, and the rest on request.
+    var grid = el(
+      "div",
+      { class: "grid" },
+      data.skills.slice(0, FIRST_SHOWN).map(skillCard)
+    );
+    var rest = data.skills.slice(FIRST_SHOWN);
+    var more = rest.length
+      ? el("button", {
+          type: "button",
+          class: "link more",
+          text: "Show " + rest.length + " more",
+          onclick: function () {
+            grid.append.apply(grid, rest.map(skillCard));
+            more.remove();
+          },
+        })
+      : null;
     root.replaceChildren(
       el("h2", { text: data.title }, [
         el("span", { class: "muted small", text: " · " + shown }),
       ]),
-      el("div", { class: "grid" }, data.skills.map(skillCard))
+      grid,
+      more
     );
   }
 
