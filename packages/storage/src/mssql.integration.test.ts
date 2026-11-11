@@ -93,6 +93,39 @@ describe.skipIf(!ADMIN_URL)("SQL Server registry store (live)", () => {
     }
   });
 
+  it("saves, updates and removes MCP servers", async () => {
+    const entry = {
+      id: "mcp-1",
+      workspaceId: workspace.id,
+      slug: "brain",
+      name: "Company brain",
+      description: "Search the wiki.",
+      url: "https://brain.example.com/mcp",
+      access: "Everyone",
+      notes: "",
+      docsUrl: null,
+      createdById: "ada",
+      createdByName: "Ada",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await store.mcpServers.save(entry);
+    await store.mcpServers.save({
+      ...entry,
+      id: "x",
+      url: "https://b2.example.com/mcp",
+    });
+
+    const listed = await store.mcpServers.list(workspace.id);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).toMatchObject({
+      id: "mcp-1",
+      url: "https://b2.example.com/mcp",
+    });
+    expect(await store.mcpServers.remove(workspace.id, "brain")).toBe(true);
+    expect(await store.mcpServers.list(workspace.id)).toEqual([]);
+  });
+
   it("upserts a workspace idempotently (MERGE-equivalent, no duplicate)", async () => {
     await store.upsertWorkspace(workspace);
     await store.upsertWorkspace({ ...workspace, name: "Renamed Team" });

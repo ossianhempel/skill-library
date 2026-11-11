@@ -129,4 +129,5 @@ export type AppTab =
   | "reports"
   | "team"
   | "my-skills"
-  | "leaderboard";
+  | "leaderboard"
+  | "mcps";

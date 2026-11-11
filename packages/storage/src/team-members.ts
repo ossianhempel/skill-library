@@ -1,6 +1,5 @@
 import type { Kysely } from "kysely";
 import type { DatabaseEngine, DatabaseSchema } from "./kysely.js";
-import type { TeamMemberRecord } from "./index.js";
 import { jsonText } from "./ranking-store.js";
 
 /** Every user with the number of skill versions their provenance resolves to them. */
@@ -52,4 +51,24 @@ function toIsoString(value: string | Date): string {
   return value instanceof Date
     ? value.toISOString()
     : new Date(value).toISOString();
+}
+/** Minimal actor identity resolved from an agent token. */
+export interface UserIdentity {
+  id: string;
+  role: string;
+}
+
+/** A Better-Auth-owned user as surfaced to admin/team views. */
+export interface UserRecord {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  image: string | null;
+}
+
+/** A team member plus their count of submitted skill versions. */
+export interface TeamMemberRecord extends UserRecord {
+  skillsSubmitted: number;
 }

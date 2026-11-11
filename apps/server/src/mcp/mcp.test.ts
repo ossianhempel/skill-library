@@ -124,6 +124,9 @@ describe("remote MCP", () => {
       "skills_publish",
       "skills_proposals",
       "skills_review_proposal",
+      "mcp_servers_list",
+      "mcp_servers_save",
+      "mcp_servers_remove",
     ]);
 
     const search = await client.callTool({

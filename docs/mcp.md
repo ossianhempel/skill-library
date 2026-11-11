@@ -39,6 +39,14 @@ Tools (all signed-in users):
 
 A skill's owner is whoever published its first version. When someone else publishes a version, it is a proposal: colleagues keep getting the approved version, the catalog entry keeps the owner's name and description, and the owner (or a maintainer) approves or rejects it here or on the skill's page in the web app. Approving brings in the proposal's `SKILL.md` description. Owners are told in the web app and through `skills_proposals`; there is no email.
 
+The library also lists the team's other MCP servers (the MCPs tab in the web app), so an agent can tell the person which connectors exist and how to connect, and can add one it helped build:
+
+- `mcp_servers_list`: every listed server with what it does, its URL, who can use it, and how to connect from the Claude app, Claude Code (`claude mcp add --transport http --scope user <slug> <url>`) and Codex (`codex mcp add <slug> --url <url>`).
+- `mcp_servers_save`: add a server, or change one by its slug. Anyone signed in can add; only whoever added it or a maintainer can change it.
+- `mcp_servers_remove`: take a server off the list (same rule).
+
+The web tab and these tools share one set of rules (`apps/server/src/mcp-servers.ts`). An entry is only a pointer: the library never connects to or signs in to the listed server.
+
 Maintainers also get `skills_review_queue` (drafts and published versions waiting) and `skills_set_status` (approve, hide, deprecate).
 
 The first time a person connects an assistant, they see an approval page ("Allow Claude to use ...?") that names their account and where the browser returns. Anyone can register an OAuth client, so without it a link to the authorize URL could hand a stranger's client the person's access. Approval is remembered per client; Better Auth only asks when the request has `prompt=consent`, so `apps/server/src/mcp/consent.ts` adds it until the person has approved that client.

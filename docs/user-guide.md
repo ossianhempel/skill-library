@@ -99,6 +99,10 @@ Editors and admins approve drafts through lifecycle actions (`approve`, `hide`, 
 
 On localhost only, if the API is unavailable, the catalog falls back to demo data and shows a status notice. Production shows an empty catalog instead of placeholder skills.
 
+## MCP servers
+
+The MCPs tab lists the MCP servers (connectors) your team uses: what each one does, who can use it and how to connect. Pick the client you use (Claude app, Claude Code or Codex) and copy the address or command; the choice is remembered. Anyone signed in can add a server with **Add MCP server**; whoever added it, or an editor, can change or remove it. An assistant connected to the library sees the same list through `mcp_servers_list` and can add servers too. Link straight to the tab with `/?tab=mcps`.
+
 ## Report
 
 The web UI includes an adoption report panel with package totals, current installs, stale or locally modified installs, and per-package rows. Editor and admin report data comes from `/api/workspaces/:workspaceId/reports`.

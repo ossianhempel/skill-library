@@ -194,6 +194,31 @@ export async function runRegistryMigrations(
       .addPrimaryKeyConstraint("skill_votes_pk", ["package_id", "user_id"])
       .execute();
   }
+
+  // MCP servers listed beside the skills. No FKs: a workspace row only exists once
+  // a skill is published, and creators may be API keys rather than users.
+  if (!existing.has("mcp_servers")) {
+    await db.schema
+      .createTable("mcp_servers")
+      .addColumn("id", t.keyText, (c) => c.primaryKey())
+      .addColumn("workspace_id", t.keyText, (c) => c.notNull())
+      .addColumn("slug", t.keyText, (c) => c.notNull())
+      .addColumn("name", t.freeText, (c) => c.notNull())
+      .addColumn("description", t.freeText, (c) => c.notNull())
+      .addColumn("url", t.freeText, (c) => c.notNull())
+      .addColumn("access", t.freeText, (c) => c.notNull())
+      .addColumn("notes", t.freeText, (c) => c.notNull())
+      .addColumn("docs_url", t.freeText)
+      .addColumn("created_by_id", t.keyText)
+      .addColumn("created_by_name", t.freeText)
+      .addColumn("created_at", t.timestamp, (c) => c.notNull())
+      .addColumn("updated_at", t.timestamp, (c) => c.notNull())
+      .addUniqueConstraint("mcp_servers_workspace_slug_unique", [
+        "workspace_id",
+        "slug",
+      ])
+      .execute();
+  }
 }
 
 async function addColumnIfMissing(

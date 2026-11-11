@@ -4,6 +4,7 @@ import {
   LogOut,
   Search,
   Trophy,
+  Unplug,
   UploadCloud,
   User,
   UserCheck,
@@ -60,6 +61,12 @@ export function AppRail({
         label={t.rail.leaderboard}
         active={activeTab === "leaderboard"}
         onClick={() => setActiveTab("leaderboard")}
+      />
+      <NavButton
+        icon={<Unplug size={19} />}
+        label={t.rail.mcps}
+        active={activeTab === "mcps"}
+        onClick={() => setActiveTab("mcps")}
       />
       {hasSession && (
         <NavButton
