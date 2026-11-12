@@ -68,7 +68,11 @@ export async function startTelemetry(): Promise<void> {
  * attributed after the OpenTelemetry MCP semantic conventions. Arguments and
  * results are never recorded.
  */
-export function traceToolCalls(server: McpServer, user: McpUser) {
+export function traceToolCalls(
+  server: McpServer,
+  user: McpUser,
+  userAgent?: string
+) {
   const register = server.registerTool.bind(server) as (
     name: string,
     config: unknown,
@@ -92,7 +96,7 @@ export function traceToolCalls(server: McpServer, user: McpUser) {
             "gen_ai.operation.name": "execute_tool",
             "gen_ai.tool.name": name,
             "enduser.id": user.email || "unknown",
-            ...clientAttributes(server, user),
+            ...clientAttributes(server, user, userAgent),
             ...(calledByView(args) ? { "mcp.tool.caller": "view" } : {}),
           },
         },
@@ -123,7 +127,11 @@ const LISTED_METHODS = ["initialize", "tools/list"];
  * installs its tools/list handler with the first tool. Usage reports count
  * only `mcp.method.name == "tools/call"`.
  */
-export function traceListRequests(server: McpServer, user: McpUser) {
+export function traceListRequests(
+  server: McpServer,
+  user: McpUser,
+  userAgent?: string
+) {
   // The SDK has no public way to wrap a handler it installed itself.
   const handlers = (
     server.server as unknown as {
@@ -153,7 +161,7 @@ export function traceListRequests(server: McpServer, user: McpUser) {
             throw error;
           } finally {
             // After the handler, so initialize already saw the clientInfo.
-            span.setAttributes(clientAttributes(server, user));
+            span.setAttributes(clientAttributes(server, user, userAgent));
             span.end();
           }
         }
@@ -165,13 +173,20 @@ export function traceListRequests(server: McpServer, user: McpUser) {
 /**
  * The server is stateless, so a tools/call request does not carry the
  * clientInfo sent at initialize; fall back to the name the client registered
- * with OAuth (e.g. "Claude").
+ * with OAuth (e.g. "Claude"), and record the request's User-Agent.
  */
-function clientAttributes(server: McpServer, user: McpUser) {
+function clientAttributes(
+  server: McpServer,
+  user: McpUser,
+  userAgent?: string
+) {
   const info = server.server.getClientVersion();
   return {
     "mcp.client.name": info?.name ?? user.clientName,
     ...(info?.version ? { "mcp.client.version": info.version } : {}),
+    // Every request carries it, so it tells clients apart where clientInfo
+    // (initialize only) can't, e.g. Claude Code and claude.ai on tools/list.
+    ...(userAgent ? { "user_agent.original": userAgent } : {}),
   };
 }
 

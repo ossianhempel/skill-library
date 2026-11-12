@@ -75,7 +75,13 @@ export function registerMcpRoutes(
       });
     }
 
-    const server = createMcpServer({ api, user, branding, baseUrl });
+    const server = createMcpServer({
+      api,
+      user,
+      branding,
+      baseUrl,
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    });
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
@@ -120,6 +126,8 @@ export function createMcpServer(input: {
   user: McpUser;
   branding: RegistryBrandingConfig;
   baseUrl: string;
+  /** The request's User-Agent, recorded on telemetry spans. */
+  userAgent?: string;
 }): McpServer {
   const { branding } = input;
   const server = new McpServer(
@@ -152,11 +160,11 @@ export function createMcpServer(input: {
     baseUrl: input.baseUrl,
     appName: branding.appName,
   };
-  traceToolCalls(server, input.user);
+  traceToolCalls(server, input.user, input.userAgent);
   registerSkillTools(server, ctx);
   registerMcpServerTools(server, ctx);
   registerViewResource(server, ctx);
-  traceListRequests(server, input.user);
+  traceListRequests(server, input.user, input.userAgent);
 
   return server;
 }
