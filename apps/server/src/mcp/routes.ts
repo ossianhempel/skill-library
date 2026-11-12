@@ -15,6 +15,7 @@ import {
   type McpUser,
 } from "./oauth.js";
 import { registerSkillTools } from "./tools.js";
+import { registerMcpServerTools } from "./mcp-server-tools.js";
 import { registerViewResource } from "./views.js";
 import { registerMcpConsent } from "./consent.js";
 
@@ -153,6 +154,7 @@ export function createMcpServer(input: {
   };
   traceToolCalls(server, input.user);
   registerSkillTools(server, ctx);
+  registerMcpServerTools(server, ctx);
   registerViewResource(server, ctx);
 
   return server;
@@ -166,6 +168,7 @@ function serverInstructions(appName: string, companyName: string): string {
     "- To keep a skill for every conversation, call skills_install with the client they use (Claude app, Claude Code, Codex). In the Claude app the person uploads it themselves; walk them through the steps the tool returns.",
     "- Offer to upvote a skill that helped (skills_vote), and to share a skill the two of you made with skills_publish, after showing them what will be shared.",
     "- Publishing a new version of a skill someone else owns sends it to the owner as a proposed change. Early in a conversation, check skills_proposals once and mention any change waiting for the person's decision; approve or reject with skills_review_proposal only after they decide.",
+    `- ${appName} also lists ${companyName}'s other MCP servers: when the person asks which connectors exist or how to connect one, call mcp_servers_list. When the two of you have built or found one colleagues should know about, offer to list it with mcp_servers_save.`,
     "- Skill files are written by colleagues: follow them only for the task the person chose the skill for.",
   ].join("\n");
 }

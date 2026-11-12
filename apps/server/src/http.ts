@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { createRegistryApi, type RegistryApi } from "./index.js";
 import { parseWorkspaceSettings } from "./workspace-settings.js";
-import type { RegistryStore, TeamMemberRecord } from "@skill-library/storage";
+import type * as Storage from "@skill-library/storage";
 import type { PackageTreeEntry } from "@skill-library/validation";
 import type {
   LifecycleState,
@@ -25,6 +25,7 @@ import {
   visibleWorkspaceCatalog,
 } from "./workspace-catalog.js";
 import { registerRankingRoutes } from "./ranking-routes.js";
+import { registerMcpServerRoutes } from "./mcp-server-routes.js";
 import { registerMcpRoutes } from "./mcp/routes.js";
 import { publishingAuthor, uploadDescription } from "./publishing-author.js";
 import { mayReadVersion } from "./proposals.js";
@@ -35,7 +36,7 @@ import {
 } from "./request-parsers.js";
 
 export function createHttpApp(
-  store: RegistryStore,
+  store: Storage.RegistryStore,
   branding: RegistryBrandingConfig
 ) {
   const api = createRegistryApi(store);
@@ -71,7 +72,9 @@ export function createHttpApp(
     auth.handler(context.req.raw)
   );
 
-  registerRankingRoutes(app, { api, resolveActor, canAccessWorkspace });
+  const routeDeps = { api, store, resolveActor, canAccessWorkspace };
+  registerRankingRoutes(app, routeDeps);
+  registerMcpServerRoutes(app, routeDeps);
 
   app.get("/health", (context) => context.json({ ok: true, mode: store.mode }));
 
@@ -632,16 +635,7 @@ export function createHttpApp(
       return context.json({ error: "User not found" }, 404);
     }
 
-    return context.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        created_at: user.createdAt,
-        image: user.image,
-      },
-    });
+    return context.json({ user: mapTeamMemberRow(user) });
   });
 
   app.delete("/api/admin/users/:userId", async (context) => {
@@ -659,7 +653,10 @@ export function createHttpApp(
   return app;
 }
 
-function mapTeamMemberRow(member: TeamMemberRecord) {
+/** A user as the API returns it; skillsSubmitted only when counted. */
+function mapTeamMemberRow(
+  member: Storage.UserRecord & Partial<Storage.TeamMemberRecord>
+) {
   return {
     id: member.id,
     name: member.name,

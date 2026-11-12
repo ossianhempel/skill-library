@@ -163,6 +163,7 @@ export interface DatabaseSchema {
   install_reports: InstallReportsTable;
   usage_events: UsageEventsTable;
   skill_votes: SkillVotesTable;
+  mcp_servers: McpServersTable;
   // Better Auth tables. Runtime CRUD is owned by Better Auth's native Kysely adapter;
   // these types exist so the store can create the schema cross-dialect and run typed
   // maintenance queries (orphan cleanup, user count). Column names mirror the existing
@@ -257,6 +258,22 @@ interface SkillVotesTable {
   package_id: string;
   user_id: string;
   created_at: GeneratedTimestamp;
+}
+
+interface McpServersTable {
+  id: string;
+  workspace_id: string;
+  slug: string;
+  name: string;
+  description: string;
+  url: string;
+  access: string;
+  notes: string;
+  docs_url: string | null;
+  created_by_id: string | null;
+  created_by_name: string | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
 }
 
 interface UserTable {

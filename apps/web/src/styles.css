@@ -2378,3 +2378,124 @@ p {
 .role-select {
   text-transform: capitalize;
 }
+
+/* ── MCPs tab ── */
+.mcp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-12);
+}
+
+.mcp-card {
+  display: grid;
+  gap: var(--space-10);
+  padding: var(--space-14) var(--space-18);
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.mcp-card p {
+  margin: 0;
+}
+
+.mcp-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.mcp-card-head h3 {
+  margin: 0;
+  font-size: var(--text-section);
+  font-weight: 600;
+}
+
+.mcp-card-actions {
+  display: inline-flex;
+  gap: var(--space-6);
+}
+
+.mcp-card-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-small);
+  padding: var(--space-4) var(--space-10);
+}
+
+.mcp-card-description {
+  font-size: var(--text-body);
+}
+
+.mcp-connect {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.mcp-copy-line {
+  gap: var(--space-10);
+}
+
+.mcp-copy-line code {
+  flex: 1 1 260px;
+  font-size: var(--text-small);
+}
+
+.mcp-connect-how,
+.mcp-card-notes,
+.mcp-card-meta {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.mcp-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6) var(--space-14);
+}
+
+.mcp-card-meta > span,
+.mcp-card-meta > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mcp-card-meta a {
+  color: var(--ink);
+}
+
+.mcp-form {
+  margin-bottom: var(--space-12);
+}
+
+.mcp-form .mcp-form-wide {
+  grid-column: span 2;
+}
+
+.mcp-form .mcp-form-full {
+  grid-column: 1 / -1;
+}
+
+.mcp-form-error {
+  color: var(--signal);
+  font-size: var(--text-small);
+}
+
+.mcp-panel .admin-header {
+  flex-wrap: wrap;
+}
+
+.mcp-panel .panel-title {
+  white-space: nowrap;
+}
+
+.mcp-copy-line button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+}

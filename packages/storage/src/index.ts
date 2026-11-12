@@ -17,7 +17,13 @@ import {
 import { runRegistryMigrations, runAuthMigrations } from "./migrations.js";
 import * as ranking from "./ranking-store.js";
 import type { SkillVoteInput } from "./ranking-store.js";
-import { listTeamMembers } from "./team-members.js";
+import {
+  listTeamMembers,
+  type TeamMemberRecord,
+  type UserIdentity,
+  type UserRecord,
+} from "./team-members.js";
+import * as mcp from "./mcp-servers.js";
 import { fromWorkspaceRow } from "./workspace-row.js";
 import type {
   CatalogPackageStats,
@@ -51,6 +57,12 @@ export {
   buildTediousConfig,
 } from "./kysely.js";
 export type { SkillVoteInput } from "./ranking-store.js";
+export type {
+  TeamMemberRecord,
+  UserIdentity,
+  UserRecord,
+} from "./team-members.js";
+export type { McpServerDirectory } from "./mcp-servers.js";
 export type {
   DatabaseEngine,
   DatabaseSchema,
@@ -110,6 +122,7 @@ export interface RegistryStore {
   ): Promise<WorkspaceCatalogSnapshot>;
   getRankingSignals(workspaceId: string): Promise<RankingSignals>;
   setSkillVote(input: SkillVoteInput): Promise<void>;
+  readonly mcpServers: mcp.McpServerDirectory;
 }
 
 /**
@@ -161,27 +174,6 @@ export interface VersionTransitionInput {
   toState: LifecycleState;
   actorId?: string;
   replacementVersionId?: string;
-}
-
-/** Minimal actor identity resolved from an agent token. */
-export interface UserIdentity {
-  id: string;
-  role: string;
-}
-
-/** A Better-Auth-owned user as surfaced to admin/team views. */
-export interface UserRecord {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  createdAt: string;
-  image: string | null;
-}
-
-/** A team member plus their count of submitted skill versions. */
-export interface TeamMemberRecord extends UserRecord {
-  skillsSubmitted: number;
 }
 
 const defaultDataDir = process.env.SKILL_LIBRARY_DATA_DIR ?? "/data";
@@ -286,6 +278,10 @@ export class SqlRegistryStore implements RegistryStore {
     private readonly closeDb: () => Promise<void>,
     private readonly now: Clock = systemClock
   ) {}
+
+  get mcpServers(): mcp.McpServerDirectory {
+    return new mcp.SqlMcpServerDirectory(this.kysely);
+  }
 
   async migrate(): Promise<void> {
     await runRegistryMigrations(this.kysely, this.engine);
@@ -995,6 +991,7 @@ export class MemoryRegistryStore implements RegistryStore {
   private readonly reports: InstallReport[] = [];
   private readonly usageEvents: UsageEvent[] = [];
   private readonly votes = new Set<string>();
+  readonly mcpServers = new mcp.MemoryMcpServerDirectory();
   private readonly now: Clock;
 
   constructor(config: RegistryStoreConfig = {}) {

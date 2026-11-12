@@ -24,6 +24,10 @@ The registry API is implemented in `apps/server` and uses the same `RegistryApi`
 - `POST /api/install-reports`: record CLI/MCP install or status reports.
 - `GET /api/workspaces/:workspaceId/ranking`: skill popularity (distinct colleagues who installed, upvotes, score, and whether the caller upvoted or authored each skill). The batched catalog response carries the same per-skill `ranking`.
 - `PUT /api/packages/:packageId/vote`: body `{ "voted": true | false }`. Signed-in users upvote an approved skill once, or withdraw the upvote. Authors get `403` on their own skills.
+- `GET /api/workspaces/:workspaceId/mcp-servers`: the MCP servers listed in the MCPs tab, each with `claudeCodeCommand`, `codexCommand` and whether the caller may edit it (`canEdit`). Signed-in users only.
+- `POST /api/workspaces/:workspaceId/mcp-servers`: body `{ name, description, url, access?, notes?, docsUrl?, slug? }`. Any signed-in user adds a server; `url` must be https (http only on localhost). The slug defaults to one made from the name; `409` if it is taken.
+- `PUT /api/workspaces/:workspaceId/mcp-servers/:slug`: same body; changes the entry. Only whoever added it, or a maintainer.
+- `DELETE /api/workspaces/:workspaceId/mcp-servers/:slug`: removes the entry, same rule.
 
 ## Response Policy
 

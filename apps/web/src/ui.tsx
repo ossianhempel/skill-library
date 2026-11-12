@@ -12,7 +12,7 @@ import {
   type RegistryBrandingConfig,
 } from "@skill-library/domain";
 import type { AppTab, SkillLibraryAppProps } from "./types.js";
-import { browserToken, isLocalDev } from "./lib/browser.js";
+import { browserToken, initialTab, isLocalDev } from "./lib/browser.js";
 import { createWebApiClient } from "./api/client.js";
 import { summarizeReports } from "./api/catalog.js";
 import { buildInstallAgentPrompt } from "./lib/install-prompts.js";
@@ -25,6 +25,7 @@ import { useWorkspace } from "./hooks/use-workspace.js";
 import { AppRail, AppTopbar } from "./components/app-shell.js";
 import { CatalogTab } from "./components/catalog-tab.js";
 import { LeaderboardTab } from "./components/popularity.js";
+import { McpServersTab } from "./components/mcp-servers-tab.js";
 import { OverviewTab } from "./components/overview-tab.js";
 import { PublishTab } from "./components/publish-tab.js";
 import { ReportPanel } from "./components/report-panel.js";
@@ -80,7 +81,7 @@ function SkillLibraryAppContent({
     null
   );
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<AppTab>("overview");
+  const [activeTab, setActiveTab] = useState<AppTab>(initialTab);
   const [activeToken, setActiveToken] = useState(() => authToken);
   const [filesExpanded, setFilesExpanded] = useState(false);
 
@@ -400,6 +401,15 @@ function SkillLibraryAppContent({
                 setActiveTab("catalog");
                 handleSelectSkill(packageId);
               }}
+            />
+          )}
+
+          {activeTab === "mcps" && (
+            <McpServersTab
+              registryUrl={registryUrl}
+              token={activeToken}
+              workspaceId={workspaceId}
+              onNotice={setNotice}
             />
           )}
 

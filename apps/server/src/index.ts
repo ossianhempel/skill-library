@@ -54,6 +54,8 @@ export interface RegistryApi {
     viewerId?: string
   ): Promise<WorkspaceRanking>;
   setSkillVote: RegistryStore["setSkillVote"];
+  /** MCP servers listed beside the skills; rules live in ./mcp-servers.ts. */
+  mcpServers: RegistryStore["mcpServers"];
   validate(entries: PackageTreeEntry[]): ReturnType<typeof validatePackageTree>;
   ingestArtifact(entries: PackageTreeEntry[]): Promise<IngestedArtifact>;
   createUploadedVersion(
@@ -224,6 +226,9 @@ export function createRegistryApi(store: RegistryStore): RegistryApi {
     },
     setSkillVote(input) {
       return store.setSkillVote(input);
+    },
+    get mcpServers() {
+      return store.mcpServers;
     },
     validate(entries) {
       return validatePackageTree(entries);
