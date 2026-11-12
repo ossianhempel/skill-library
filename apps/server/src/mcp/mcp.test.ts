@@ -262,6 +262,59 @@ describe("remote MCP", () => {
     await client.close();
   });
 
+  it("lets maintainers delete a skill for good, and nobody else", async () => {
+    const { app, store } = await setup();
+    const colleague = await connect(
+      app,
+      await signIn(app, store, "colleague", "user")
+    );
+    await colleague.callTool({
+      name: "skills_install",
+      arguments: { skill: "cv-tailor", client: "claude-code" },
+    });
+    await colleague.callTool({
+      name: "skills_vote",
+      arguments: { skill: "cv-tailor" },
+    });
+    const colleagueTools = (await colleague.listTools()).tools;
+    expect(colleagueTools.map((tool) => tool.name)).not.toContain(
+      "skills_delete"
+    );
+
+    const max = await connect(
+      app,
+      await signIn(app, store, "max", "maintainer")
+    );
+    const unknown = await max.callTool({
+      name: "skills_delete",
+      arguments: { skill: "CV Tailor" },
+    });
+    expect(unknown.isError).toBe(true);
+    expect(text(unknown)).toContain("cv-tailor");
+
+    const deleted = await max.callTool({
+      name: "skills_delete",
+      arguments: { skill: "cv-tailor" },
+    });
+    expect(text(deleted)).toBe("CV Tailor (`cv-tailor`) is deleted.");
+
+    const search = await colleague.callTool({
+      name: "skills_search",
+      arguments: { query: "" },
+    });
+    expect(text(search)).not.toContain("cv-tailor");
+    const db = store.kysely!;
+    for (const table of ["usage_events", "skill_votes", "artifacts"] as const) {
+      const rows = await db.selectFrom(table).selectAll().execute();
+      expect(rows, table).toHaveLength(table === "artifacts" ? 2 : 0);
+    }
+    const left = await db.selectFrom("skill_packages").select("slug").execute();
+    expect(left.map((row) => row.slug)).toEqual(["draft-only"]);
+
+    await colleague.close();
+    await max.close();
+  });
+
   it("does not let a colleague read someone else's draft by version", async () => {
     const { app, store } = await setup();
     const token = await signIn(app, store, "ada", "user");
