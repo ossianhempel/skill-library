@@ -25,6 +25,51 @@ export const FEEDBACK_KINDS = [
 ] as const;
 type Kind = (typeof FEEDBACK_KINDS)[number];
 
+/** How badly the gap hurt; the best field to sort the board by. */
+export const FEEDBACK_IMPACTS = [
+  "blocked",
+  "worked_around",
+  "friction",
+] as const;
+type Impact = (typeof FEEDBACK_IMPACTS)[number];
+
+// Filler agents send instead of a report, compared after lowercasing and
+// dropping all but letters and digits.
+const PLACEHOLDERS = new Set([
+  "",
+  "na",
+  "none",
+  "noop",
+  "null",
+  "placeholder",
+  "tbd",
+  "test",
+  "todo",
+  "undefined",
+  "xxx",
+]);
+
+export function isPlaceholder(text: string): boolean {
+  return PLACEHOLDERS.has(text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""));
+}
+
+const SECRETS: [RegExp, string][] = [
+  [/\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/g, "[token]"], // JWT
+  [/\b(bearer|basic)\s+[\w\-.~+/=]{12,}/gi, "$1 [token]"],
+  [
+    /\b(password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret|pat)(\s*[:=]\s*)["']?[^\s"',;]{6,}/gi,
+    "$1$2[redacted]",
+  ],
+  // Long runs of letters and digits, like an access token; not paths (no / or -).
+  [/\b(?=\w*\d)(?=\w*[A-Za-z])\w{32,}/g, "[secret]"],
+  [/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[email]"],
+];
+
+/** Remove what looks like a secret or an email address before the report leaves the server. */
+export function scrub(text: string): string {
+  return SECRETS.reduce((out, [pattern, to]) => out.replace(pattern, to), text);
+}
+
 export const FEEDBACK_TAG = "mcp-feedback";
 /** Reports per person per hour: a loop filing the same thing stops here. */
 export const FEEDBACK_PER_HOUR = 10;
@@ -32,6 +77,7 @@ export const FEEDBACK_PER_HOUR = 10;
 export interface FeedbackReport {
   server: string;
   kind: Kind;
+  impact?: Impact;
   title: string;
   goal: string;
   whatHappened: string;
@@ -77,6 +123,7 @@ export function azureBoards(config: {
           FEEDBACK_TAG,
           `mcp:${report.server}`,
           `kind:${report.kind}`,
+          ...(report.impact ? [`impact:${report.impact}`] : []),
         ].join("; "),
         ...(config.area ? { "System.AreaPath": config.area } : {}),
       };
@@ -118,6 +165,7 @@ function describe(report: FeedbackReport): string {
     ["Server", report.server],
     ["Tool", report.tool ?? "-"],
     ["Kind", report.kind],
+    ["Impact", report.impact ?? "-"],
     ["Reported by", report.reporter],
     ["AI client", report.client ?? "unknown"],
   ];
@@ -151,12 +199,20 @@ export function registerFeedbackTool(
   sink: FeedbackSink,
   serverId: string
 ) {
-  const prose = (what: string) => z.string().min(10).describe(what);
+  const prose = (what: string) =>
+    z
+      .string()
+      .min(10)
+      .refine((text) => !isPlaceholder(text), {
+        message:
+          "This is a placeholder. Describe what you tried and what went wrong, or skip this tool if there is nothing to report.",
+      })
+      .describe(what);
   server.registerTool(
     "skills_report_feedback",
     {
       title: "Report a problem or idea about these tools",
-      description: `Tell the people who build ${ctx.appName}'s MCP server about a problem, so it gets fixed: a tool that failed, was missing, confusing or slow, gave a wrong or useless result, or an idea that would have made your task easier. Use it on your own, without asking, whenever a tool got in your way; then tell the person in one line what you reported. It files an issue that a person reviews. Leave out personal data and anything confidential: describe the problem.`,
+      description: `Tell the people who build ${ctx.appName}'s MCP server about a problem, so it gets fixed: a tool that failed, was missing, confusing or slow, gave a wrong or useless result, or an idea that would have made your task easier. Use it on your own, without asking, whenever a tool got in your way; then tell the person in one line what you reported. At most once per task; skip it when the task went fine, and never use it to log progress or to test it. It files an issue that a person reviews. Leave out personal data and anything confidential: describe the problem.`,
       inputSchema: {
         kind: z
           .enum(FEEDBACK_KINDS)
@@ -166,6 +222,9 @@ export function registerFeedbackTool(
         title: z
           .string()
           .min(5)
+          .refine((text) => !isPlaceholder(text), {
+            message: "This is a placeholder. Name the problem in one line.",
+          })
           .describe(
             "One line naming the problem, e.g. 'skills_search can't filter by author'."
           ),
@@ -180,6 +239,12 @@ export function registerFeedbackTool(
           .string()
           .optional()
           .describe('The tool it is about, e.g. "skills_search".'),
+        impact: z
+          .enum(FEEDBACK_IMPACTS)
+          .optional()
+          .describe(
+            'Optional, but please fill it: "blocked" (you could not finish), "worked_around" (you finished another way), "friction" (you finished, but it was harder than it should be).'
+          ),
       },
       annotations: {
         readOnlyHint: false,
@@ -207,10 +272,11 @@ export function registerFeedbackTool(
         const item = await sink.file({
           server: serverId,
           kind: args.kind,
-          title: args.title.split(/\s+/).join(" "),
-          goal: args.goal,
-          whatHappened: args.what_happened,
-          proposedFix: args.proposed_fix,
+          impact: args.impact,
+          title: scrub(args.title.split(/\s+/).join(" ")),
+          goal: scrub(args.goal),
+          whatHappened: scrub(args.what_happened),
+          proposedFix: scrub(args.proposed_fix),
           tool: args.tool,
           reporter,
           client: info
