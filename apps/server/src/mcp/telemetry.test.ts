@@ -63,11 +63,11 @@ it("records initialize and tools/list, which usage reports leave out", async () 
     clientName: "Claude",
   };
   const server = new McpServer({ name: "test", version: "1.0.0" });
-  traceToolCalls(server, user);
+  traceToolCalls(server, user, "claude-code/2.1.0");
   server.registerTool("ping", { description: "Ping." }, async () => ({
     content: [{ type: "text", text: "pong" }],
   }));
-  traceListRequests(server, user);
+  traceListRequests(server, user, "claude-code/2.1.0");
 
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   await server.connect(serverSide);
@@ -83,6 +83,7 @@ it("records initialize and tools/list, which usage reports leave out", async () 
     "enduser.id": "ada@example.com",
     "mcp.client.name": "claude-ai",
     "mcp.client.version": "0.1.0",
+    "user_agent.original": "claude-code/2.1.0",
   });
   trace.disable();
 });
