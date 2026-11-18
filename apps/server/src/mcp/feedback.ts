@@ -57,7 +57,7 @@ const SECRETS: [RegExp, string][] = [
   [/\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/g, "[token]"], // JWT
   [/\b(bearer|basic)\s+[\w\-.~+/=]{12,}/gi, "$1 [token]"],
   [
-    /\b(password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret|pat)(\s*[:=]\s*)["']?[^\s"',;]{6,}/gi,
+    /\b(password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret|pat)(["']?\s*[:=]\s*["']?)[^\s"',;]{6,}/gi,
     "$1$2[redacted]",
   ],
   // Long runs of letters and digits, like an access token; not paths (no / or -).

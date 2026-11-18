@@ -152,7 +152,7 @@ describe("skills_report_feedback", () => {
       arguments: {
         ...REPORT,
         impact: "blocked",
-        what_happened: `skills_search failed with token ${pat}; asked by kim@example.com, password=hunter22x`,
+        what_happened: `skills_search failed with token ${pat}; asked by kim@example.com, password=hunter22x; called skills_install({"api_key":"abcdefghijk"})`,
       },
     });
     expect(result.isError).toBeFalsy();
@@ -164,6 +164,7 @@ describe("skills_report_feedback", () => {
     expect(description).not.toContain(pat);
     expect(description).not.toContain("kim@example.com");
     expect(description).not.toContain("hunter22x");
+    expect(description).not.toContain("abcdefghijk");
     expect(description).toContain("skills_search failed");
   });
 
