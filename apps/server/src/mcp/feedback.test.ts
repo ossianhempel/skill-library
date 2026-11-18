@@ -134,6 +134,40 @@ describe("skills_report_feedback", () => {
     expect(filed).toHaveLength(FEEDBACK_PER_HOUR);
   });
 
+  it("tags the impact, refuses placeholders and scrubs secrets before filing", async () => {
+    configure();
+    const filed = fakeBoards();
+    const client = await signedIn();
+    const placeholder = await client.callTool({
+      name: "skills_report_feedback",
+      arguments: { ...REPORT, proposed_fix: "TODO........" },
+    });
+    expect(placeholder.isError).toBe(true);
+    expect(text(placeholder)).toContain("placeholder");
+    expect(filed).toHaveLength(0);
+
+    const pat = "1234567890abcdefghij1234567890abcdefghij1234567890ab";
+    const result = await client.callTool({
+      name: "skills_report_feedback",
+      arguments: {
+        ...REPORT,
+        impact: "blocked",
+        what_happened: `skills_search failed with token ${pat}; asked by kim@example.com, password=hunter22x; called skills_install({"api_key":"abcdefghijk"})`,
+      },
+    });
+    expect(result.isError).toBeFalsy();
+    const fields = Object.fromEntries(
+      filed[0]!.patch.map((op) => [op.path, op.value])
+    );
+    expect(fields["/fields/System.Tags"]).toContain("impact:blocked");
+    const description = fields["/fields/System.Description"]!;
+    expect(description).not.toContain(pat);
+    expect(description).not.toContain("kim@example.com");
+    expect(description).not.toContain("hunter22x");
+    expect(description).not.toContain("abcdefghijk");
+    expect(description).toContain("skills_search failed");
+  });
+
   it("is not offered when feedback is not configured", async () => {
     const client = await signedIn();
     const tools = (await client.listTools()).tools.map((tool) => tool.name);
