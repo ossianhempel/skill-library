@@ -199,6 +199,9 @@ export function registerFeedbackTool(
           `You have filed ${FEEDBACK_PER_HOUR} reports in the last hour; add to one of those instead of filing more.`
         );
       }
+      // Reserve the slot before awaiting the sink, so parallel calls can't all pass the check.
+      mine.push(now);
+      recent.set(reporter, mine);
       const info = server.server.getClientVersion();
       try {
         const item = await sink.file({
@@ -214,11 +217,11 @@ export function registerFeedbackTool(
             ? `${info.name} ${info.version ?? ""}`.trim()
             : ctx.user.clientName,
         });
-        recent.set(reporter, [...mine, now]);
         return ok(
           `Filed as work item ${item.id} (${item.url}), tagged ${FEEDBACK_TAG}. A person reviews it; tell the person in one line what you reported.`
         );
       } catch (error) {
+        mine.splice(mine.indexOf(now), 1); // a report that wasn't saved doesn't count
         return fail(error instanceof Error ? error.message : String(error));
       }
     }

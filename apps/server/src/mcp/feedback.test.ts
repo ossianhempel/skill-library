@@ -45,9 +45,10 @@ afterEach(async () => {
 });
 
 /** Azure Boards stand-in: records what was filed and answers with an id. */
-function fakeBoards(status = 200) {
+function fakeBoards(status = 200, delayMs = 0) {
   const filed: { url: string; patch: { path: string; value: string }[] }[] = [];
   vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
     filed.push({ url, patch: JSON.parse(String(init.body)) });
     return new Response(JSON.stringify(status < 300 ? { id: 512 } : {}), {
       status,
@@ -118,21 +119,18 @@ describe("skills_report_feedback", () => {
     expect(text(result)).toContain("not saved");
   });
 
-  it("stops one person from flooding the board", async () => {
+  it("stops one person from flooding the board, even with parallel calls", async () => {
     configure();
-    const filed = fakeBoards();
+    const filed = fakeBoards(200, 50); // slow board: calls overlap
     const client = await signedIn();
-    for (let i = 0; i < FEEDBACK_PER_HOUR; i++)
-      await client.callTool({
-        name: "skills_report_feedback",
-        arguments: REPORT,
-      });
-    const result = await client.callTool({
-      name: "skills_report_feedback",
-      arguments: REPORT,
-    });
-    expect(result.isError).toBe(true);
-    expect(text(result)).toContain("last hour");
+    const results = await Promise.all(
+      Array.from({ length: FEEDBACK_PER_HOUR + 5 }, () =>
+        client.callTool({ name: "skills_report_feedback", arguments: REPORT })
+      )
+    );
+    const refused = results.filter((r) => r.isError);
+    expect(refused).toHaveLength(5);
+    expect(text(refused[0]!)).toContain("last hour");
     expect(filed).toHaveLength(FEEDBACK_PER_HOUR);
   });
 
