@@ -66,7 +66,7 @@ export async function startTelemetry(): Promise<void> {
 /**
  * Wraps every tool the server registers in one SERVER span per call, named and
  * attributed after the OpenTelemetry MCP semantic conventions. Arguments and
- * results are never recorded.
+ * results are never recorded, except a tool's `intent` argument.
  */
 export function traceToolCalls(
   server: McpServer,
@@ -98,6 +98,7 @@ export function traceToolCalls(
             "enduser.id": user.email || "unknown",
             ...clientAttributes(server, user, userAgent),
             ...(calledByView(args) ? { "mcp.tool.caller": "view" } : {}),
+            ...intentAttribute(args),
           },
         },
         async (span) => {
@@ -197,6 +198,18 @@ function clientAttributes(
 function calledByView(args: unknown[]): boolean {
   const extra = args.at(-1) as { _meta?: Record<string, unknown> } | undefined;
   return extra?._meta?.[VIEW_CALL_KEY] === "view";
+}
+
+/**
+ * The one argument that is recorded: `intent`, the agent's own sentence on
+ * why it called (tools that take it, e.g. skills_search). Next to the call
+ * it shows whether the tool gave the agent what it was after.
+ */
+function intentAttribute(args: unknown[]): Record<string, string> {
+  const intent = (args[0] as { intent?: unknown } | undefined)?.intent;
+  if (typeof intent !== "string") return {};
+  const text = intent.split(/\s+/).filter(Boolean).join(" ").slice(0, 300);
+  return text ? { "mcp.tool.intent": text } : {};
 }
 
 function markFailed(span: Span) {
