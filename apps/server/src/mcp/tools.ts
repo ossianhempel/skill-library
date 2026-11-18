@@ -22,6 +22,7 @@ import {
 import { fail, ok, skillLine } from "./format.js";
 import { mayReadVersion } from "../proposals.js";
 import { VIEW_TOOL_META, skillCard, withView } from "./views.js";
+import { intentArg } from "./feedback.js";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
 /** Inline install payloads stay below this; bigger skills go by download link. */
@@ -70,6 +71,7 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
         sort: z.enum(["popular", "newest", "name"]).default("popular"),
         limit: z.number().int().min(1).max(50).default(20),
         offset: z.number().int().min(0).default(0),
+        intent: intentArg,
       },
       annotations: READ_ONLY,
       _meta: VIEW_TOOL_META,
