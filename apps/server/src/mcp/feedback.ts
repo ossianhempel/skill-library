@@ -299,5 +299,5 @@ export const intentArg = z
   .string()
   .optional()
   .describe(
-    "Optional, but please fill it: one sentence on why you are calling, in the person's terms: the question they asked or the task you are doing, e.g. 'Person wants a skill that reviews SQL before a release'. Used to check that search finds what people need."
+    "Optional, but please fill it: one sentence on why you are calling: the question or task itself, e.g. 'A skill that reviews SQL before a release'. Leave out who asked: no names, no 'the user wants'. Used to check that search finds what people need."
   );

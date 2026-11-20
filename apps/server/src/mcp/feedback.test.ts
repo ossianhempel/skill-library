@@ -180,13 +180,11 @@ describe("intent", () => {
     const client = await signedIn();
     await client.callTool({
       name: "skills_search",
-      arguments: { query: "cv", intent: "Person wants  help tailoring a CV\n" },
+      arguments: { query: "cv", intent: "Help  tailoring a CV\n" },
     });
     const span = spans
       .getFinishedSpans()
       .find((s) => s.name === "tools/call skills_search");
-    expect(span?.attributes["mcp.tool.intent"]).toBe(
-      "Person wants help tailoring a CV"
-    );
+    expect(span?.attributes["mcp.tool.intent"]).toBe("Help tailoring a CV");
   });
 });
