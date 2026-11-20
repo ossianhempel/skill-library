@@ -187,4 +187,37 @@ describe("intent", () => {
       .find((s) => s.name === "tools/call skills_search");
     expect(span?.attributes["mcp.tool.intent"]).toBe("Help tailoring a CV");
   });
+
+  it("records the query and the returned skills in rank order", async () => {
+    const client = await signedIn();
+    const result = await client.callTool({
+      name: "skills_search",
+      arguments: { query: "", intent: "Every skill in the library" },
+    });
+    const shown = (result.content as { text: string }[])[0]!.text;
+    const span = spans
+      .getFinishedSpans()
+      .filter((s) => s.name === "tools/call skills_search")
+      .at(-1)!;
+    const hits = JSON.parse(
+      span.attributes["rebtech.skills.search.hits"] as string
+    ) as string[];
+    expect(hits.length).toBeGreaterThan(0);
+    expect(span.attributes["rebtech.skills.search.total"]).toBeGreaterThan(0);
+    expect(span.attributes["rebtech.skills.search.offset"]).toBe(0);
+    // Same order as the agent saw them.
+    const positions = hits.map((slug) => shown.indexOf(slug));
+    expect(positions.every((at) => at >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+
+    await client.callTool({
+      name: "skills_get",
+      arguments: { skill: hits[0] },
+    });
+    const read = spans
+      .getFinishedSpans()
+      .filter((s) => s.name === "tools/call skills_get")
+      .at(-1)!;
+    expect(read.attributes["rebtech.skills.skill"]).toBe(hits[0]);
+  });
 });
