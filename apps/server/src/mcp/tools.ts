@@ -23,6 +23,7 @@ import { fail, ok, skillLine } from "./format.js";
 import { mayReadVersion } from "../proposals.js";
 import { VIEW_TOOL_META, skillCard, withView } from "./views.js";
 import { intentArg } from "./feedback.js";
+import { noteOnSpan } from "./telemetry.js";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
 /** Inline install payloads stay below this; bigger skills go by download link. */
@@ -56,6 +57,9 @@ const versionArg = z
     "A specific version, e.g. a draft to review. Leave out for the version colleagues get."
   );
 
+/** How many returned slugs a search span keeps, top first. */
+const SEARCH_HITS_RECORDED = 10;
+
 export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
   server.registerTool(
     "skills_search",
@@ -76,11 +80,20 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
       annotations: READ_ONLY,
       _meta: VIEW_TOOL_META,
     },
-    async ({ query, sort, limit, offset }) => {
+    async ({ query, sort, limit, offset }, extra) => {
       const { entries } = await loadCatalog(ctx);
       const matches = sortSkills(matchSkills(entries, query), sort);
       const page = matches.slice(offset, offset + limit);
       const more = offset + page.length < matches.length;
+      noteOnSpan(extra, {
+        "rebtech.skills.search.query": (query ?? "").slice(0, 200),
+        "rebtech.skills.search.total": matches.length,
+        "rebtech.skills.search.offset": offset,
+        // In rank order, so evals can score what came back against intent.
+        "rebtech.skills.search.hits": JSON.stringify(
+          page.slice(0, SEARCH_HITS_RECORDED).map((entry) => entry.package.slug)
+        ),
+      });
 
       if (matches.length === 0) {
         return ok(
@@ -121,10 +134,11 @@ export function registerSkillTools(server: McpServer, ctx: McpToolContext) {
       inputSchema: { skill: skillArg, version: versionArg },
       annotations: READ_ONLY,
     },
-    async ({ skill, version: requested }) => {
+    async ({ skill, version: requested }, extra) => {
       const found = await resolve(ctx, skill, requested);
       if ("error" in found) return found.error;
       const { entry, version } = found;
+      noteOnSpan(extra, { "rebtech.skills.skill": entry.package.slug });
       const { folder, files } = await readSkillFiles(ctx, entry, version);
       await ctx.api.recordPackageView(entry.package.id);
       const skillMd = files.find((file) => file.path === "SKILL.md");

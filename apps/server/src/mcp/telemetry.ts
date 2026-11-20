@@ -66,7 +66,9 @@ export async function startTelemetry(): Promise<void> {
 /**
  * Wraps every tool the server registers in one SERVER span per call, named and
  * attributed after the OpenTelemetry MCP semantic conventions. Arguments and
- * results are never recorded, except a tool's `intent` argument.
+ * results are never recorded, except a tool's `intent` argument and what a
+ * tool notes itself with `noteOnSpan` (skills_search: query and the slugs it
+ * returned; skills_get: the slug read).
  */
 export function traceToolCalls(
   server: McpServer,
@@ -102,6 +104,8 @@ export function traceToolCalls(
           },
         },
         async (span) => {
+          const extra = args.at(-1);
+          if (extra && typeof extra === "object") spanOfCall.set(extra, span);
           try {
             const result = await callback(...args);
             if (result.isError) markFailed(span);
@@ -211,6 +215,25 @@ function intentAttribute(args: unknown[]): Record<string, string> {
   const text = intent.split(/\s+/).filter(Boolean).join(" ").slice(0, 300);
   return text ? { "mcp.tool.intent": text } : {};
 }
+
+/**
+ * Adds attributes to the current tool call's span. Tools use it for the few
+ * facts evals need next to `intent`: what was searched, what came back, what
+ * was read. Never skill content.
+ */
+export function noteOnSpan(
+  extra: object,
+  attributes: Record<string, string | number>
+) {
+  spanOfCall.get(extra)?.setAttributes(attributes);
+}
+
+/**
+ * The span of each running call, keyed by the call's `extra` argument. Kept
+ * explicitly because tool code can't rely on an active-span context manager
+ * being registered (tests and local runs have none).
+ */
+const spanOfCall = new WeakMap<object, Span>();
 
 function markFailed(span: Span) {
   span.setAttribute("error.type", "tool_error");

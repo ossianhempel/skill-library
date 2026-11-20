@@ -145,6 +145,10 @@ describe("remote MCP", () => {
       "gen_ai.tool.name": "skills_search",
       "enduser.id": "ada@example.com",
       "mcp.client.name": "Claude",
+      "rebtech.skills.search.query": "cv",
+      "rebtech.skills.search.total": 1,
+      "rebtech.skills.search.offset": 0,
+      "rebtech.skills.search.hits": '["cv-tailor"]',
     });
 
     const get = await client.callTool({
